@@ -61,7 +61,7 @@ h1,h2,h3{margin:0;text-wrap:balance;line-height:1.25}
 .pill.warn::before{background:#C99A17}
 .pill.bad{background:color-mix(in srgb,var(--danger) 14%,transparent);color:var(--danger)}
 main{flex:1;overflow-y:auto;padding:16px 16px 28px;display:flex;flex-direction:column;gap:14px;-webkit-overflow-scrolling:touch}
-.tabs{display:grid;grid-template-columns:repeat(5,1fr);border-top:1px solid var(--line);background:var(--surface);padding:6px 4px 8px}
+.tabs{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line);background:var(--surface);padding:6px 4px 8px}
 .tab{display:flex;flex-direction:column;align-items:center;gap:2px;background:none;border:0;padding:6px 2px;border-radius:12px;color:var(--muted);font-size:12px;font-weight:500}
 .tab svg{width:24px;height:24px}
 .tab[aria-current="page"]{color:var(--primary-text);font-weight:700}
@@ -181,6 +181,13 @@ label.btn{cursor:pointer}
 .dd-opt:hover{background:var(--field)}
 .dd-opt[aria-selected="true"]{background:var(--primary-soft);font-weight:600}
 .dd-opt .check{margin-left:auto;color:var(--primary-text);display:grid}
+.sec-title{font-size:20px;font-weight:900;margin:10px 4px 0}
+.menu-row{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;text-align:left;border:0;background:#F2F4FB;border-radius:14px;padding:14px 16px;font:inherit;color:inherit}
+.menu-row > span:first-child{display:flex;flex-direction:column;gap:2px}
+.menu-row .chev{font-size:22px;color:var(--muted)}
+.lisa-head{display:flex;align-items:center;gap:12px}
+.lisa-av{flex:none;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:var(--green);color:#fff;font:800 20px var(--font-en)}
+.chip.locked{background:transparent;border:1px dashed var(--line);color:var(--muted)}
 .prep-ov{position:absolute;inset:0;background:rgba(20,32,44,.45);display:flex;align-items:center;justify-content:center;padding:24px;z-index:30}
 .prep-card{background:var(--surface);color:var(--ink);border-radius:18px;padding:20px;width:100%;max-width:360px;display:flex;flex-direction:column;gap:12px;box-shadow:0 10px 40px rgba(20,32,44,.25)}
 .prep-t{font-weight:800;font-size:18px;color:var(--primary-text)}
@@ -346,10 +353,9 @@ h1,h2{color:var(--primary-text)}
   </main>
   <div id="dock" class="dock" hidden></div>
   <nav class="tabs" id="tabs" hidden>
-    <button class="tab" data-act="tab" data-v="today"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/><path d="M9 8h7M9 12h5"/></svg>每日</button>
-    <button class="tab" data-act="tab" data-v="week"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="M7.5 14h2M11 14h2M14.5 14h2M7.5 17.5h2"/></svg>本週</button>
-    <button class="tab" data-act="tab" data-v="talk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a7.5 7.5 0 0 1-11 6.6L4 20l1.4-4.5A7.5 7.5 0 1 1 20 12z"/><path d="M9 11h.01M12.5 11h.01M16 11h.01"/></svg>週日對話</button>
-    <button class="tab" data-act="tab" data-v="words"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-6-4-6 4z"/></svg>單字庫</button>
+    <button class="tab" data-act="tab" data-v="learn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>學習進度</button>
+    <button class="tab" data-act="tab" data-v="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 9.5V20h13V9.5"/><path d="M10 20v-5h4v5"/></svg>首頁</button>
+    <button class="tab" data-act="tab" data-v="words"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-6-4-6 4z"/></svg>收藏</button>
     <button class="tab" data-act="tab" data-v="prefs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>設定</button>
   </nav>
   <section id="reader" class="reader" hidden></section>
@@ -493,7 +499,7 @@ const SAMPLE = {
 const S = {
   mode:"loading", db:null, uid:null, sample:null,
   profile:null, weeks:{}, arts:{}, convs:{}, bank:{},
-  ctx:{}, view:"today", onb:{step:0, stage:0}, pick:null,
+  ctx:{}, view:"home", onb:{step:0, stage:0}, pick:null, chats:{}, chatDay:null, prefPage:null,
   busy:{}, err:{}, reader:null, sheet:null, talk:{}, wordFilter:"all", test:{}, provTest:{}, provEdit:"gemini", customTask:{}
 };
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -522,6 +528,22 @@ function weekPats(w){
   (w.review || []).forEach((pid, i) => { m["R" + (i + 1)] = PATTERNS[pid]; });
   return m;
 }
+/* What you may use in the chat with Lisa on day d (0 = Monday): everything taught up to that day.
+   On Sunday (6) everything is revealed. */
+function revealedFor(w, d){
+  const P = weekPats(w);
+  if (d >= 6) return {words:ALL6.filter(i => w.words[i]), pats:Object.keys(P)};
+  const ws = new Set(), ps = new Set();
+  for (let i = 0; i <= Math.max(0, Math.min(5, d)); i++){
+    DAY_PLAN[i].words.forEach(x => ws.add(x));
+    DAY_PLAN[i].use.forEach(u => { if (u === "R") (w.review || []).forEach((_, j) => ps.add("R" + (j + 1))); else ps.add(u); });
+  }
+  return {words:[...ws].sort((a, b) => a - b).filter(i => w.words[i]), pats:Object.keys(P).filter(k => ps.has(k))};
+}
+function chatDayFor(w){ const di = dayIdx(w); return di < 0 ? 0 : Math.min(di, 6); }
+function convFor(w, d){ return d >= 6 ? S.convs[w.n] : S.chats[w.n + "-" + d]; }
+function convKey(w, d){ return d >= 6 ? "conv-" + w.n : "chat-" + w.n + "-" + d; }
+function curChat(){ const w = curWeek(); if (!w) return {}; const d = S.chatDay == null ? chatDayFor(w) : S.chatDay; return {w, d, conv:convFor(w, d), rev:revealedFor(w, d)}; }
 function artsOf(n, d){
   return Object.values(S.arts).filter(a => a.week === n && (d == null || a.day === d)).sort((a, b) => (a.day - b.day) || (a.k - b.k));
 }
@@ -1361,35 +1383,46 @@ function practicePrompt(task, pat, answer){
     "notes_zh: at most 3 items; empty if there is nothing to fix."
   ].join("\n");
 }
-function wordList(w){ return w.words.map((x, i) => i + ": " + x.en).join(", "); }
-function patList(w){ const P = weekPats(w); return Object.keys(P).map(k => k + ": " + P[k].en).join("; "); }
+function wordList(w, rev){ return w.words.map((x, i) => [i, x]).filter(([i]) => !rev || rev.words.includes(i)).map(([i, x]) => i + ": " + x.en).join(", "); }
+function patList(w, rev){ const P = weekPats(w); return Object.keys(P).filter(k => !rev || rev.pats.includes(k)).map(k => k + ": " + P[k].en).join("; "); }
+function dailyChatPrompt(w, d, rev){
+  return [
+    "You are Lisa, a warm, friendly native English speaker and the learner's friend. You chat with an adult in Taiwan (level " + levelText() + ") every day to practise English.",
+    "This week's theme: " + w.theme_en + " (" + w.theme_zh + "). Today is day " + (d + 1) + " of the week.",
+    "Patterns they have learned so far: " + patList(w, rev),
+    "Words they have learned so far: " + wordList(w, rev),
+    "Start today's casual chat: pick a small, personal everyday topic linked to the theme where these words and patterns come up naturally.",
+    "Reply with only JSON. Chinese in Traditional Chinese (Taiwan).",
+    '{"topic_zh":"<short topic, at most 12 characters>","opening":"<your first line in English: 1-2 short sentences ending with a question>"}'
+  ].join("\n");
+}
 function scenarioPrompt(w){
   return [
     "Create a role-play for a weekly speaking practice. Learner: an adult in Taiwan, level " + levelText() + ".",
     "Week theme: " + w.theme_en + " (" + w.theme_zh + ")",
     "Patterns: " + patList(w),
     "Words: " + wordList(w),
-    "Invent an everyday situation where the learner can naturally use these patterns and words. You will play the other person.",
+    "Invent an everyday situation where the learner can naturally use these patterns and words. You will play the other person, whose name is Lisa.",
     "Reply with only JSON. Chinese in Traditional Chinese (Taiwan).",
     '{"title_zh":"<short title>","situation_zh":"<2 sentences: where we are and what is happening>","learner_role_zh":"<who the learner is>","partner_role_zh":"<who you play>","partner_name":"<a first name>","opening":"<your first line in English: 1-2 short sentences ending with a question>"}'
   ].join("\n");
 }
-function talkRules(w, sc){
+function talkRules(w, sc, rev){
   return [
     "Role-play rules. You are " + sc.partner_name + " (" + sc.partner_role_zh + "). Situation: " + sc.situation_zh + " The learner is " + sc.learner_role_zh + ".",
-    "The learner, an adult in Taiwan at level " + levelText() + ", is practising this week's English. Patterns: " + patList(w) + ". Words: " + w.words.map(x => x.en).join(", ") + ".",
+    "The learner, an adult in Taiwan at level " + levelText() + ", is practising this week's English. Patterns: " + patList(w, rev) + ". Words: " + w.words.filter((_, i) => !rev || rev.words.includes(i)).map(x => x.en).join(", ") + ".",
     "- Stay in character. Reply in 1-3 short, simple sentences, then ask something that invites the learner to use the patterns or words.",
     "- Do not correct mistakes during the chat; feedback comes at the end. If you cannot understand, ask them to say it another way.",
     "- If the learner writes Chinese, answer in simple English and gently encourage English.",
     "- Plain text only, no stage directions."
   ].join("\n");
 }
-function feedbackPrompt(w, conv){
+function feedbackPrompt(w, conv, rev){
   const tr = conv.turns.map(t => (t.role === "assistant" ? conv.scenario.partner_name : "Learner") + ": " + t.content).join("\n");
   return [
     "Review this English role-play by an adult learner in Taiwan (level " + levelText() + ").",
-    "Patterns of the week: " + patList(w),
-    "Words of the week: " + wordList(w),
+    "Patterns to practise: " + patList(w, rev),
+    "Words to practise: " + wordList(w, rev),
     "Transcript:",
     tr,
     "",
@@ -1515,8 +1548,9 @@ function render(){
   }
   dock.className = "dock";
   tabs.hidden = false;
-  tabs.querySelectorAll(".tab").forEach(t => t.setAttribute("aria-current", t.dataset.v === S.view ? "page" : "false"));
-  const fn = {today:renderToday, week:renderWeek, talk:renderTalk, words:renderWords, prefs:renderPrefs}[S.view] || renderToday;
+  const tabView = S.view === "talk" ? "home" : S.view;
+  tabs.querySelectorAll(".tab").forEach(t => t.setAttribute("aria-current", t.dataset.v === tabView ? "page" : "false"));
+  const fn = {learn:renderLearn, home:renderHome, talk:renderTalk, words:renderWords, prefs:renderPrefs}[S.view] || renderHome;
   const keepScroll = render.lastView === S.view ? main.scrollTop : 0;
   main.innerHTML = fn();
   main.scrollTop = keepScroll;
@@ -1638,7 +1672,7 @@ function articleCardHTML(w, d){
 function aiBannerHTML(){
   const miss = aiMissing();
   if (!miss.length) return "";
-  return '<button class="banner alt" data-act="tab" data-v="prefs"><span class="banner-ic" aria-hidden="true">' + ICON.key + '</span><span><b>還沒連接 AI</b><small>到設定貼上「' + miss.map(p => PROVIDERS[p].name).join("、") + '」的 API Key，才能產生文章。</small></span><span class="chev" aria-hidden="true">›</span></button>';
+  return '<button class="banner alt" data-act="pref-open" data-p="ai"><span class="banner-ic" aria-hidden="true">' + ICON.key + '</span><span><b>還沒連接 AI</b><small>到設定貼上「' + miss.map(p => PROVIDERS[p].name).join("、") + '」的 API Key，才能產生文章。</small></span><span class="chev" aria-hidden="true">›</span></button>';
 }
 function themeNeed(){
   if (!S.profile) return null;
@@ -1677,12 +1711,73 @@ function dailyHistoryHTML(){
   });
   if (!rows.length) return "";
   rows.sort((x, y) => x.date < y.date ? 1 : x.date > y.date ? -1 : ((x.a ? x.a.k : 0) - (y.a ? y.a.k : 0)));
-  return '<section class="card"><div class="label">每日文章</div><div class="stack">' + rows.map(r => {
+  return '<section class="card"><div class="label">之前的文章</div><div class="stack">' + rows.map(r => {
     const a = r.a, sub = "第 " + r.w.n + " 週 · " + esc(r.w.theme_zh || "") + " · " + DAY_PLAN[r.d].label;
     return a
       ? '<button class="day-row" data-act="open-art" data-id="' + artId(a) + '"><span class="d"><b>' + DAY_NAMES[r.d] + "</b><span>" + md(r.date) + '</span></span><span class="t"><div class="en">' + esc(a.title) + '</div><div class="sub">' + sub + '</div></span><span class="status' + (a.read ? " read" : "") + '">' + (a.read ? "讀完了" : "未讀完") + "</span></button>"
       : '<button class="day-row" data-act="gen" data-n="' + r.w.n + '" data-d="' + r.d + '" data-k="0"><span class="d"><b>' + DAY_NAMES[r.d] + "</b><span>" + md(r.date) + '</span></span><span class="t"><div class="en">' + GENRE[genreFor(r.d, 0)] + '</div><div class="sub">' + sub + '</div></span><span class="status">' + (S.busy["gen-" + r.w.n + "-" + r.d] ? "產生中" : "點一下產生") + "</span></button>";
   }).join("") + "</div></section>";
+}
+function secTitle(t){ return '<h2 class="sec-title">' + t + "</h2>"; }
+/* 首頁: tracker, Lisa, my city */
+function renderHome(){
+  const need = themeNeed(), w = curWeek();
+  let html = aiBannerHTML() + bannerHTML(need) + backupNagHTML();
+  if (!w) html += previewHTML(need);
+  else {
+    html += heroHTML(w);
+    if (dayIdx(w) < 0) html += '<section class="card"><div class="label">準備好了</div><h2>' + md(w.monday) + "（週一）正式開始第 " + w.n + " 週</h2>" +
+      '<p class="muted" style="margin:0">不用等，今天就可以到「學習進度」先讀第一篇。</p></section>';
+  }
+  return html + lisaCardHTML(w) + cityCardHTML();
+}
+function chatChecklistHTML(w, conv, d){
+  const rev = revealedFor(w, d), P = weekPats(w);
+  const mine = conv ? conv.turns.filter(t => t.role === "user").map(t => t.content).join("\n").replace(/’/g, "'") : "";
+  const hidW = w.words.length - rev.words.length, hidP = Object.keys(P).length - rev.pats.length;
+  return '<div class="stack"><div class="row wrap">' + rev.pats.map(k => {
+    let used = false; try { used = !!mine && new RegExp(P[k].re, "i").test(mine); } catch (e) {}
+    return '<span class="chip pat' + (used ? " done" : "") + '">' + k + " · " + esc(P[k].en) + "</span>";
+  }).join("") + '</div><div class="row wrap">' + rev.words.map(i => {
+    const used = !!mine && wordUsed(mine, w.words[i].en);
+    return '<button class="chip word' + (used ? " done" : "") + '" data-act="week-word" data-n="' + w.n + '" data-i="' + i + '">' + esc(w.words[i].en) + "</button>";
+  }).join("") + (hidW + hidP ? '<span class="chip locked">還有 ' + (hidW ? hidW + " 個單字" : "") + (hidW && hidP ? "、" : "") + (hidP ? hidP + " 個句型" : "") + "之後揭開</span>" : "") + "</div></div>";
+}
+function lisaHead(sub){
+  return '<div class="lisa-head"><span class="lisa-av" aria-hidden="true">L</span><div><b>與 Lisa 對話</b><div class="small muted">' + sub + "</div></div></div>";
+}
+function lisaCardHTML(w){
+  if (!w) return '<section class="card">' + lisaHead("你的英文朋友") + '<p class="muted" style="margin:0">選好主題、開始第 1 週後，就能每天跟 Lisa 用英文聊天。</p></section>';
+  const d = chatDayFor(w), conv = convFor(w, d), late = dayIdx(w) > 6;
+  const sub = d >= 6 ? (late ? "第 " + w.n + " 週的總複習還沒做" : "今天是週日總複習") : DAY_NAMES[d] + "的聊天";
+  const intro = d >= 6 ? "這週的單字和句型全部揭開了，聊完會有回饋和金幣。" : "用到今天為止揭開的單字和句型，跟 Lisa 聊聊。每天會再揭開新的，週日全部用上。";
+  return '<section class="card">' + lisaHead(sub) + '<p class="muted" style="margin:0">' + intro + "</p>" + chatChecklistHTML(w, conv, d) +
+    '<button class="btn green block" data-act="open-chat">' + (conv && conv.done ? "看回饋" : conv ? "繼續聊" : "開始聊天") + "</button></section>";
+}
+function cityCardHTML(){
+  return '<section class="card"><div class="row between" style="align-items:center"><div><div class="label">我的城市</div><h2 style="margin:0">即將開放</h2></div>' +
+    '<span class="coins"><img class="coin-icon" src="' + COIN_IMG + '" alt=""><b>' + wallet().balance.toLocaleString() + "</b></span></div>" +
+    '<p class="muted" style="margin:0">之後可以用學習賺到的金幣，蓋出屬於你的城市。</p></section>';
+}
+/* 學習進度: course progress, daily articles, what this week teaches */
+function renderLearn(){
+  const w = curWeek();
+  if (!w){ const need = themeNeed(); return bannerHTML(need) + (need ? previewHTML(need) : ""); }
+  const di = dayIdx(w), P = weekPats(w), ps = progressStats();
+  const pos = Math.min((w.n - 1) + S.profile.startPair + 1, PAIRS);
+  let html = secTitle("課程進度");
+  html += '<section class="card"><div class="row between"><div class="label">句型課程</div><span class="small muted">第 ' + pos + " / " + PAIRS + ' 組句型</span></div><div class="progress"><span style="width:' + Math.round(pos / PAIRS * 100) + '%"></span></div><div class="small muted">' + STAGES.map((st, i) => (i === stageOf(w.patterns[0]) ? "<b>" + st.name + "</b>" : st.name)).join(" → ") + "</div>" +
+    '<div class="stats"><div><b>' + ps.streak + '</b><span>連續天數</span></div><div><b>' + ps.weeksDone + '</b><span>完成週數</span></div><div><b>' + ps.articlesRead + '</b><span>讀完篇數</span></div><div><b>' + ps.savedWords + '</b><span>收藏單字</span></div></div></section>';
+  html += secTitle("每日的文章");
+  if (di <= 5) html += articleCardHTML(w, Math.max(0, di));
+  else html += '<section class="card"><div class="label">今天是週日</div><p class="muted" style="margin:0">今天沒有新文章，到首頁跟 Lisa 做這週的總複習。</p><button class="btn soft block" data-act="open-chat">跟 Lisa 總複習</button></section>';
+  html += dailyHistoryHTML();
+  html += secTitle("本週習得");
+  html += '<section class="card"><div class="label">單字</div><div>' + w.words.map((x, i) =>
+    '<button class="word-row" data-act="week-word" data-n="' + w.n + '" data-i="' + i + '"><span class="w-main"><span class="w-en">' + esc(x.en) + '</span><span class="w-ipa">' + esc(x.ipa) + '</span><div class="w-zh">' + esc(x.zh) + '</div></span><span class="icon-btn" data-act="say" data-text="' + esc(x.en) + '" role="button" aria-label="朗讀 ' + esc(x.en) + '">' + ICON.speaker + "</span></button>").join("") + "</div></section>";
+  html += '<section class="card"><div class="label">句型</div>' + patternCardHTML("A", P.A) + patternCardHTML("B", P.B) +
+    (w.review && w.review.length ? '<div class="label" style="margin-top:4px">複習句型（上週總複習沒用好的）</div>' + w.review.map((pid, i) => patternCardHTML("R" + (i + 1), PATTERNS[pid])).join("") : "") + "</section>";
+  return html;
 }
 function renderToday(){ return renderTodayTop() + dailyHistoryHTML(); }
 function renderTodayTop(){
@@ -1778,13 +1873,14 @@ function checklistHTML(w, conv){
     return '<button class="chip word' + (used ? " done" : "") + '" data-act="week-word" data-n="' + w.n + '" data-i="' + i + '">' + esc(x.en) + "</button>";
   }).join("") + "</div></div>";
 }
-function feedbackHTML(w, conv){
+function feedbackHTML(w, conv, d){
   const f = conv.feedback; if (!f) return "";
+  const rev = revealedFor(w, d == null ? 6 : d);
   const score = Math.max(1, Math.min(5, Number(f.score) || 3));
   const usedW = (f.words_used || []).map(Number).filter(i => w.words[i]);
-  const missW = w.words.map((_, i) => i).filter(i => !usedW.includes(i));
+  const missW = rev.words.filter(i => !usedW.includes(i));
   const P = weekPats(w);
-  return '<section class="card"><div class="row between"><div class="label">這週的回饋</div><div class="score" aria-label="' + score + ' 分（滿分 5）">' + [1,2,3,4,5].map(i => '<i class="' + (i <= score ? "on" : "") + '"></i>').join("") + "</div></div>" +
+  return '<section class="card"><div class="row between"><div class="label">' + (d != null && d < 6 ? "今天的回饋" : "這週的回饋") + '</div><div class="score" aria-label="' + score + ' 分（滿分 5）">' + [1,2,3,4,5].map(i => '<i class="' + (i <= score ? "on" : "") + '"></i>').join("") + "</div></div>" +
     '<p style="margin:0">' + esc(f.summary_zh) + "</p>" +
     '<div class="stack"><div class="small"><b>用到的單字</b></div><div class="row wrap">' + (usedW.length ? usedW.map(i => '<span class="chip done">' + esc(w.words[i].en) + "</span>").join("") : '<span class="muted small">這次還沒用到</span>') + "</div>" +
     (missW.length ? '<div class="small"><b>下次試著用</b></div><div class="row wrap">' + missW.map(i => '<button class="chip word" data-act="week-word" data-n="' + w.n + '" data-i="' + i + '">' + esc(w.words[i].en) + "</button>").join("") + "</div>" : "") + "</div>" +
@@ -1793,49 +1889,42 @@ function feedbackHTML(w, conv){
     (f.try_next_zh ? '<div class="note">' + esc(f.try_next_zh) + "</div>" : "") + "</section>";
 }
 function renderTalk(){
-  const w = curWeek();
-  if (!w) return bannerHTML(themeNeed()) + '<section class="card"><div class="label">週日對話</div><p class="muted" style="margin:0">選好主題、開始第 1 週後，每週日會在這裡開放情境對話。</p></section>';
-  const di = dayIdx(w), conv = S.convs[w.n];
-  let html = "";
-  if (di < 0){
-    const prev = S.weeks[w.n - 1], pc = prev && S.convs[prev.n];
-    html += '<section class="card"><div class="label">下一次對話</div><h2>' + md(addDays(w.monday, 6)) + "（週日）</h2><p class=\"muted\" style=\"margin:0\">第 " + w.n + " 週從 " + md(w.monday) + " 開始。</p></section>";
-    if (pc && pc.feedback) html += feedbackHTML(prev, pc);
-    return html;
-  }
-  if (!conv && di < 6){
-    const prev = S.weeks[w.n - 1], pc = prev && S.convs[prev.n];
-    html += '<section class="card"><div class="label">週日開放</div><h2>還有 ' + (6 - di) + " 天</h2>" +
-      '<p class="muted" style="margin:0">週日 AI 會給你一個生活情境，扮演裡面的角色跟你聊天。先把下面這些練熟，對話時盡量用上。</p>' + checklistHTML(w, null) + "</section>";
-    if (pc && pc.feedback) html += '<div class="label" style="margin:4px 4px 0">上週回饋</div>' + feedbackHTML(prev, pc);
-    return html;
-  }
+  const back = '<div class="row"><button class="btn ghost sm" data-act="tab" data-v="home">' + ICON.back.replace("<svg", '<svg width="16" height="16"') + "首頁</button></div>";
+  const {w, d, conv} = curChat();
+  if (!w) return back + lisaCardHTML(null);
+  let html = back;
   if (!conv){
-    html += '<section class="card"><div class="label">第 ' + w.n + " 週 · 週日對話</div><h2>用這週學的東西聊聊天</h2>" +
-      '<p class="muted" style="margin:0">AI 會依照主題「' + esc(w.theme_zh) + '」設計一個情境。對話中不會打斷你改錯，結束後一次給你回饋。打字或用手機鍵盤的麥克風說英文都可以。</p>' +
-      checklistHTML(w, null) +
+    html += '<section class="card">' + lisaHead(d >= 6 ? "第 " + w.n + " 週 · 週日總複習" : "第 " + w.n + " 週 · " + DAY_NAMES[d]) +
+      '<p class="muted" style="margin:0">' + (d >= 6
+        ? "Lisa 會依照主題「" + esc(w.theme_zh) + "」設計一個情境。這週的單字和句型全部揭開了，盡量都用上。結束後一次給你回饋。"
+        : "Lisa 會找一個跟「" + esc(w.theme_zh) + "」有關的小話題跟你聊。試著用上下面已經揭開的單字和句型，聊完會有回饋。") +
+      "打字或用手機鍵盤的麥克風說英文都可以。</p>" + chatChecklistHTML(w, null, d) +
       (S.err.talk ? '<div class="err">' + esc(S.err.talk) + "</div>" : "") +
-      '<button class="btn green block" data-act="talk-start"' + (S.busy.talk ? " disabled" : "") + ">" + (S.busy.talk ? '<span class="spinner"></span>正在設計情境…' : "開始對話") + "</button></section>";
+      '<button class="btn green block" data-act="talk-start"' + (S.busy.talk ? " disabled" : "") + ">" + (S.busy.talk ? '<span class="spinner"></span>Lisa 在想話題…' : "開始聊天") + "</button></section>";
     return html;
   }
   const sc = conv.scenario;
-  html += '<section class="card"><div class="label">情境 · ' + esc(sc.title_zh) + '</div><p style="margin:0">' + esc(sc.situation_zh) + '</p><div class="small muted">你是：' + esc(sc.learner_role_zh) + "　對方：" + esc(sc.partner_name) + "（" + esc(sc.partner_role_zh) + "）</div>" + checklistHTML(w, conv) + "</section>";
+  html += '<section class="card">' + lisaHead((d >= 6 ? "週日總複習 · " : DAY_NAMES[d] + " · ") + esc(sc.title_zh)) +
+    (d >= 6 ? '<p style="margin:0">' + esc(sc.situation_zh) + '</p><div class="small muted">你是：' + esc(sc.learner_role_zh) + "　Lisa：" + esc(sc.partner_role_zh) + "</div>" : "") +
+    chatChecklistHTML(w, conv, d) + "</section>";
   html += '<div class="chat">' + conv.turns.map((t, i) => t.role === "assistant"
-    ? '<div class="bubble them"><div class="who"><span>' + esc(sc.partner_name) + '</span><button data-act="say-turn" data-i="' + i + '" aria-label="朗讀">' + ICON.speaker + "</button></div>" + esc(t.content) + "</div>"
+    ? '<div class="bubble them"><div class="who"><span>Lisa</span><button data-act="say-turn" data-i="' + i + '" aria-label="朗讀">' + ICON.speaker + "</button></div>" + esc(t.content) + "</div>"
     : '<div class="bubble me">' + esc(t.content) + "</div>").join("") +
-    (S.busy.reply ? '<div class="bubble them" id="live-bubble"><div class="who"><span>' + esc(sc.partner_name) + "</span></div>" + '<span id="live-text">' + (S.talk.live ? esc(S.talk.live) : "…") + "</span></div>" : "") + "</div>";
+    (S.busy.reply ? '<div class="bubble them" id="live-bubble"><div class="who"><span>Lisa</span></div>' + '<span id="live-text">' + (S.talk.live ? esc(S.talk.live) : "…") + "</span></div>" : "") + "</div>";
   if (S.err.talk) html += '<div class="err">' + esc(S.err.talk) + "</div>";
   if (conv.done){
-    html += feedbackHTML(w, conv) + weekBackupCardHTML(conv);
-    if (S.profile.currentWeek === w.n) html += '<button class="btn block" data-act="open-theme">選第 ' + (w.n + 1) + " 週的主題</button>";
-    return html;
+    html += feedbackHTML(w, conv, d);
+    if (d >= 6){
+      html += weekBackupCardHTML(conv);
+      if (S.profile.currentWeek === w.n) html += '<button class="btn block" data-act="open-theme">選第 ' + (w.n + 1) + " 週的主題</button>";
+    }
   }
   return html;
 }
 
 function dockHTML(){
   if (!S.profile || S.view !== "talk") return "";
-  const w = curWeek(), conv = w && S.convs[w.n];
+  const conv = curChat().conv;
   if (!conv || conv.done) return "";
   const mineCount = conv.turns.filter(t => t.role === "user").length;
   return '<div class="row"><textarea class="input" id="talk-input" rows="1" placeholder="用英文回答…（也可以用鍵盤的麥克風說）" aria-label="你的回答">' + esc(S.talk.draft || "") + '</textarea><button class="btn" data-act="talk-send"' + (S.busy.reply || S.busy.fb ? " disabled" : "") + ">送出</button></div>" +
@@ -1909,14 +1998,27 @@ function fillAudioUsage(){
   AudioDB.usage().then(u => { const el = $("#audio-usage"); if (el) el.textContent = "已存的聲音：" + u.count + " 個・" + (u.bytes / 1048576).toFixed(1) + " MB（上限 " + Math.round(AUDIO_LIMIT / 1048576) + " MB）"; });
 }
 function renderPrefs(){
+  const items = [
+    ["ai", "AI 模型", PROVIDERS[aiState().provider].name + " · " + (aiState().model || "未選模型")],
+    ["voice", "朗讀", (set().pocketVoice || {}).wavName ? "你上傳的聲音" : "預設聲音" + (set().voiceSource === "pc" ? "・句子用電腦" : "")],
+    ["read", "閱讀", (LENGTHS[set().length] || LENGTHS.mid).label + "篇幅・" + TIERS[tierIdx()].name],
+    ["data", "資料", "匯出、匯入進度和金幣紀錄"]
+  ];
+  if (!S.prefPage) return '<section class="card"><h2 style="font-size:20px">設定</h2><div class="stack">' + items.map(([k, t, sub]) =>
+    '<button class="menu-row" data-act="pref-open" data-p="' + k + '"><span><b>' + t + '</b><span class="small muted">' + esc(sub) + '</span></span><span class="chev" aria-hidden="true">›</span></button>').join("") + "</div></section>";
+  const parts = prefsParts();
+  return '<div class="row"><button class="btn ghost sm" data-act="pref-back">' + ICON.back.replace("<svg", '<svg width="16" height="16"') + "設定</button></div>" + (parts[S.prefPage] || "");
+}
+function prefsParts(){
   setTimeout(fillAudioUsage, 0);
   const st = set();
-  let html = aiCardHTML();
+  const parts = {ai:aiCardHTML()};
+  let html = "";
   const voices = TTS.voices;
   const pv = st.pcVoice || {}, pc = st.voiceSource === "pc";
   const pkv = st.pocketVoice || {};
   const spk = ICON.speaker.replace("<svg", '<svg width="18" height="18"');
-  html += '<section class="card"><h2 style="font-size:20px">朗讀</h2>' +
+  parts.voice = '<section class="card"><h2 style="font-size:20px">朗讀</h2>' +
     '<div class="field"><label>聲音</label>' +
       (pkv.wavName
         ? '<div class="row between" style="align-items:center"><span class="small">用你上傳的：' + esc(pkv.wavName) + '</span><button class="btn ghost sm" data-act="pocket-wav-clear">改回預設</button></div>'
@@ -1943,14 +2045,14 @@ function renderPrefs(){
       (TTS.ok ? "" : '<div class="err">這個瀏覽器不支援內建朗讀。</div>') + "</div></details></section>";
 
   const seg = (key, opts) => '<div class="seg" role="group">' + opts.map(o => '<button data-act="setting" data-key="' + key + '" data-val="' + o[0] + '" aria-pressed="' + (st[key] === o[0]) + '">' + o[1] + "</button>").join("") + "</div>";
-  html += '<section class="card"><h2 style="font-size:20px">閱讀</h2>' +
+  parts.read = '<section class="card"><h2 style="font-size:20px">閱讀</h2>' +
     '<div class="field"><label>文章長度</label>' + seg("length", [["short","短・2 分鐘"],["mid","中・3 分鐘"],["long","長・5 分鐘"]]) + "</div>" +
     '<div class="field"><label>文章類型</label>' + seg("genre", [["alt","輪流"],["story","只要情感"],["know","只要知識"]]) + "</div>" +
     '<div class="field"><label>字體大小</label>' + seg("font", [["s","小"],["m","中"],["l","大"]]) + "</div>" +
     '<div class="field"><label>難度（排位）</label><div class="seg tiers" role="group">' + TIERS.map((t, i) => '<button data-act="set-tier" data-i="' + i + '" aria-pressed="' + (tierIdx() === i) + '">' + t.name + "</button>").join("") + '</div><div class="small muted">' + TIERS[tierIdx()].desc + "。只影響之後產生的文章和對話。</div></div></section>";
 
   const w = curWeek(), ps = progressStats();
-  html += '<section class="card"><h2 style="font-size:20px">資料</h2>' +
+  parts.data = '<section class="card"><h2 style="font-size:20px">資料</h2>' +
     '<p class="muted small" style="margin:0">' + (S.mode === "local" ? "進度存在這個瀏覽器裡。換手機前先匯出進度檔，到新手機打開 App 後再匯入，就能接著學。" : "這個瀏覽器不能儲存資料，關掉頁面後進度會消失。請匯出進度檔保存。") + "</p>" +
     '<div class="stats"><div><b>' + (w ? w.n : 0) + '</b><span>目前週數</span></div><div><b>' + ps.weeksDone + '</b><span>完成週數</span></div><div><b>' + ps.articlesRead + '</b><span>讀完篇數</span></div><div><b>' + ps.streak + '</b><span>連續天數</span></div></div>' +
     '<div class="small">上次匯出：<b>' + lastExportText() + "</b></div>" + ledgerHTML() +
@@ -1958,7 +2060,7 @@ function renderPrefs(){
       '<label class="btn soft" for="import-file">匯入進度檔</label><input type="file" id="import-file" accept="application/json,.json,text/plain,.txt" hidden></div>' +
     '<p class="muted small" style="margin:0">進度檔包含每週主題、句型、單字、每天的文章和造句、週日對話回饋、收藏的單字和學習紀錄，不包含 API Key。匯入會取代這支手機目前的進度。</p>' +
     '<div class="divider"></div><div class="row"><button class="btn danger" data-act="reset">全部重來</button></div></section>';
-  return html;
+  return parts;
 }
 
 /* ---------- reader ---------- */
@@ -2224,7 +2326,7 @@ function finishOnboarding(){
   prof.settings.ai = clone(S.onb.ai || defaultAi());
   S.profile = prof;
   Store.set("profile", prof).catch(() => {});
-  go("today");
+  go("home");
 }
 async function startWeek(){
   const need = themeNeed();
@@ -2251,7 +2353,7 @@ async function startWeek(){
       w.status = "done"; Store.set("week-" + w.n, w).catch(() => {});
     }
     S.pick = null; S.busy.week = false;
-    closeSheet(); toast("第 " + need.n + " 週準備好了"); go("today");
+    closeSheet(); toast("第 " + need.n + " 週準備好了"); go("home");
   } catch (e) {
     S.busy.week = false; S.err.week = aiErr(e);
     if (S.sheet && S.sheet.kind === "theme") drawSheet(); else toast(S.err.week);
@@ -2320,30 +2422,38 @@ async function checkPractice(){
   S.busy.practice = false; drawReader(false);
 }
 async function startTalk(){
-  const w = curWeek(); if (!w || S.busy.talk) return;
+  const {w, d, rev} = curChat(); if (!w || S.busy.talk) return;
   S.busy.talk = true; S.err.talk = ""; render();
   try {
-    const sc = await aiJson("talk", scenarioPrompt(w), {cache:false});
-    if (!sc || !sc.opening) throw {code:"invalid_json"};
-    const scenario = {};
-    ["title_zh","situation_zh","learner_role_zh","partner_role_zh","partner_name","opening"].forEach(k => { scenario[k] = String(sc[k] || ""); });
-    if (!scenario.partner_name) scenario.partner_name = "Alex";
-    const conv = {kind:"conv", week:w.n, scenario, turns:[{role:"assistant", content:scenario.opening}], feedback:null, done:false, createdAt:Date.now()};
-    S.convs[w.n] = conv;
-    await Store.set("conv-" + w.n, conv).catch(() => {});
+    let scenario;
+    if (d >= 6){
+      const sc = await aiJson("talk", scenarioPrompt(w), {cache:false});
+      if (!sc || !sc.opening) throw {code:"invalid_json"};
+      scenario = {};
+      ["title_zh","situation_zh","learner_role_zh","partner_role_zh","partner_name","opening"].forEach(k => { scenario[k] = String(sc[k] || ""); });
+      scenario.partner_name = "Lisa";
+    } else {
+      const sc = await aiJson("talk", dailyChatPrompt(w, d, rev), {cache:false});
+      if (!sc || !sc.opening) throw {code:"invalid_json"};
+      scenario = {title_zh:String(sc.topic_zh || "今天的聊天"), situation_zh:"Lisa and the learner are friends having a casual everyday chat about " + w.theme_en + ".",
+        learner_role_zh:"你自己", partner_role_zh:"你的英文朋友", partner_name:"Lisa", opening:String(sc.opening)};
+    }
+    const conv = {kind:d >= 6 ? "conv" : "chat", week:w.n, day:d, scenario, turns:[{role:"assistant", content:scenario.opening}], feedback:null, done:false, createdAt:Date.now()};
+    if (d >= 6) S.convs[w.n] = conv; else S.chats[w.n + "-" + d] = conv;
+    await Store.set(convKey(w, d), conv).catch(() => {});
     S.talk.scrollDown = true;
   } catch (e) { S.err.talk = aiErr(e); }
   S.busy.talk = false; render();
 }
 async function sendTalk(){
-  const w = curWeek(), conv = w && S.convs[w.n];
+  const {w, d, conv, rev} = curChat();
   const box = $("#talk-input"); if (!conv || !box) return;
   const msg = box.value.trim(); if (!msg) return;
   if (S.busy.reply) return;
   conv.turns.push({role:"user", content:msg});
   box.value = ""; S.talk.draft = "";
   S.busy.reply = true; S.err.talk = ""; S.talk.live = ""; S.talk.scrollDown = true; render();
-  const turns = [{role:"user", content:talkRules(w, conv.scenario)}].concat(conv.turns.slice(-30));
+  const turns = [{role:"user", content:talkRules(w, conv.scenario, rev)}].concat(conv.turns.slice(-30));
   let pending = false;
   try {
     const res = await ai("talk", turns, {cache:false, onText: ({text}) => {
@@ -2355,23 +2465,20 @@ async function sendTalk(){
     S.err.talk = aiErr(e);
   }
   S.busy.reply = false; S.talk.live = ""; S.talk.scrollDown = true;
-  Store.set("conv-" + w.n, conv).catch(() => {});
+  Store.set(convKey(w, d), conv).catch(() => {});
   render();
   const nb = $("#talk-input"); if (nb) nb.focus();
 }
 async function endTalk(){
-  const w = curWeek(), conv = w && S.convs[w.n];
+  const {w, d, conv, rev} = curChat();
   if (!conv || S.busy.fb) return;
   const mine = conv.turns.filter(t => t.role === "user").length;
   if (mine < 4 && !(await confirmBox("現在就結束？", "目前只聊了 " + mine + " 句，回饋會比較少。確定要結束嗎？", "結束，看回饋"))) return;
   S.busy.fb = true; S.err.talk = ""; render();
   try {
-    const f = await aiJson("review", feedbackPrompt(w, conv), {cache:false});
+    const f = await aiJson("review", feedbackPrompt(w, conv, rev), {cache:false});
     const P = weekPats(w);
-    const weakLabels = Array.isArray(f.patterns_weak) ? f.patterns_weak.map(String).filter(k => P[k]) : [];
-    const map = {A:w.patterns[0], B:w.patterns[1]};
-    (w.review || []).forEach((pid, i) => { map["R" + (i + 1)] = pid; });
-    conv.weakPids = [...new Set(weakLabels.map(k => map[k]).filter(x => x != null))].slice(0, 2);
+    const weakLabels = Array.isArray(f.patterns_weak) ? f.patterns_weak.map(String).filter(k => P[k] && rev.pats.includes(k)) : [];
     conv.feedback = {
       score:Number(f.score) || 3, summary_zh:String(f.summary_zh || ""),
       words_used:Array.isArray(f.words_used) ? f.words_used.map(Number) : [],
@@ -2381,11 +2488,21 @@ async function endTalk(){
       try_next_zh:String(f.try_next_zh || "")
     };
     conv.done = true; conv.doneAt = Date.now();
-    w.completedAt = conv.doneAt; Store.set("week-" + w.n, w).catch(() => {});
     logActivity("talk");
-    await Store.set("conv-" + w.n, conv).catch(() => {});
-    earn(Math.min(50, Math.max(1, Math.min(5, conv.feedback.score)) * 10), "第 " + w.n + " 週對話（" + conv.feedback.score + " 分）");
-    checkStreakBonus(); checkWeekBonus(w);
+    const score = Math.max(1, Math.min(5, conv.feedback.score));
+    if (d >= 6){
+      const map = {A:w.patterns[0], B:w.patterns[1]};
+      (w.review || []).forEach((pid, i) => { map["R" + (i + 1)] = pid; });
+      conv.weakPids = [...new Set(weakLabels.map(k => map[k]).filter(x => x != null))].slice(0, 2);
+      w.completedAt = conv.doneAt; Store.set("week-" + w.n, w).catch(() => {});
+      await Store.set(convKey(w, d), conv).catch(() => {});
+      earn(Math.min(50, score * 10), "第 " + w.n + " 週總複習（" + conv.feedback.score + " 分）");
+      checkStreakBonus(); checkWeekBonus(w);
+    } else {
+      await Store.set(convKey(w, d), conv).catch(() => {});
+      earn(score * 4, DAY_NAMES[d] + "跟 Lisa 聊天（" + conv.feedback.score + " 分）");
+      checkStreakBonus();
+    }
   } catch (e) { S.err.talk = aiErr(e); }
   S.busy.fb = false; render();
 }
@@ -2443,13 +2560,13 @@ function sayPara(btn){
 async function resetAll(){
   if (!(await confirmBox("全部重來？", "所有週次、文章、對話和收藏的單字都會刪除，無法復原。", "刪除並重來", true))) return;
   try {
-    for (const kind of ["art","conv","week","word","log","wallet"]){
+    for (const kind of ["art","conv","chat","week","word","log","wallet"]){
       const docs = await Store.list(kind);
       for (const d of docs) await Store.del(d._id);
     }
     await Store.del("profile");
   } catch (e) { toast("刪除時出了問題，請再試一次。"); return; }
-  S.profile = null; S.weeks = {}; S.arts = {}; S.convs = {}; S.bank = {}; S.log = {kind:"log", days:{}}; S.wallet = newWallet(); S.onb = {step:0, stage:0}; S.pick = null;
+  S.profile = null; S.weeks = {}; S.arts = {}; S.convs = {}; S.chats = {}; S.bank = {}; S.log = {kind:"log", days:{}}; S.wallet = newWallet(); S.onb = {step:0, stage:0}; S.pick = null;
   render();
 }
 async function testProvider(p){
@@ -2555,7 +2672,7 @@ function progressStats(){
   };
 }
 function buildProgressFile(){
-  const weeks = Object.values(S.weeks).sort((a, b) => a.n - b.n).map(w => Object.assign(clone(w), {conversation:S.convs[w.n] ? clone(S.convs[w.n]) : null}));
+  const weeks = Object.values(S.weeks).sort((a, b) => a.n - b.n).map(w => Object.assign(clone(w), {conversation:S.convs[w.n] ? clone(S.convs[w.n]) : null, chats:Object.values(S.chats).filter(c => c.week === w.n).map(clone)}));
   const groups = {};
   Object.values(S.arts).forEach(a => {
     const w = S.weeks[a.week], key = a.week + "-" + a.day;
@@ -2614,11 +2731,11 @@ async function shareProgress(){
 function readProgressFile(d){
   if (d && d.format === FILE_FORMAT){
     if ((Number(d.version) || 1) > FILE_VERSION) throw "這個進度檔是用比較新版的 App 匯出的，請先更新 App 再匯入。";
-    const weeks = [], convs = [], arts = [];
-    (d.weeks || []).forEach(w => { const c = w.conversation; const ww = Object.assign({}, w); delete ww.conversation; weeks.push(ww); if (c) convs.push(c); });
+    const weeks = [], convs = [], arts = [], chats = [];
+    (d.weeks || []).forEach(w => { const c = w.conversation; const ww = Object.assign({}, w); delete ww.conversation; delete ww.chats; weeks.push(ww); if (c) convs.push(c); (w.chats || []).forEach(x => chats.push(x)); });
     (d.daily || []).forEach(g => (g.articles || []).forEach(a => arts.push(a)));
     const words = (d.savedWords || []).map(x => { const y = Object.assign({}, x); const id = y.id || slug(y.en || "w"); delete y.id; return [id, y]; });
-    return {profile:d.profile, weeks, convs, arts, words, log:d.log, wallet:d.wallet, exportedAt:d.exportedAt};
+    return {profile:d.profile, weeks, convs, chats, arts, words, log:d.log, wallet:d.wallet, exportedAt:d.exportedAt};
   }
   if (d && d.profile && d.weeks && !d.format){
     return {profile:d.profile, weeks:Object.values(d.weeks), convs:Object.values(d.conversations || {}), arts:Object.values(d.articles || {}), words:Object.entries(d.savedWords || {}), log:null, exportedAt:d.exportedAt};
@@ -2640,19 +2757,20 @@ async function importProgress(file){
   ].join("・") + (when && !isNaN(when) ? "（" + (when.getMonth() + 1) + "/" + when.getDate() + " 匯出）" : "");
   if (!(await confirmBox("匯入這個進度檔？", sum + "。匯入後，這支手機目前的進度會被取代，無法復原。API Key 不在進度檔裡，會保留這支手機上的設定。", "匯入並取代", true))) return;
   try {
-    for (const kind of ["art","conv","week","word","log","wallet"]) for (const x of await Store.list(kind)) await Store.del(x._id);
+    for (const kind of ["art","conv","chat","week","word","log","wallet"]) for (const x of await Store.list(kind)) await Store.del(x._id);
     const prof = Object.assign({}, p.profile, {kind:"profile"});
     if (when && !isNaN(when)) prof.lastExportAt = when.getTime();
     await Store.set("profile", prof);
     for (const w of p.weeks) if (w && w.n) await Store.set("week-" + w.n, Object.assign({}, w, {kind:"week"}));
     for (const a of p.arts) if (a && a.week) await Store.set(artId(a), Object.assign({}, a, {kind:"art"}));
     for (const c of p.convs) if (c && c.week) await Store.set("conv-" + c.week, Object.assign({}, c, {kind:"conv"}));
+    for (const c of (p.chats || [])) if (c && c.week && c.day != null) await Store.set("chat-" + c.week + "-" + c.day, Object.assign({}, c, {kind:"chat"}));
     for (const [id, x] of p.words) await Store.set("word-" + slug(id), Object.assign({}, x, {kind:"word"}));
     await Store.set("log", Object.assign({days:{}}, p.log || {}, {kind:"log"}));
     await Store.set("wallet", Object.assign(newWallet(), p.wallet || {}, {kind:"wallet"}));
   } catch (e) { toast("匯入時出了問題，請再試一次。"); return; }
   S.profile = null; await loadAll();
-  toast("匯入完成，歡迎回來！"); go("today");
+  toast("匯入完成，歡迎回來！"); go("home");
 }
 function lastExportText(){
   const t = S.profile && S.profile.lastExportAt;
@@ -2681,7 +2799,10 @@ function backupNagHTML(){
   return '<section class="card backup"><div class="row between"><b>已經 ' + n + ' 天沒有備份進度</b><button class="btn ghost sm" data-act="backup-later">稍後</button></div>' + backupButtonsHTML() + "</section>";
 }
 const ACT = {
-  "tab": el => { if (S.reader) closeReader(); closeSheet(); go(el.dataset.v); },
+  "tab": el => { if (S.reader) closeReader(); closeSheet(); if (el.dataset.v === "prefs") S.prefPage = null; go(el.dataset.v); },
+  "open-chat": () => { const w = curWeek(); if (!w) return; S.chatDay = chatDayFor(w); S.talk.scrollDown = true; go("talk"); },
+  "pref-open": el => { S.prefPage = el.dataset.p; go("prefs"); $("#main").scrollTop = 0; },
+  "pref-back": () => { S.prefPage = null; render(); $("#main").scrollTop = 0; },
   "onb-next": () => { S.onb.step = Math.min(2, S.onb.step + 1); S.err.week = ""; render(); $("#main").scrollTop = 0; },
   "onb-back": () => { S.onb.step = Math.max(0, S.onb.step - 1); render(); $("#main").scrollTop = 0; },
   "pick-tier": el => { const i = Number(el.dataset.i); S.onb.tier = i; S.onb.tierOpen = i; render(); },
@@ -2730,7 +2851,7 @@ const ACT = {
   "font-cycle": () => { const order = ["s","m","l"]; const st = set(); st.font = order[(order.indexOf(st.font) + 1) % 3]; document.documentElement.style.setProperty("--read-size", FONT[st.font]); saveProfile(); },
   "say-para": el => sayPara(el),
   "say": el => { TTS.speak(el.dataset.text || "", el.dataset.slow ? 0.6 : set().rate); },
-  "say-turn": el => { const w = curWeek(), c = w && S.convs[w.n]; if (c) TTS.speak(c.turns[Number(el.dataset.i)].content, set().rate); },
+  "say-turn": el => { const c = curChat().conv; if (c) TTS.speak(c.turns[Number(el.dataset.i)].content, set().rate); },
   "week-word": el => { const w = S.weeks[Number(el.dataset.n)]; const info = w && w.words[Number(el.dataset.i)]; if (info) openSheet({state:"ready", sentence:"", pat:null, data:Object.assign({word:info.en, lemma:info.en}, info)}); },
   "bank-word": el => { const x = S.bank[el.dataset.id]; if (x) openSheet({state:"ready", sentence:x.sentence || "", pat:null, data:Object.assign({word:x.en, lemma:x.en}, x)}); },
   "close-sheet": () => closeSheet(),
@@ -2820,7 +2941,7 @@ document.addEventListener("keydown", e => {
 });
 window.addEventListener("hashchange", () => {
   const v = location.hash.slice(1);
-  if (S.profile && ["today","week","talk","words","prefs"].includes(v) && v !== S.view){ if (S.reader) closeReader(); S.view = v; render(); }
+  if (S.profile && ["learn","home","talk","words","prefs"].includes(v) && v !== S.view){ if (S.reader) closeReader(); S.view = v; render(); }
 });
 
 /* =========================================================
@@ -2832,7 +2953,8 @@ async function loadAll(){
   const base = defaultSettings();
   p.settings = Object.assign(base, p.settings || {});
   p.settings.models = Object.assign(defaultSettings().models, (p.settings && p.settings.models) || {});
-  const [weeks, arts, convs, words] = await Promise.all([Store.list("week"), Store.list("art"), Store.list("conv"), Store.list("word")]);
+  const [weeks, arts, convs, words, chats] = await Promise.all([Store.list("week"), Store.list("art"), Store.list("conv"), Store.list("word"), Store.list("chat")]);
+  S.chats = {}; chats.forEach(c => { delete c._id; S.chats[c.week + "-" + c.day] = c; });
   S.weeks = {}; weeks.forEach(w => { delete w._id; S.weeks[w.n] = w; });
   S.arts = {}; arts.forEach(a => { delete a._id; S.arts[artId(a)] = a; });
   S.convs = {}; convs.forEach(c => { delete c._id; S.convs[c.week] = c; });
@@ -2845,7 +2967,7 @@ async function loadAll(){
 }
 async function boot(){
   const v = location.hash.slice(1);
-  if (["today","week","talk","words","prefs"].includes(v)) S.view = v;
+  if (["learn","home","talk","words","prefs"].includes(v)) S.view = v;
   S.mode = lsOk() ? "local" : "memory";
   try { await loadAll(); } catch (e) {}
   render();
