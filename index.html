@@ -244,6 +244,9 @@ label.btn{cursor:pointer}
 .pin{position:absolute;left:0;top:0;will-change:transform}
 .pin .lbl{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:rgba(255,255,255,.93);font-size:11px;font-weight:700;color:#3a3330;box-shadow:0 2px 6px rgba(60,40,20,.15);white-space:nowrap}
 .pin .lbl::before{content:"";width:6px;height:6px;border-radius:50%;background:#DB6A41}
+.pin .lisa-pin{pointer-events:auto;display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border:2px solid #fff;border-radius:999px;background:#48A88B;color:#fff;font:800 12px var(--font-en);box-shadow:0 2px 6px rgba(0,0,0,.18);animation:lisa-bob 2.4s ease-in-out infinite}
+@keyframes lisa-bob{0%,100%{translate:0 0}50%{translate:0 -3px}}
+.city-lisa .lisa-head{margin:0}
 .pin .lbl.off{color:#8a8a8a}.pin .lbl.off::before{background:#bbb}
 .req-pin{pointer-events:auto;width:30px;height:30px;border-radius:50%;border:2px solid #DB6A41;background:#fff;color:#DB6A41;font:900 16px var(--font-en);box-shadow:0 3px 10px rgba(60,40,20,.25);padding:0}
 .sec-title{font-size:20px;font-weight:900;margin:10px 4px 0}
@@ -1638,7 +1641,7 @@ function render(){
   }
   dock.className = "dock";
   tabs.hidden = false;
-  const tabView = S.view === "talk" ? "home" : S.view;
+  const tabView = S.view === "talk" ? (S.talkFrom || "home") : S.view;
   tabs.querySelectorAll(".tab").forEach(t => t.setAttribute("aria-current", t.dataset.v === tabView ? "page" : "false"));
   const fn = {learn:renderLearn, home:renderHome, city:renderCity, talk:renderTalk, words:renderWords, prefs:renderPrefs}[S.view] || renderHome;
   const keepScroll = render.lastView === S.view ? main.scrollTop : 0;
@@ -1895,6 +1898,7 @@ function islandSVG(c){
     const req = c.day.requests.find(q => q.who === i && q.status === "open");
     if (req) s += '<g class="req-bubble" data-act="city-req" data-id="' + req.id + '"><circle cx="' + x + '" cy="' + (y - 30) + '" r="9" fill="#fff" stroke="#E57373" stroke-width="2"/><text x="' + x + '" y="' + (y - 26) + '" text-anchor="middle" font-size="12" font-weight="800" fill="#E57373">!</text></g>';
   });
+  if (curWeek()){ const lx = cx - 30, ly = cy + 30; s += '<g pointer-events="none">' + personSVG(lx, ly, "#48A88B", 1.1) + '</g><g class="req-bubble" data-act="open-chat"><rect x="' + (lx - 18) + '" y="' + (ly - 42) + '" width="36" height="16" rx="8" fill="#48A88B"/><text x="' + lx + '" y="' + (ly - 30.5) + '" text-anchor="middle" font-size="10" font-weight="800" fill="#fff">Lisa</text></g>'; }
   s += '<g transform="translate(' + (cx - 26) + " " + (cy + 32 * R + 30) + ')" pointer-events="none">' + avatarSVG(c.avatar, 52).replace("<svg ", '<svg x="0" y="-40" ') + "</g>";
   return s + "</svg>";
 }
@@ -1909,6 +1913,7 @@ function renderCity(){
     '<div class="small muted" style="text-align:center">拖曳可以轉小島，雙指縮放，點空地蓋建築</div>' +
     harvestHTML(c) +
     '<div class="row city-actions"><button class="btn soft" data-act="city-sheet" data-s="shop">商店</button><button class="btn soft" data-act="city-sheet" data-s="avatar">裝扮</button><button class="btn soft" data-act="city-sheet" data-s="bag">背包</button></div></section>';
+  html += cityLisaHTML();
   html += '<section class="card"><div class="label">今天的居民請求</div>';
   if (!n) html += '<p class="muted" style="margin:0">' + (away ? "居民住的房子還沒接上市中心。在房子和市中心之間蓋道路，他們就會來找你。" : "在市中心旁邊蓋一間小屋，就會有居民搬進來。") + "</p>";
   else if (!c.day.fed){
@@ -1925,6 +1930,14 @@ function renderCity(){
   return html + "</section>";
 }
 
+/* Lisa lives in town: tap her on the island or here, any time */
+function cityLisaHTML(){
+  const w = curWeek();
+  if (!w) return "";
+  const conv = convFor(w, chatDayFor(w));
+  return '<section class="card city-lisa"><div class="row between" style="align-items:center;gap:10px">' + lisaHead(conv && conv.done ? "今天聊過了，可以再看回饋" : conv ? "你們聊到一半" : "她在城裡等你聊天") +
+    '<button class="btn green sm" data-act="open-chat">' + (conv && conv.done ? "看回饋" : conv ? "繼續聊" : "找 Lisa") + "</button></div></section>";
+}
 function harvestHTML(c){
   const daily = cityDaily(c); if (!daily) return "";
   const st = c.prod.store;
@@ -2275,6 +2288,12 @@ const City3D = {
       const req = c.day.requests.find(q => q.who === i && q.status === "open");
       if (req) this.label(new T.Vector3(x + ox, .62, z + oz), '<button class="req-pin" data-act="city-req" data-id="' + req.id + '" aria-label="' + esc(p.name) + ' 的請求">!</button>', true);
     });
+    /* Lisa stands just in front of the city center; tap her to chat */
+    if (curWeek()){
+      this.person(g, -.45, .86, "#48A88B", 1.6);
+      const hair = new T.Mesh(new T.SphereGeometry(.12, 10, 8, 0, Math.PI * 2, 0, Math.PI / 1.8), this.mat(0x6B4A33, {flatShading:false})); hair.position.set(-.45, .52, .85); g.add(hair);
+      this.label(new T.Vector3(-.45, .8, .86), '<button class="lisa-pin" data-act="open-chat" aria-label="找 Lisa 聊天">Lisa</button>', true);
+    }
     /* you, standing at the front of the island */
     const [fx, fz] = pos(0, R);
     this.avatar(g, fx - .5, fz + .5, c.avatar);
@@ -2882,7 +2901,8 @@ function feedbackHTML(w, conv, d){
     (f.try_next_zh ? '<div class="note">' + esc(f.try_next_zh) + "</div>" : "") + "</section>";
 }
 function renderTalk(){
-  const back = '<div class="row"><button class="btn ghost sm" data-act="tab" data-v="home">' + ICON.back.replace("<svg", '<svg width="16" height="16"') + "首頁</button></div>";
+  const from = S.talkFrom === "city" ? "city" : "home";
+  const back = '<div class="row"><button class="btn ghost sm" data-act="tab" data-v="' + from + '">' + ICON.back.replace("<svg", '<svg width="16" height="16"') + (from === "city" ? "我的城市" : "首頁") + "</button></div>";
   const {w, d, conv} = curChat();
   if (!w) return back + lisaCardHTML(null);
   let html = back;
@@ -3824,7 +3844,7 @@ const ACT = {
     const v = el.dataset.v;
     setTimeout(() => { const t = document.querySelector('#tabs .tab[data-v="' + v + '"]'); if (t){ t.classList.remove("pop"); void t.offsetWidth; t.classList.add("pop"); } }, 0);
     if (S.reader) closeReader(); closeSheet(); if (el.dataset.v === "prefs") S.prefPage = null; go(el.dataset.v); },
-  "open-chat": () => { const w = curWeek(); if (!w) return; S.chatDay = chatDayFor(w); S.talk.scrollDown = true; go("talk"); },
+  "open-chat": () => { const w = curWeek(); if (!w) return; S.talkFrom = S.view === "city" ? "city" : "home"; S.chatDay = chatDayFor(w); S.talk.scrollDown = true; go("talk"); },
   "pref-open": el => { S.prefPage = el.dataset.p; go("prefs"); $("#main").scrollTop = 0; },
   "pref-back": () => { S.prefPage = null; render(); $("#main").scrollTop = 0; },
   "onb-next": () => { S.onb.step = Math.min(2, S.onb.step + 1); S.err.week = ""; render(); $("#main").scrollTop = 0; },
