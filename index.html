@@ -143,7 +143,11 @@ textarea.input{resize:vertical;font-family:var(--font-en);line-height:1.5}
 .status{font-size:12px;font-weight:700;padding:3px 8px;border-radius:999px;background:var(--surface);color:var(--muted);flex:none}
 .status.read{background:var(--green);color:#fff}
 .pattern-card{display:flex;gap:12px;align-items:flex-start;padding:12px;border-radius:14px;background:var(--field)}
-.pattern-card .en{font-weight:600;font-size:17px}
+.pattern-card .en{font-weight:500;font-size:17px;line-height:1.45}
+.pattern-card .zh-line{font-size:15px;line-height:1.5}
+.hl-a{color:var(--green);font-weight:800}
+.hl-b{color:var(--primary);font-weight:800}
+.hl-r{color:#9A7B1F;font-weight:800}
 .ex-line{font-family:var(--font-en)}
 .word-row{display:flex;align-items:center;gap:12px;padding:10px 4px;border-bottom:1px solid var(--line);cursor:pointer;background:none;border-left:0;border-right:0;border-top:0;width:100%;text-align:left}
 .word-row:last-child{border-bottom:0}
@@ -384,7 +388,7 @@ const PATTERNS = [
   {en:"I want to ___", zh:"我想要…", ex:"I want to speak English with confidence.", exZh:"我想要有自信地說英文。", re:"\\bwant(s|ed)? to\\b"},
   {en:"I need to ___", zh:"我需要…", ex:"I need to sleep earlier.", exZh:"我需要早點睡。", re:"\\bneed(s|ed)? to\\b"},
   {en:"I have to ___", zh:"我必須…（不得不）", ex:"I have to finish this report today.", exZh:"我今天必須做完這份報告。", re:"\\b(have|has|had) to\\b"},
-  {en:"I'm going to ___", zh:"我打算／將要…", ex:"I'm going to call my mom tonight.", exZh:"我今晚要打給我媽。", re:"\\bgoing to\\b|\\bgonna\\b"},
+  {en:"I'm going to ___", zh:"我打算／將要…", zhKey:"要", ex:"I'm going to call my mom tonight.", exZh:"我今晚要打給我媽。", re:"\\bgoing to\\b|\\bgonna\\b"},
   {en:"I'm about to ___", zh:"我正要…", ex:"I'm about to leave.", exZh:"我正要出門。", re:"\\babout to\\b"},
   {en:"I'm trying to ___", zh:"我正在努力…", ex:"I'm trying to drink more water.", exZh:"我正在努力多喝水。", re:"\\b(try|tries|trying|tried) to\\b"},
   {en:"I'm used to ___ing", zh:"我習慣…", ex:"I'm used to waking up early.", exZh:"我習慣早起。", re:"\\b(am|'m|is|'s|are|'re|was|were|be|been)\\s+used to\\b"},
@@ -411,7 +415,7 @@ const PATTERNS = [
   {en:"You don't have to ___", zh:"你不必…", ex:"You don't have to be perfect.", exZh:"你不必完美。", re:"\\b(don'?t|doesn'?t|didn'?t|do not|does not) have to\\b"},
   {en:"Instead of ___ing, ___", zh:"與其…不如…", ex:"Instead of scrolling, read one page.", exZh:"與其滑手機，不如讀一頁書。", re:"\\binstead of\\b"},
   {en:"The best way to ___ is to ___", zh:"…最好的方法是…", ex:"The best way to learn is to practice every day.", exZh:"學習最好的方法就是每天練習。", re:"\\bthe best way to\\b"},
-  {en:"Make sure you ___", zh:"務必要…", ex:"Make sure you drink enough water.", exZh:"一定要喝夠水。", re:"\\bmake sure\\b"},
+  {en:"Make sure you ___", zh:"務必要…", zhKey:"一定要", ex:"Make sure you drink enough water.", exZh:"一定要喝夠水。", re:"\\bmake sure\\b"},
   {en:"What if ___?", zh:"要是…怎麼辦？", ex:"What if it doesn't work?", exZh:"要是沒用怎麼辦？", re:"\\bwhat if\\b"},
   // 第四階段：過去、後悔和假設
   {en:"I used to ___", zh:"我以前常…", ex:"I used to hate mornings.", exZh:"我以前很討厭早上。", re:"\\b(i|you|we|they|he|she|it|people)\\s+(never\\s+)?used to\\b|\\bdidn'?t use to\\b"},
@@ -1827,9 +1831,41 @@ function renderTodayTop(){
 }
 
 /* ---------- week ---------- */
+/* Mark the fixed words of a pattern inside its example, e.g. "I want to" in "I want to speak English…". */
+function markPattern(text, pattern, cls, isZh){
+  const clean = t => t.replace(/[（(][^）)]*[）)]/g, "").replace(/^[\s.,!?，。！？、]+|[\s.,!?，。！？、]+$/g, "").trim();
+  let parts = String(pattern).split(isZh ? /…|⋯|\.\.\.|___|，|,/ : /_+(?:ing)?/).map(clean).filter(t => t && t.toLowerCase() !== "ing");
+  if (isZh) parts = parts.flatMap(t => t.split(/[／/]/)).map(clean).filter(Boolean);
+  const low = text.toLowerCase(), ranges = [];
+  parts.forEach(part => {
+    let cand = part;
+    for (;;){
+      const c = cand.toLowerCase();
+      let at = low.indexOf(c), hit = false;
+      while (at >= 0){ ranges.push([at, at + c.length]); hit = true; at = low.indexOf(c, at + c.length); }
+      if (hit) break;
+      if (isZh){
+        /* the example may word it a little differently: use the longest shared piece (2+ characters) */
+        let best = "";
+        for (let x = 0; x < part.length; x++) for (let y = part.length; y - x >= 2 && y - x > best.length; y--)
+          if (low.indexOf(part.slice(x, y).toLowerCase()) >= 0){ best = part.slice(x, y); break; }
+        if (best && best !== cand){ cand = best; continue; }
+        break;
+      }
+      const words = cand.split(" ");          /* "It makes me feel" → "makes me feel" */
+      if (words.length <= 2) break;
+      cand = words.slice(1).join(" ");
+    }
+  });
+  ranges.sort((a, b) => a[0] - b[0]);
+  let out = "", pos = 0;
+  ranges.forEach(([a, b]) => { if (a < pos) a = pos; if (b <= a) return; out += esc(text.slice(pos, a)) + '<b class="' + cls + '">' + esc(text.slice(a, b)) + "</b>"; pos = b; });
+  return out + esc(text.slice(pos));
+}
 function patternCardHTML(tag, p){
   const cls = tag === "A" ? "tag-a" : tag === "B" ? "tag-b" : "tag-r";
-  return '<div class="pattern-card"><span class="' + cls + '">' + tag + '</span><div class="stack" style="gap:2px"><div class="en">' + esc(p.en) + "</div><div>" + esc(p.zh) + '</div><div class="ex-line small muted">' + esc(p.ex) + '</div><div class="small muted">' + esc(p.exZh) + "</div></div></div>";
+  const hl = tag === "A" ? "hl-a" : tag === "B" ? "hl-b" : "hl-r";
+  return '<div class="pattern-card"><span class="' + cls + '">' + tag + '</span><div class="stack" style="gap:4px"><div class="en">' + markPattern(p.ex, p.en, hl, false) + '</div><div class="zh-line">' + markPattern(p.exZh, p.zhKey || p.zh, hl, true) + "</div></div></div>";
 }
 function renderWeek(){
   const w = curWeek();
