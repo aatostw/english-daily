@@ -566,10 +566,10 @@ const TASKS = [
 const TIER_LABEL = {quick:"快速（Haiku）", default:"標準（Sonnet）", complex:"最強（Opus）", custom:"指定模型名稱"};
 const defaultSettings = () => ({
   models:{
-    write:{provider:"gemini", model:"gemini-3.8-flash"}, lookup:{provider:"gemini", model:"gemini-3.5-flash-lite"},
-    talk:{provider:"gemini", model:"gemini-3.5-flash-lite"}, review:{provider:"gemini", model:"gemini-3.8-flash"}
+    write:{provider:"gemini", model:"gemini-3.5-flash-lite"}, lookup:{provider:"gemini", model:"gemini-3.5-flash-lite"},
+    talk:{provider:"gemini", model:"gemini-3.5-flash-lite"}, review:{provider:"gemini", model:"gemini-3.5-flash-lite"}
   },
-  ai:{provider:"gemini", model:"gemini-3.8-flash", fastLookup:true},
+  ai:{provider:"gemini", model:"gemini-3.5-flash-lite", fastLookup:true},
   voice:"", rate:0.9, font:"m", length:"mid", genre:"alt",
   voiceSource:"builtin"
 });
@@ -730,7 +730,7 @@ const PROVIDERS = {
     keyUrl:"https://console.anthropic.com/settings/keys", defaults:{write:"claude-sonnet-5-5"},
     models:[{id:"claude-haiku-5-5", paid:true}, {id:"claude-sonnet-5-5", paid:true}, {id:"claude-opus-5-5", paid:true}]},
   gemini:{name:"Google Gemini", kind:"gemini", base:"https://generativelanguage.googleapis.com/v1beta", fast:"gemini-3.5-flash-lite",
-    keyUrl:"https://aistudio.google.com/apikey", defaults:{write:"gemini-3.8-flash"},
+    keyUrl:"https://aistudio.google.com/apikey", defaults:{write:"gemini-3.5-flash-lite"},
     models:[{id:"gemini-3.5-flash-lite"}, {id:"gemini-3.6-flash"}, {id:"gemini-3.8-flash"}, {id:"gemini-4-argon", paid:true}]},
   custom:{name:"自訂 OpenAI 相容 API", kind:"openai", base:"", fast:"", keyUrl:"", defaults:{write:""}, models:[]}
 };
@@ -3109,7 +3109,7 @@ function previewNoteHTML(){
   return "";
   return '<div class="note warn"><b>你現在是在預覽畫面裡打開這個檔案。</b>預覽畫面不能連網路，所以 AI 一定連不上。請把檔案放到網址上（例如 GitHub Pages），再用 Chrome 打開那個網址。</div>';
 }
-function defaultAi(){ return {provider:"gemini", model:"gemini-3.8-flash", fastLookup:true}; }
+function defaultAi(){ return {provider:"gemini", model:"gemini-3.5-flash-lite", fastLookup:true}; }
 function aiState(){
   if (S.profile){ const st = set(); if (!st.ai || !PROVIDERS[st.ai.provider]) st.ai = defaultAi(); return st.ai; }
   if (!S.onb.ai) S.onb.ai = defaultAi();
@@ -4255,6 +4255,13 @@ async function loadAll(){
   S.wallet = Object.assign(newWallet(), (await Store.get("wallet")) || {});
   if (!S.log.days) S.log.days = {};
   if (!S.weeks[p.currentWeek]){ const ns = Object.keys(S.weeks).map(Number); p.currentWeek = ns.length ? Math.max.apply(null, ns) : 0; }
+  /* once: the default model became Gemini 3.5 Flash Lite; anything still on the old default moves over */
+  if (p.settings && !p.settings.liteDefault){
+    p.settings.liteDefault = true;
+    if (p.settings.ai && p.settings.ai.provider === "gemini" && p.settings.ai.model === "gemini-3.8-flash") p.settings.ai.model = "gemini-3.5-flash-lite";
+    Object.values(p.settings.models || {}).forEach(m => { if (m && m.provider === "gemini" && m.model === "gemini-3.8-flash") m.model = "gemini-3.5-flash-lite"; });
+    Store.set("profile", p).catch(() => {});
+  }
   S.profile = p;
 }
 async function boot(){
