@@ -1689,7 +1689,11 @@ function render(){
   main.classList.toggle("flush", S.view === "city");
   main.innerHTML = fn();
   main.scrollTop = keepScroll;
-  const cc2 = $("#cc-body"); if (cc2){ cc2.scrollTop = S.talk.scrollDown ? cc2.scrollHeight : ccKeep; if (S.talk.scrollDown) S.talk.scrollDown = false; }
+  const cc2 = $("#cc-body");
+  if (cc2){
+    cc2.scrollTop = S.talk.scrollDown ? cc2.scrollHeight : ccKeep;
+    if (S.talk.scrollDown){ S.talk.scrollDown = false; setTimeout(() => { cc2.scrollTop = cc2.scrollHeight; }, 150); }   /* again once avatars have loaded */
+  }
   render.lastView = S.view;
   const dh = dockHTML(); dock.innerHTML = dh; dock.hidden = !dh;
   if (S.view === "city") City3D.mount();
