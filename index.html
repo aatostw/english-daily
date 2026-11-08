@@ -1843,6 +1843,11 @@ function islandSVG(c){
         links++; const [nx, ny] = cityPos(t.q + a, t.r + b);
         s += '<line x1="' + x + '" y1="' + y + '" x2="' + (cx + (t.x + nx) / 2) + '" y2="' + (cy + (t.y + ny) / 2) + '" stroke="#b7aa96" stroke-width="11" stroke-linecap="round" pointer-events="none"/>';
       });
+      CITY_DIRS.forEach(([a, b]) => {
+        const n = c.tiles[(t.q + a) + "," + (t.r + b)]; if (!n || n.b === "road" || n.d || n.b === "park") return;
+        links++; const [nx, ny] = cityPos(t.q + a, t.r + b);
+        s += '<line x1="' + x + '" y1="' + y + '" x2="' + (cx + t.x + (nx - t.x) * .8) + '" y2="' + (cy + t.y + (ny - t.y) * .8) + '" stroke="#b7aa96" stroke-width="6" stroke-linecap="round" pointer-events="none"/>';
+      });
       s += '<ellipse cx="' + x + '" cy="' + y + '" rx="' + (links ? 7 : 16) + '" ry="' + (links ? 4.5 : 10) + '" fill="#b7aa96" pointer-events="none"/>';
     }
   });
@@ -2205,7 +2210,14 @@ const City3D = {
       /* a building that grew over 2 or 3 plots stands in the middle of them, turned to line up with them */
       const cells = cellsOf(c, key).filter(k => c.tiles[k]), pts = cells.map(posK);
       const gx = pts.reduce((a, p) => a + p[0], 0) / pts.length, gz = pts.reduce((a, p) => a + p[1], 0) / pts.length;
-      const rot = pts.length > 1 ? Math.atan2(-(pts[1][1] - pts[0][1]), pts[1][0] - pts[0][0]) : 0;
+      let rot = pts.length > 1 ? Math.atan2(-(pts[1][1] - pts[0][1]), pts[1][0] - pts[0][0]) : 0;
+      /* turn the front door toward the nearest road, so the path runs right up to it */
+      const roadK = it.b && it.b !== "hall" && it.b !== "park" ? cells.flatMap(cityNear).find(n => c.tiles[n] && c.tiles[n].b === "road") : null;
+      if (roadK){
+        const [rx, rz] = posK(roadK), dx = rx - gx, dz = rz - gz;
+        if (pts.length === 1) rot = Math.atan2(dx, dz);
+        else if (Math.sin(rot) * dx + Math.cos(rot) * dz < 0) rot += Math.PI;
+      }
       const spots = pts.map(([px, pz]) => { const v = new T.Vector3(px - gx, 0, pz - gz).applyAxisAngle(new T.Vector3(0, 1, 0), -rot); return [v.x, v.z]; });
       centers[key] = [gx, gz, pts];
       const lv = tileLv(it), linked = !it.b || L.has(key), b = it.b && CITY_BUILDINGS[it.b];
@@ -2389,6 +2401,13 @@ const City3D = {
       const [nx, nz] = pos(q + a, r + b), dx = (nx - x) / 2, dz = (nz - z) / 2;
       const seg = new T.Mesh(new T.BoxGeometry(.9, .03, .5), col); seg.position.set(x + dx / 2, .065, z + dz / 2); seg.rotation.y = Math.atan2(-dz, dx); seg.receiveShadow = true; g.add(seg);
       const line = new T.Mesh(new T.BoxGeometry(.5, .01, .05), edge); line.position.set(x + dx / 2, .085, z + dz / 2); line.rotation.y = seg.rotation.y; g.add(line);
+    });
+    /* a narrower path from the road up to the door of every building next to it */
+    CITY_DIRS.forEach(([a, b]) => {
+      const n = c.tiles[(q + a) + "," + (r + b)]; if (!n || n.b === "road" || n.d || (n.b === "park")) return;
+      links++;
+      const [nx, nz] = pos(q + a, r + b), dx = (nx - x) / 2, dz = (nz - z) / 2;
+      const seg = new T.Mesh(new T.BoxGeometry(1.25, .03, .26), col); seg.position.set(x + dx * .62, .064, z + dz * .62); seg.rotation.y = Math.atan2(-dz, dx); seg.receiveShadow = true; g.add(seg);
     });
     if (!links){ const pl = new T.Mesh(new T.CylinderGeometry(.55, .55, .03, 6), col); pl.position.set(x, .06, z); g.add(pl); }
     [[.62, .3], [-.6, -.34]].forEach(([ox, oz]) => { const s = new T.Mesh(new T.IcosahedronGeometry(.07, 0), this.mat(0xC9BBA3)); s.position.set(x + ox, .09, z + oz); g.add(s); });
