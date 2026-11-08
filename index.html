@@ -900,6 +900,8 @@ const AudioDB = {
     await new Promise(res => { tx.oncomplete = res; tx.onerror = res; });
   }
 };
+/* Very common words: not prepared ahead (rarely tapped); made on the spot if you do tap one. */
+const COMMON_WORDS = new Set(("a about above after again against all almost also always am an and another any are around as ask at away back be because been before being below best better between big both but by call came can can't could day did didn't do does doesn't doing don't done down each even ever every few find first for from get gets getting give go goes going gone good got great had has hasn't have haven't having he he's her here hers him his home how i i'd i'll i'm i've if in into is isn't it it's its just keep know last let let's like little long look lot made make many may maybe me might more most much must my myself need never new next no not now of off often oh ok okay old on once one only or other our out over own people put really right said same saw say says see she should so some something sometimes still such sure take tell than thank thanks that that's the their them then there there's these they they're thing things think this those though through time to today too took try two up us use used very want wanted wants was wasn't way we we're well went were what when where which while who why will with without won't would yes yet you you'd you'll you're your yours yourself").split(" "));
 /* Split a paragraph into sentences the same way the reader does (a full stop, ! or ? then a space). */
 function splitSentences(text){
   return String(text || "").replace(/\s+/g, " ").trim().split(/(?<=[.!?…]["”’)\]]*)\s+/).map(x => x.trim()).filter(Boolean);
@@ -1112,19 +1114,36 @@ const TTS = {
     const add = list.filter(t => !this.pocketClips.has(this.pocketKey(t)) && !(this.pfRunning && this.pfRunning.text === t));
     this.pfQueue = this.pfQueue.filter(t => !add.includes(t));
     this.pfQueue = first ? add.concat(this.pfQueue) : this.pfQueue.concat(add);
+    if (first) this.pfResting = false;   /* something you just tapped: don't wait out the rest */
     this.pocketPump();
   },
   async pocketPump(){
-    if (this.pfRunning || this.pocketSpeaking) return;
+    if (this.pfRunning || this.pocketSpeaking || this.pfResting || document.hidden) return;
     const text = this.pfQueue.shift(); if (!text) return;
-    const promise = (async () => (await this.pocketLoad(text)) || this.pocketWithLock(() => this.pocketGenerate(text, null, true)))();
+    let made = 0;
+    const promise = (async () => {
+      const saved = await this.pocketLoad(text);
+      if (saved) return saved;
+      const t0 = Date.now();
+      const got = await this.pocketWithLock(() => this.pocketGenerate(text, null, true));
+      made = Date.now() - t0;
+      return got;
+    })();
     this.pfRunning = {text, promise};
     let got = null; try { got = await promise; } catch (e) {}
     this.pfRunning = null;
     if (got) this.batchDone(text);
-    else if (this.pocketSpeaking) this.pfQueue.unshift(text);
+    else if (this.pocketSpeaking || document.hidden) this.pfQueue.unshift(text);
+    /* Single words are background work: rest as long as the work took, so on average
+       only about half the CPU is used and the phone stays cool. Sentences go full speed. */
+    if (made && this.isWord(text)){
+      this.pfResting = true;
+      setTimeout(() => { this.pfResting = false; this.pocketPump(); }, Math.min(3000, Math.max(150, made)));
+      return;
+    }
     this.pocketPump();
   },
+  pfResting:false,
   /* Progress of preparing one article: sentences first, then its words. */
   batchInfo:null,
   batchStart(sents, words){
@@ -1956,9 +1975,13 @@ function prepareArticleVoice(isNew){
   TTS.prefetchAll(ctx.paras);
   const sents = TTS.pcOn() ? [] : (ctx.sentences || []).filter(Boolean);
   const kw = (w ? w.words : []).concat(r.extra || []).map(x => x && x.en).filter(Boolean);
+  const saved = Object.values(S.bank || {}).map(x => x && x.en).filter(Boolean).map(x => x.toLowerCase());
   const words = [];
-  (ctx.paras || []).forEach(p => (String(p).match(/[A-Za-z][A-Za-z'’-]*/g) || []).forEach(x => words.push(x)));
-  TTS.batchStart(sents, kw.concat(words).slice(0, 300));
+  (ctx.paras || []).forEach(p => (String(p).match(/[A-Za-z][A-Za-z'’-]*/g) || []).forEach(x => {
+    const lw = x.replace(/’/g, "'").toLowerCase();
+    if (saved.includes(lw) || (lw.length > 2 && !COMMON_WORDS.has(lw))) words.push(lw);
+  }));
+  TTS.batchStart(sents, kw.concat(words).slice(0, 200));
   if (isNew) showPrepOverlay();
 }
 function showPrepOverlay(){
@@ -2829,6 +2852,8 @@ async function boot(){
 }
 boot();
 setTimeout(() => { TTS.warmSeq = TTS.seq; TTS.pocketWarm(); }, 800);
+/* Background audio work pauses while the app isn't on screen, and picks up again when you come back. */
+document.addEventListener("visibilitychange", () => { if (!document.hidden) TTS.pocketPump(); });
 /* Offline cache: only works when the app is opened from an https:// address. */
 if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")){
   navigator.serviceWorker.register("sw.js").catch(() => {});
