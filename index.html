@@ -1183,7 +1183,7 @@ const TTS = {
   },
   /* Plain single words: Pocket TTS, running on the phone itself (WASM, no server, no computer). */
   isWord(text){ return /^[A-Za-z]+([''’-][A-Za-z]+)*$/.test(String(text || "").trim()); },
-  pocketOn(){ return true; },
+  pocketOn(){ return set().voiceSource !== "system"; },   /* "system" = the device's own voice for everything */
   pocketLib:null, pocketInst:null, pocketPlayer:null, pocketLoading:null,
   pocketVoiceId:null, pocketVoiceKey:"",
   /* Browsers refuse to start a Worker straight from another site (the CDN).
@@ -1442,6 +1442,7 @@ const TTS = {
      and run one tiny silent generation. Only when the model is already saved on the phone,
      so opening the app never starts a big download on mobile data by itself. */
   async pocketWarm(){
+    if (!this.pocketOn()) return;
     try {
       if (!/^https?:$/.test(location.protocol) || typeof caches === "undefined") return;
       const c = await caches.open("pocket-tts-js-v1");
@@ -1458,6 +1459,7 @@ const TTS = {
   },
   speak(text, rate, onEnd){
     /* Sentences go to the computer when that's switched on; everything else uses the phone's Pocket TTS voice. */
+    if (!this.pocketOn()) return this.speakBuiltin(text, rate, onEnd);
     if (this.pcOn() && !this.isWord(text)) return this.speakPc(text, rate, onEnd);
     this.speakPocket(text, rate, onEnd); return true;
   },
@@ -3302,7 +3304,7 @@ function fillAudioUsage(){
 function renderPrefs(){
   const items = [
     ["ai", "AI 模型", PROVIDERS[aiState().provider].name + " · " + (aiState().model || "未選模型")],
-    ["voice", "朗讀", (set().pocketVoice || {}).wavName ? "你上傳的聲音" : "預設聲音" + (set().voiceSource === "pc" ? "・句子用電腦" : "")],
+    ["voice", "朗讀", set().voiceSource === "system" ? "系統聲音" : set().voiceSource === "pc" ? "GPT-SoVITS" : "Pocket TTS" + ((set().pocketVoice || {}).wavName ? "・你上傳的聲音" : "")],
     ["read", "閱讀", (LENGTHS[set().length] || LENGTHS.mid).label + "篇幅・" + TIERS[tierIdx()].name],
     ["data", "資料", "匯出、匯入進度和金幣紀錄"]
   ];
@@ -3320,31 +3322,39 @@ function prefsParts(){
   const pv = st.pcVoice || {}, pc = st.voiceSource === "pc";
   const pkv = st.pocketVoice || {};
   const spk = ICON.speaker.replace("<svg", '<svg width="18" height="18"');
-  parts.voice = '<section class="card"><h2 style="font-size:20px">朗讀</h2>' +
-    '<div class="field"><label>聲音</label>' +
+  const src = st.voiceSource === "system" ? "system" : pc ? "pc" : "builtin";
+  const srcBtn = (v, label) => '<button data-act="setting" data-key="voiceSource" data-val="' + v + '" aria-pressed="' + (src === v) + '">' + label + "</button>";
+  const sysVoices = '<select class="input" id="voice" data-act-change="voice" aria-label="系統聲音"><option value="">自動（美式英文）</option>' +
+    voices.map(v => '<option value="' + esc(v.voiceURI) + '"' + (st.voice === v.voiceURI ? " selected" : "") + ">" + esc(v.name) + "（" + esc(v.lang) + "）</option>").join("") + "</select>" +
+    (TTS.ok ? "" : '<div class="err">這個瀏覽器不支援系統聲音。</div>');
+  /* the Pocket TTS voice: default, or one the user uploaded; also used for words when sentences go to the computer */
+  const pocketBox = '<div class="field"><label>Pocket TTS 的聲音</label>' +
       (pkv.wavName
         ? '<div class="row between" style="align-items:center"><span class="small">用你上傳的：' + esc(pkv.wavName) + '</span><button class="btn ghost sm" data-act="pocket-wav-clear">改回預設</button></div>'
         : '<div class="row between" style="align-items:center"><span class="small">預設聲音</span><label class="btn ghost sm" for="pocket-wav" style="margin:0">換成自己的</label></div>') +
       '<input type="file" id="pocket-wav" accept="audio/*" hidden data-act-change="pocket-wav">' +
-      '<div class="small muted">單字和句子都在手機上用這個聲音唸（Pocket TTS）。聲音檔載入失敗時，才改用手機內建語音。換自己的聲音：約 10-30 秒、清楚的單人錄音最好。</div></div>' +
-    '<div class="row" style="gap:8px"><button class="btn soft" style="flex:1" data-act="say" data-text="magic">' + spk + '試聽單字</button>' +
-      '<button class="btn soft" style="flex:1" data-act="say" data-text="Small steps. Every day. That is how you get better.">' + spk + "試聽句子</button></div>" +
+      '<div class="small muted">換自己的聲音：約 10-30 秒、清楚的單人錄音最好。</div></div>' +
     (/^https?:$/.test(location.protocol)
       ? '<button class="btn ghost block" data-act="pocket-prefetch"' + (S.busy.pocketPrefetch ? " disabled" : "") + ">" + (S.busy.pocketPrefetch ? '<span class="spinner"></span>下載中，請稍等…' : "先下載好，之後關網路也能唸") + "</button>"
       : '<div class="small muted">現在是從檔案直接打開的，語音模型存不住，關網路就不能用。從 https 網址打開才能離線使用。</div>') +
-    '<div class="row between" style="align-items:center"><span class="small muted" id="audio-usage">已存的聲音：計算中…</span><button class="btn ghost sm" data-act="audio-clear">清除</button></div>' +
-    '<div class="field"><label>句子朗讀</label><div class="seg" role="group"><button data-act="setting" data-key="voiceSource" data-val="builtin" aria-pressed="' + !pc + '">手機（同上）</button><button data-act="setting" data-key="voiceSource" data-val="pc" aria-pressed="' + pc + '">我的電腦（GPT-SoVITS）</button></div>' +
-      '<div class="small muted">' + (pc ? "文章段落和例句用電腦的聲音，單字還是用手機。電腦沒開或連不上時，會自動改回手機。" : "想要更好的句子聲音，可以改用電腦上的 GPT-SoVITS。") + "</div></div>" +
-    (pc ? '<div class="field"><label for="pc-url">伺服器網址</label><input class="input en" id="pc-url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://xxxx.trycloudflare.com" value="' + esc(pv.url || "") + '" data-act-change="pc-url"><div class="small muted">電腦上語音伺服器視窗裡顯示的網址。網址換了就貼新的。</div></div>' +
+    '<div class="row between" style="align-items:center"><span class="small muted" id="audio-usage">已存的聲音：計算中…</span><button class="btn ghost sm" data-act="audio-clear">清除</button></div>';
+  const pcBox = '<div class="field"><label for="pc-url">伺服器網址</label><input class="input en" id="pc-url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://xxxx.trycloudflare.com" value="' + esc(pv.url || "") + '" data-act-change="pc-url"><div class="small muted">電腦上語音伺服器視窗裡顯示的網址。網址換了就貼新的。</div></div>' +
       '<details class="ledger"><summary>進階：電腦的參考音檔（通常不用填）</summary><div class="stack" style="margin-top:10px">' +
         '<input class="input en" placeholder="參考音檔在電腦上的路徑" value="' + esc(pv.ref || "") + '" data-act-change="pc-ref" aria-label="參考音檔路徑">' +
         '<input class="input" placeholder="參考音檔說的話" value="' + esc(pv.refText || "") + '" data-act-change="pc-reftext" aria-label="參考音檔說的話">' +
-        '<select class="input" data-act-change="pc-reflang" aria-label="參考音檔語言"><option value="zh"' + ((pv.refLang || "zh") === "zh" ? " selected" : "") + '>參考音檔是中文</option><option value="en"' + (pv.refLang === "en" ? " selected" : "") + ">參考音檔是英文</option></select></div></details>" : "") +
+        '<select class="input" data-act-change="pc-reflang" aria-label="參考音檔語言"><option value="zh"' + ((pv.refLang || "zh") === "zh" ? " selected" : "") + '>參考音檔是中文</option><option value="en"' + (pv.refLang === "en" ? " selected" : "") + ">參考音檔是英文</option></select></div></details>";
+  parts.voice = '<section class="card"><h2 style="font-size:20px">朗讀</h2>' +
+    '<div class="field"><label>朗讀聲音</label><div class="seg" role="group">' + srcBtn("system", "系統聲音") + srcBtn("builtin", "Pocket TTS") + srcBtn("pc", "GPT-SoVITS") + "</div>" +
+      '<div class="small muted">' + (src === "system" ? "單字和句子都用手機或電腦內建的語音，不用下載，最省電。"
+        : src === "pc" ? "文章段落和例句用你電腦上的 GPT-SoVITS，單字還是用手機的 Pocket TTS。電腦沒開或連不上時，會自動改回 Pocket TTS。"
+        : "單字和句子都在手機上用 Pocket TTS 唸，聲音比較自然。聲音檔載入失敗時，才改用系統聲音。") + "</div></div>" +
+    (src === "system" ? '<div class="field"><label for="voice">系統聲音</label>' + sysVoices + "</div>" : "") +
+    (src === "builtin" ? pocketBox : "") +
+    (src === "pc" ? pcBox + '<details class="ledger"><summary>單字用的 Pocket TTS 聲音</summary><div class="stack" style="margin-top:10px">' + pocketBox + "</div></details>" : "") +
+    '<div class="row" style="gap:8px"><button class="btn soft" style="flex:1" data-act="say" data-text="magic">' + spk + '試聽單字</button>' +
+      '<button class="btn soft" style="flex:1" data-act="say" data-text="Small steps. Every day. That is how you get better.">' + spk + "試聽句子</button></div>" +
     '<div class="field"><label for="rate">速度：<span id="rate-v">' + st.rate.toFixed(1) + '×</span></label><input type="range" id="rate" min="0.5" max="1.2" step="0.1" value="' + st.rate + '" data-act-change="rate"></div>' +
-    '<details class="ledger"><summary>備用的手機內建語音</summary><div class="stack" style="margin-top:10px">' +
-      '<select class="input" id="voice" data-act-change="voice" aria-label="備用的手機內建語音"><option value="">自動（美式英文）</option>' +
-      voices.map(v => '<option value="' + esc(v.voiceURI) + '"' + (st.voice === v.voiceURI ? " selected" : "") + ">" + esc(v.name) + "（" + esc(v.lang) + "）</option>").join("") + "</select>" +
-      (TTS.ok ? "" : '<div class="err">這個瀏覽器不支援內建朗讀。</div>') + "</div></details></section>";
+    (src !== "system" ? '<details class="ledger"><summary>備用的系統聲音</summary><div class="stack" style="margin-top:10px">' + sysVoices + "</div></details>" : "") + "</section>";
 
   const seg = (key, opts) => '<div class="seg" role="group">' + opts.map(o => '<button data-act="setting" data-key="' + key + '" data-val="' + o[0] + '" aria-pressed="' + (st[key] === o[0]) + '">' + o[1] + "</button>").join("") + "</div>";
   parts.read = '<section class="card"><h2 style="font-size:20px">閱讀</h2>' +
@@ -3381,7 +3391,7 @@ function openReader(r){
 /* After an article is made (or opened): prepare its sentences first, then all its words.
    A new article shows a progress screen for 5-10 seconds while the first sentences are made. */
 function prepareArticleVoice(isNew){
-  const r = S.reader, ctx = S.ctx.reader || {}; if (!r) return;
+  const r = S.reader, ctx = S.ctx.reader || {}; if (!r || !TTS.pocketOn()) return;   /* the device voice needs no preparing */
   const w = S.weeks[r.week];
   TTS.prefetchAll(ctx.paras);
   const sents = TTS.pcOn() ? [] : (ctx.sentences || []).filter(Boolean);
