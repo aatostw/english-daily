@@ -2331,7 +2331,9 @@ const City3D = {
     if (curWeek()){
       this.person(g, -.45, .86, "#FAFAF7", 1.6);
       const hm = this.mat(0x3B2720, {flatShading:false});
-      const hair = new T.Mesh(new T.SphereGeometry(.122, 12, 10, 0, Math.PI * 2, 0, Math.PI / 1.7), hm); hair.position.set(-.45, .52, .85); g.add(hair);
+      /* hair: a full cap over the crown, then the back and sides falling below the face, leaving the face open */
+      const crown = new T.Mesh(new T.SphereGeometry(.122, 14, 10, 0, Math.PI * 2, 0, Math.PI * .3), hm); crown.position.set(-.45, .52, .85); g.add(crown);
+      const sides = new T.Mesh(new T.SphereGeometry(.124, 14, 10, Math.PI * .8, Math.PI * 1.4, 0, Math.PI * .62), hm); sides.position.set(-.45, .52, .85); g.add(sides);
       const back = new T.Mesh(new T.CylinderGeometry(.115, .15, .22, 14, 1, false, Math.PI * .3, Math.PI * 1.4), hm); back.position.set(-.45, .43, .85); g.add(back);
       this.box(g, .07, .14, .02, 0xF3DCD3, -.45, .3, .965);   /* the floral top under her open white shirt */
       this.label(new T.Vector3(-.45, .8, .86), '<button class="lisa-pin" data-act="open-chat" aria-label="找 Lisa 聊天"><span class="lisa-mini">' + LISA_SVG + '</span>Lisa</button>', true);
