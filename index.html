@@ -276,6 +276,7 @@ main.flush{padding:0;gap:0;overflow:hidden}
 .locked-row{opacity:.6}
 .city3d{position:relative;border-radius:16px;overflow:hidden;background:#D6EAE5}
 .city-canvas{display:block;width:100%;touch-action:none;cursor:grab}
+.city-stage .city-canvas{position:absolute;inset:0;height:100%}
 .city-ov{position:absolute;inset:0;pointer-events:none;overflow:hidden}
 .pin{position:absolute;left:0;top:0;will-change:transform}
 .pin .lbl{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:rgba(255,255,255,.93);font-size:11px;font-weight:700;color:#3a3330;box-shadow:0 2px 6px rgba(60,40,20,.15);white-space:nowrap}
@@ -2679,11 +2680,12 @@ const City3D = {
   /* ---------- camera, touch and drawing ---------- */
   resize(){
     if (!this.host) return;
-    const w = this.host.clientWidth || 320, h = Math.round(Math.min(380, Math.max(260, w * .85)));
+    /* fill the whole stage; fall back to a fixed shape if it has no height yet */
+    const w = this.host.clientWidth || 320, ch = this.host.clientHeight, h = ch > 120 ? ch : Math.round(Math.min(380, Math.max(260, w * .85)));
     this.r.setSize(w, h); this.cam.aspect = w / h; this.cam.updateProjectionMatrix(); this.w = w; this.h = h;
   },
   place(){
-    const d = this.dist, el = this.el, az = this.az, f = this.focus || [0, 0, 0];
+    const d = this.dist, el = this.el, az = this.az, f = this.focus || [0, 0, -.9];   /* aim a little behind the center so the island sits below the request card */
     this.cam.position.set(f[0] + d * Math.cos(el) * Math.sin(az), f[1] + d * Math.sin(el), f[2] + d * Math.cos(el) * Math.cos(az));
     this.cam.lookAt(f[0], f[1], f[2]);
   },
