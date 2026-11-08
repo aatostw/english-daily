@@ -62,10 +62,16 @@ h1,h2,h3{margin:0;text-wrap:balance;line-height:1.25}
 .pill.bad{background:color-mix(in srgb,var(--danger) 14%,transparent);color:var(--danger)}
 main{flex:1;overflow-y:auto;padding:16px 16px 28px;display:flex;flex-direction:column;gap:14px;-webkit-overflow-scrolling:touch}
 .tabs{display:grid;grid-template-columns:repeat(5,1fr);border-top:1px solid var(--line);background:var(--surface);padding:6px 4px 8px}
-.tab{display:flex;flex-direction:column;align-items:center;gap:2px;background:none;border:0;padding:6px 2px;border-radius:12px;color:var(--muted);font-size:12px;font-weight:500}
-.tab svg{width:24px;height:24px}
+.tab{display:flex;flex-direction:column;align-items:center;gap:2px;background:none;border:0;padding:4px 2px;border-radius:12px;color:var(--muted);font-size:12px;font-weight:500;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.tab-ic{display:flex;align-items:center;justify-content:center;width:52px;height:32px;border-radius:999px;transition:background .2s,transform .12s}
+.tab svg{width:26px;height:26px;filter:grayscale(.45);opacity:.78;transition:filter .2s,opacity .2s}
+.tab:active .tab-ic{transform:scale(.86)}
 .tab[aria-current="page"]{color:var(--primary-text);font-weight:700}
-.tab[aria-current="page"] svg{stroke-width:2.2}
+.tab[aria-current="page"] .tab-ic{background:#EEF1F5}
+.tab[aria-current="page"] svg{filter:none;opacity:1}
+.tab.pop svg{animation:tab-pop .38s cubic-bezier(.3,1.6,.5,1)}
+@keyframes tab-pop{0%{transform:scale(.7)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){.tab.pop svg{animation:none}.tab:active .tab-ic{transform:none}}
 
 /* ---------- building blocks ---------- */
 .card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:12px}
@@ -412,11 +418,11 @@ h1,h2{color:var(--primary-text)}
   </main>
   <div id="dock" class="dock" hidden></div>
   <nav class="tabs" id="tabs" hidden>
-    <button class="tab" data-act="tab" data-v="learn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>學習進度</button>
-    <button class="tab" data-act="tab" data-v="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 9.5V20h13V9.5"/><path d="M10 20v-5h4v5"/></svg>首頁</button>
-    <button class="tab" data-act="tab" data-v="city"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18"/><path d="M5 20V9l5-3v14"/><path d="M10 20V11h9v9"/><path d="M13 14h3M13 17h3"/></svg>我的城市</button>
-    <button class="tab" data-act="tab" data-v="words"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-6-4-6 4z"/></svg>收藏</button>
-    <button class="tab" data-act="tab" data-v="prefs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>設定</button>
+    <button class="tab" data-act="tab" data-v="learn"><span class="tab-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="tb-g1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7FD6B4"/><stop offset="1" stop-color="#3FA383"/></linearGradient><linearGradient id="tb-g2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7DB4F2"/><stop offset="1" stop-color="#3E7BD0"/></linearGradient><linearGradient id="tb-g3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFD873"/><stop offset="1" stop-color="#F0A520"/></linearGradient></defs><rect x="3" y="12" width="5" height="9" rx="1.6" fill="url(#tb-g1)" stroke="#2E3B4E" stroke-width="1.1" stroke-linejoin="round"/><rect x="9.5" y="4" width="5" height="17" rx="1.6" fill="url(#tb-g2)" stroke="#2E3B4E" stroke-width="1.1" stroke-linejoin="round"/><rect x="16" y="8.5" width="5" height="12.5" rx="1.6" fill="url(#tb-g3)" stroke="#2E3B4E" stroke-width="1.1" stroke-linejoin="round"/><rect x="4.2" y="13.2" width="1.2" height="3.5" rx=".6" fill="#fff" opacity=".6"/><rect x="10.7" y="5.2" width="1.2" height="5" rx=".6" fill="#fff" opacity=".6"/><rect x="17.2" y="9.7" width="1.2" height="4" rx=".6" fill="#fff" opacity=".6"/></svg></span>學習進度</button>
+    <button class="tab" data-act="tab" data-v="home"><span class="tab-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="tb-roof" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F58A63"/><stop offset="1" stop-color="#D9532E"/></linearGradient><linearGradient id="tb-wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF8EA"/><stop offset="1" stop-color="#F1DDBA"/></linearGradient></defs><path d="M5 10.5V20.5H19V10.5" fill="url(#tb-wall)" stroke="#2E3B4E" stroke-width="1.1" stroke-linejoin="round"/><path d="M2.5 11.5 12 3.2l9.5 8.3-1.6 1.6L12 6.3l-7.9 6.8z" fill="url(#tb-roof)" stroke="#2E3B4E" stroke-width="1.1" stroke-linejoin="round"/><rect x="9.8" y="14" width="4.4" height="6.5" rx="1" fill="#3E7BD0" stroke="#2E3B4E" stroke-width="1.1" stroke-linejoin="round"/><circle cx="13.2" cy="17.4" r=".5" fill="#FFD873"/><rect x="15.6" y="2.8" width="2.4" height="4" fill="#B98B5E" stroke="#2E3B4E" stroke-width="1.1" stroke-linejoin="round"/></svg></span>首頁</button>
+    <button class="tab" data-act="tab" data-v="city"><span class="tab-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="tb-b1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7DB4F2"/><stop offset="1" stop-color="#3E7BD0"/></linearGradient><linearGradient id="tb-b2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7FD6B4"/><stop offset="1" stop-color="#3FA383"/></linearGradient></defs><path d="M3.5 21V7.5L9.5 4V21z" fill="url(#tb-b1)" stroke="#2E3B4E" stroke-width="1.1" stroke-linejoin="round"/><rect x="9.5" y="9" width="11" height="12" rx="1.2" fill="url(#tb-b2)" stroke="#2E3B4E" stroke-width="1.1" stroke-linejoin="round"/><g fill="#FFE07A"><rect x="5.3" y="9" width="2" height="2" rx=".4"/><rect x="5.3" y="13" width="2" height="2" rx=".4"/><rect x="11.8" y="11.5" width="2.2" height="2.2" rx=".4"/><rect x="16" y="11.5" width="2.2" height="2.2" rx=".4"/><rect x="11.8" y="15.5" width="2.2" height="2.2" rx=".4"/></g><rect x="16" y="16.5" width="2.2" height="4.5" rx=".4" fill="#2E3B4E"/><path d="M2 21h20" stroke="#2E3B4E" stroke-width="1.4" stroke-linecap="round"/></svg></span>我的城市</button>
+    <button class="tab" data-act="tab" data-v="words"><span class="tab-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="tb-bm" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FF8A8A"/><stop offset="1" stop-color="#E04A4A"/></linearGradient></defs><path d="M6 3.5A1.5 1.5 0 0 1 7.5 2h9A1.5 1.5 0 0 1 18 3.5V21.5l-6-4.2-6 4.2z" fill="url(#tb-bm)" stroke="#2E3B4E" stroke-width="1.1" stroke-linejoin="round"/><path d="M12 6.2l1.2 2.5 2.7.4-2 1.9.5 2.7-2.4-1.3-2.4 1.3.5-2.7-2-1.9 2.7-.4z" fill="#FFE07A" stroke="#C78A00" stroke-width=".7" stroke-linejoin="round"/></svg></span>收藏</button>
+    <button class="tab" data-act="tab" data-v="prefs"><span class="tab-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="tb-gear" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#B7C3D3"/><stop offset="1" stop-color="#7C8BA1"/></linearGradient></defs><path d="M10.3 2h3.4l.5 2.6 1.7.8 2.2-1.5 2.4 2.4-1.5 2.2.8 1.7 2.6.5v3.4l-2.6.5-.8 1.7 1.5 2.2-2.4 2.4-2.2-1.5-1.7.8-.5 2.6h-3.4l-.5-2.6-1.7-.8-2.2 1.5-2.4-2.4 1.5-2.2-.8-1.7L2 13.7v-3.4l2.6-.5.8-1.7-1.5-2.2 2.4-2.4 2.2 1.5 1.7-.8z" fill="url(#tb-gear)" stroke="#2E3B4E" stroke-width="1.1" stroke-linejoin="round"/><circle cx="12" cy="12" r="3.6" fill="#FFF8EA" stroke="#2E3B4E" stroke-width="1.1" stroke-linejoin="round"/><circle cx="12" cy="12" r="1.4" fill="#3E7BD0"/></svg></span>設定</button>
   </nav>
   <section id="reader" class="reader" hidden></section>
   <div id="sheet" class="sheet" hidden>
@@ -3778,7 +3784,12 @@ function backupNagHTML(){
   return '<section class="card backup"><div class="row between"><b>已經 ' + n + ' 天沒有備份進度</b><button class="btn ghost sm" data-act="backup-later">稍後</button></div>' + backupButtonsHTML() + "</section>";
 }
 const ACT = {
-  "tab": el => { if (S.reader) closeReader(); closeSheet(); if (el.dataset.v === "prefs") S.prefPage = null; go(el.dataset.v); },
+  "tab": el => {
+    /* a small buzz and a pop on the icon, so the tap clearly lands */
+    try { if (navigator.vibrate) navigator.vibrate(8); } catch (e) {}
+    const v = el.dataset.v;
+    setTimeout(() => { const t = document.querySelector('#tabs .tab[data-v="' + v + '"]'); if (t){ t.classList.remove("pop"); void t.offsetWidth; t.classList.add("pop"); } }, 0);
+    if (S.reader) closeReader(); closeSheet(); if (el.dataset.v === "prefs") S.prefPage = null; go(el.dataset.v); },
   "open-chat": () => { const w = curWeek(); if (!w) return; S.chatDay = chatDayFor(w); S.talk.scrollDown = true; go("talk"); },
   "pref-open": el => { S.prefPage = el.dataset.p; go("prefs"); $("#main").scrollTop = 0; },
   "pref-back": () => { S.prefPage = null; render(); $("#main").scrollTop = 0; },
