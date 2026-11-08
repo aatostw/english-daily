@@ -1731,11 +1731,9 @@ function city(){
       else if (old.d) c.owned.deco.push(old.d);
     }
   }
-  /* buildings upgraded before they took up extra plots grow into them now, if there is room */
-  Object.keys(c.tiles).forEach(k => {
-    const it = c.tiles[k], b = it.b && CITY_BUILDINGS[it.b]; if (!b || b.fixed || !(b.make || b.grow)) return;
-    while ((it.cells || []).length < tileLv(it) - 1){ const n = growCell(c, k); if (!n) break; it.cells = (it.cells || []).concat(n); c.tiles[n] = {part:k}; }
-  });
+  /* every building takes one plot (older towns had big buildings spread over 2-3); each one has a front door */
+  Object.keys(c.tiles).forEach(k => { const it = c.tiles[k]; if (it.part) delete c.tiles[k]; else if (it.cells) delete it.cells; });
+  Object.keys(c.tiles).forEach(k => { const it = c.tiles[k]; if (hasDoor(it) && !(it.face >= 0 && it.face < 6)) it.face = autoFace(c, k); });
   /* shops make food once a day; it waits in the shop (up to 2 days' worth) until you harvest */
   if (!c.prod) c.prod = {date:t, store:0};
   if (c.prod.date !== t){
@@ -1750,19 +1748,28 @@ function tileLv(it){ return (it && it.lv) || 1; }
 function cityNear(k){ const [q, r] = k.split(",").map(Number); return CITY_DIRS.map(([a, b]) => (q + a) + "," + (r + b)); }
 const HALL = {cost:[0, 300, 800], know:["", "hall2", "hall3"], reqs:[3, 4, 5]};
 function hallLv(c){ const h = c.tiles["0,0"]; return h && h.b === "hall" ? tileLv(h) : 1; }
-function anchorOf(c, k){ const it = c.tiles[k]; return it && it.part ? it.part : k; }
-function cellsOf(c, k){ const it = c.tiles[k]; return [k].concat((it && it.cells) || []); }
-/* which buildings reach the city center: next to it, or next to a road that leads back to it */
+function anchorOf(c, k){ return k; }
+function hasDoor(it){ return !!(it && it.b && it.b !== "hall" && it.b !== "road"); }
+function hexDist(k){ const [q, r] = k.split(",").map(Number); return (Math.abs(q) + Math.abs(r) + Math.abs(q + r)) / 2; }
+function doorKey(c, k){ const it = c.tiles[k]; return cityNear(k)[(it && it.face >= 0) ? it.face : 5]; }
+function cityRoads(c){
+  const roads = new Set(), stack = ["0,0"];
+  while (stack.length){ const k = stack.pop(); cityNear(k).forEach(n => { const t = c.tiles[n]; if (t && t.b === "road" && !roads.has(n)){ roads.add(n); stack.push(n); } }); }
+  return roads;
+}
+/* which way a new building's door should face: a road that reaches the center, then the center, then any road, then toward the middle */
+function autoFace(c, k){
+  const near = cityNear(k), roads = cityRoads(c);
+  let i = near.findIndex(n => roads.has(n)); if (i >= 0) return i;
+  i = near.indexOf("0,0"); if (i >= 0) return i;
+  i = near.findIndex(n => c.tiles[n] && c.tiles[n].b === "road"); if (i >= 0) return i;
+  let best = 5, bd = 1e9; near.forEach((n, j) => { const d = hexDist(n); if (d < bd){ bd = d; best = j; } });
+  return best;
+}
+/* a building reaches the city center only through its front door: the plot in front of it is the center, or a road that leads back to it */
 function cityLinked(c){
-  const roads = new Set(), linked = new Set(["0,0"]), stack = ["0,0"];
-  while (stack.length){
-    const k = stack.pop();
-    cityNear(k).forEach(n => {
-      const t = c.tiles[n]; if (!t) return;
-      if (t.b === "road"){ if (!roads.has(n)){ roads.add(n); stack.push(n); } }
-      else if (!t.d) linked.add(anchorOf(c, n));
-    });
-  }
+  const roads = cityRoads(c), linked = new Set(["0,0"]);
+  Object.keys(c.tiles).forEach(k => { if (!hasDoor(c.tiles[k])) return; const d = doorKey(c, k); if (d === "0,0" || roads.has(d)) linked.add(k); });
   return linked;
 }
 function isLinked(c, k, L){ return (L || cityLinked(c)).has(anchorOf(c, k)); }
@@ -1778,13 +1785,6 @@ function upgradeCost(it){
   return b.make || b.grow ? Math.round(b.price * (lv === 1 ? 1.5 : 2.5)) : 0;
 }
 function cityName(it){ return it.b ? CITY_BUILDINGS[it.b].name + (CITY_BUILDINGS[it.b].make || CITY_BUILDINGS[it.b].grow ? " Lv" + tileLv(it) : "") : CITY_DECOS[it.d]; }
-/* the empty plot a building grows into: on the island, touching it, and touching as much of it as possible */
-function growCell(c, k){
-  const mine = cellsOf(c, k), land = new Set(cityTiles(c).map(([q, r]) => q + "," + r)), score = {};
-  mine.forEach(m => cityNear(m).forEach(n => { if (land.has(n) && !c.tiles[n]) score[n] = (score[n] || 0) + 1; }));
-  const best = Object.keys(score).sort((a, b) => score[b] - score[a]);
-  return best[0] || null;
-}
 function roadOk(c, k){ return cityNear(k).some(n => c.tiles[n] && !c.tiles[n].d); }
 function saveCity(){ Store.set("city", S.city).catch(() => {}); if (typeof renderCoins === "function") renderCoins(); }
 function cityTiles(c){
@@ -1876,7 +1876,8 @@ function islandSVG(c){
         s += '<line x1="' + x + '" y1="' + y + '" x2="' + (cx + (t.x + nx) / 2) + '" y2="' + (cy + (t.y + ny) / 2) + '" stroke="#b7aa96" stroke-width="11" stroke-linecap="round" pointer-events="none"/>';
       });
       CITY_DIRS.forEach(([a, b]) => {
-        const n = c.tiles[(t.q + a) + "," + (t.r + b)]; if (!n || n.b === "road" || n.d || n.b === "park") return;
+        const nk = (t.q + a) + "," + (t.r + b), n = c.tiles[nk]; if (!n || n.b === "road" || n.d) return;
+        if (n.b !== "hall" && doorKey(c, nk) !== t.key) return;
         links++; const [nx, ny] = cityPos(t.q + a, t.r + b);
         s += '<line x1="' + x + '" y1="' + y + '" x2="' + (cx + t.x + (nx - t.x) * .8) + '" y2="' + (cy + t.y + (ny - t.y) * .8) + '" stroke="#b7aa96" stroke-width="6" stroke-linecap="round" pointer-events="none"/>';
       });
@@ -1977,20 +1978,20 @@ function citySheetHTML(o){
         next = "小島變成 " + (3 * (hl + 2) * (hl + 3) + 1) + " 格・每天 " + HALL.reqs[hl] + " 個請求・產 " + b.make[hl] + " 份糧食" + (hl === 1 ? "・解鎖診所" : "・解鎖市集");
         if (!knowUnlocked(HALL.know[hl])){ const u = KNOW_UNLOCKS.find(x => x.key === HALL.know[hl]); lock = "知識 " + u.at + " 才能升級（現在 " + knowledge() + "）"; }
       }
-    } else if (it.b === "road") info = linked || cityNear(o.k).some(n => n === "0,0") ? "這段路有接上市中心。" : "道路會自動和旁邊的路接起來。";
+    } else if (it.b === "road") info = cityRoads(c).has(o.k) ? "這段路有接上市中心。門口對著這段路的建築都會接上。" : "這段路還沒接上市中心。";
     else if (b && b.make) info = "老闆：" + esc(who || "—") + "<br>每天產 <b>" + shopMake(c, o.k, L) + "</b> 份糧食";
     else info = who ? "住在這裡：" + esc(who) : b ? b.desc : "島上的裝飾";
-    if (b && b.make && !b.fixed && lv < 3) next = "長大到 " + (lv + 1) + " 格・每天產 " + b.make[lv] + " 份糧食";
-    if (b && b.grow && lv < 3) next = "長大到 " + (lv + 1) + " 格・多 1 位居民搬進來";
-    if (b && !b.fixed && (b.make || b.grow) && lv < 3 && !growCell(c, o.k)) lock = "旁邊要留一格空地，才能長大";
-    const warn = it.b && it.b !== "road" && !b.fixed && !linked && (b.make || b.residents)
-      ? '<div class="err">還沒接上市中心：' + (b.make ? "不會產糧" : "居民不會出來") + "。在它和市中心之間蓋道路。</div>" : "";
+    if (b && b.make && !b.fixed && lv < 3) next = "換上更大的店面・每天產 " + b.make[lv] + " 份糧食";
+    if (b && b.grow && lv < 3) next = (lv === 1 ? "加蓋成兩層樓" : "改建成公寓") + "・多 1 位居民搬進來";
+    const warn = hasDoor(it) && !linked && (b.make || b.residents)
+      ? '<div class="err">還沒接上市中心：' + (b.make ? "不會產糧" : "居民不會出來") + "。門口要正對道路或市中心，可以轉方向或在門口蓋路。</div>" : "";
+    const turn = hasDoor(it) ? '<button class="btn soft block" data-act="city-turn" data-k="' + o.k + '">轉方向（門口現在' + (linked ? "對著道路" : "沒有路") + "）</button>" : "";
     const up = cost ? (lock ? '<div class="menu-row locked-row"><span><b>升到 Lv' + (lv + 1) + '</b><span class="small muted">' + next + "</span></span><span class=\"small muted\">" + lock + "</span></div>"
       : '<button class="menu-row" data-act="city-upgrade" data-k="' + o.k + '"' + (bal < cost ? " disabled" : "") + '><span><b>升到 Lv' + (lv + 1) + '</b><span class="small muted">' + next +
         '</span></span><span class="price"><img class="coin-icon" src="' + COIN_IMG + '" alt="">' + cost + "</span></button>")
       : (b && (b.make || b.grow) ? '<p class="small muted" style="margin:0">已經是最高等級 Lv3</p>' : "");
-    return head(cityName(it)) + warn + '<p class="muted" style="margin:0">' + info + "</p>" + up +
-      (it.b === "hall" ? "" : '<button class="btn ghost block" data-act="city-move" data-k="' + o.k + '">' + (it.d ? "收回背包" : "拆掉（不退金幣）") + "</button>");
+    return head(cityName(it)) + warn + '<p class="muted" style="margin:0">' + info + "</p>" + up + turn +
+      (it.b === "hall" ? "" : '<button class="btn ghost block" data-act="city-move" data-k="' + o.k + '">' + (it.d ? "收回背包" : it.b === "road" ? "移除道路（退回 " + CITY_BUILDINGS.road.price + " 金幣）" : "拆掉（不退金幣）") + "</button>");
   }
   if (o.s === "shop"){
     return head("商店") + '<div class="stack">' +
@@ -2249,18 +2250,11 @@ const City3D = {
         this.tree(g, x + .55, .05, z + .3, .6, 0x9ACB78);
         return;
       }
-      /* a building that grew over 2 or 3 plots stands in the middle of them, turned to line up with them */
-      const cells = cellsOf(c, key).filter(k => c.tiles[k]), pts = cells.map(posK);
-      const gx = pts.reduce((a, p) => a + p[0], 0) / pts.length, gz = pts.reduce((a, p) => a + p[1], 0) / pts.length;
-      let rot = pts.length > 1 ? Math.atan2(-(pts[1][1] - pts[0][1]), pts[1][0] - pts[0][0]) : 0;
-      /* turn the front door toward the nearest road, so the path runs right up to it */
-      const roadK = it.b && it.b !== "hall" && it.b !== "park" ? cells.flatMap(cityNear).find(n => c.tiles[n] && c.tiles[n].b === "road") : null;
-      if (roadK){
-        const [rx, rz] = posK(roadK), dx = rx - gx, dz = rz - gz;
-        if (pts.length === 1) rot = Math.atan2(dx, dz);
-        else if (Math.sin(rot) * dx + Math.cos(rot) * dz < 0) rot += Math.PI;
-      }
-      const spots = pts.map(([px, pz]) => { const v = new T.Vector3(px - gx, 0, pz - gz).applyAxisAngle(new T.Vector3(0, 1, 0), -rot); return [v.x, v.z]; });
+      /* the front of the building faces its door */
+      const pts = [[x, z]], gx = x, gz = z;
+      let rot = 0;
+      if (hasDoor(it)){ const [dx, dz] = posK(doorKey(c, key)); rot = Math.atan2(dx - x, dz - z); }
+      const spots = [[0, 0]];
       centers[key] = [gx, gz, pts];
       const lv = tileLv(it), linked = !it.b || L.has(key), b = it.b && CITY_BUILDINGS[it.b];
       const bg = new T.Group(); bg.position.set(gx, .05, gz); bg.rotation.y = rot; bg.userData.key = key;
@@ -2323,18 +2317,17 @@ const City3D = {
       const sub = new T.Group(); g.add(sub); this.building(sub, type, win, false, 1);
       const col = {cafe:0xE8945A, bakery:0xC9574A, books:0x6E8FB0, market:0x6DB4A0}[type] || 0xE8945A, h1 = {cafe:.45, bakery:.74, books:1.0, market:.4}[type] || .5;
       if (lv === 2){
-        sub.scale.set(2.2, 1.35, 1.25);
-        this.box(g, 1.1, .26, .05, col, 0, h1 * 1.35 + .16, .2); this.box(g, .8, .05, .06, 0xFFFFFF, 0, h1 * 1.35 + .16, .23);
-        [-1.05, 1.05].forEach(x => { this.box(g, .16, .14, .16, 0xB98B5E, x, .07, .4); this.tree(g, x, .12, .4, .55, 0x7FB860); });
+        /* a wider shop front with a big sign and plants by the door */
+        sub.scale.set(1.25, 1.35, 1.2);
+        this.box(g, .82, .22, .05, col, 0, h1 * 1.35 + .14, .2); this.box(g, .56, .05, .06, 0xFFFFFF, 0, h1 * 1.35 + .14, .23);
+        [-.42, .42].forEach(x => { this.box(g, .13, .12, .13, 0xB98B5E, x, .06, .42); this.tree(g, x, .1, .42, .45, 0x7FB860); });
       } else {
-        this.box(g, 1.5, .5, 1.3, 0xEDE6DA, 0, .25, 0); this.box(g, 1.3, .3, .02, win, 0, .26, .66); this.box(g, 1.56, .05, 1.36, col, 0, .52, 0);
-        sub.position.y = .54; sub.scale.set(1.9, 1.5, 1.9);
-        const top = .54 + h1 * 1.5; this.box(g, .02, .5, .02, 0x6b5240, .6, top + .25, -.3); this.box(g, .22, .14, .01, 0xF3CC58, .72, top + .42, -.3);
-        spots.forEach(([sx, sz]) => {
-          const px = sx * 1.05, pz = sz * 1.05;
-          this.box(g, .02, .3, .02, 0xFFFFFF, px, .15, pz); const u = new T.Mesh(new T.ConeGeometry(.22, .12, 8), this.mat(col)); u.position.set(px, .34, pz); g.add(u);
-          this.box(g, .2, .02, .2, 0x9C7B5B, px, .16, pz); this.tree(g, px + .3, 0, pz - .2, .6, 0x7FB860);
-        });
+        /* a two-tier store: glass ground floor, the shop on top, a golden flag and a table outside */
+        this.box(g, 1.0, .42, .82, 0xEDE6DA, 0, .21, 0); this.box(g, .86, .26, .02, win, 0, .22, .42); this.box(g, 1.06, .05, .88, col, 0, .44, 0);
+        sub.position.y = .46; sub.scale.set(1.15, 1.3, 1.15);
+        const top = .46 + h1 * 1.3; this.box(g, .02, .45, .02, 0x6b5240, .38, top + .22, -.2); this.box(g, .2, .13, .01, 0xF3CC58, .49, top + .38, -.2);
+        this.box(g, .02, .26, .02, 0xFFFFFF, .5, .13, .6); const u = new T.Mesh(new T.ConeGeometry(.18, .1, 8), this.mat(col)); u.position.set(.5, .3, .6); g.add(u);
+        this.box(g, .16, .02, .16, 0x9C7B5B, .5, .14, .6);
       }
     } else if (type === "hall"){
       if (lv === 1){
@@ -2373,29 +2366,27 @@ const City3D = {
       });
       this.tree(g, 0, 0, -.45, .7);
     } else if (type === "house" && lv === 2){
-      /* a two-storey row house over two plots, with a garden fence */
-      this.box(g, 1.9, .78, .66, 0xF8F3EA, 0, .39, 0); this.box(g, 1.94, .04, .7, 0xE9DFCF, 0, .4, 0);
-      this.roof(g, 2.0, .36, .8, 0xDB6A41, .78);
-      [-.75, -.25, .25, .75].forEach(x => { w(x, .26, .34); w(x, .6, .34); });
-      this.box(g, .14, .22, .02, 0x8A6A4A, -.5, .11, .34); this.box(g, .14, .22, .02, 0x8A6A4A, .5, .11, .34);
-      this.box(g, .1, .26, .1, 0xC8B49A, .6, 1.0, -.1);
-      for (let i = -4; i <= 4; i++) this.box(g, .03, .12, .03, 0xFFFFFF, i * .22, .06, .56);
-      this.box(g, 1.8, .02, .02, 0xFFFFFF, 0, .1, .56);
-      this.tree(g, -.95, 0, -.45, .8); this.tree(g, .95, 0, -.45, .65, 0x7FB860);
+      /* a two-storey house with a balcony and flower boxes */
+      this.box(g, .7, .74, .56, 0xF8F3EA, 0, .37, 0); this.box(g, .74, .04, .6, 0xE9DFCF, 0, .38, 0);
+      this.roof(g, .8, .32, .68, 0xDB6A41, .74);
+      w(-.18, .22, .29); w(.18, .58, .29); w(-.18, .58, .29);
+      this.box(g, .13, .22, .02, 0x8A6A4A, .18, .11, .29);
+      this.box(g, .34, .03, .14, 0xE9DFCF, -.1, .44, .35); this.box(g, .34, .1, .01, 0xFFFFFF, -.1, .5, .42);
+      this.box(g, .2, .05, .05, 0x8CC46E, -.18, .16, .31); this.box(g, .2, .05, .05, 0xF48FB1, -.18, .52, .31);
+      this.box(g, .09, .22, .09, 0xC8B49A, .2, .98, -.1);
+      this.tree(g, -.5, 0, -.3, .75);
     } else if (type === "house" && lv >= 3){
-      /* a four-storey apartment in the middle, with a cottage wing reaching into each plot and a roof garden */
-      this.box(g, .95, 1.5, .95, 0xF3E9DA, 0, .75, 0); this.box(g, 1.0, .06, 1.0, 0xB9A58A, 0, 1.53, 0);
-      this.box(g, .72, .05, .72, 0x8CC46E, 0, 1.58, 0); this.tree(g, .2, 1.58, .2, .5); this.tree(g, -.22, 1.58, -.15, .45, 0x7FB860);
+      /* a four-storey apartment with balconies and a roof garden */
+      this.box(g, .82, 1.32, .7, 0xF3E9DA, 0, .66, 0); this.box(g, .88, .06, .76, 0xB9A58A, 0, 1.35, 0);
+      this.box(g, .66, .05, .54, 0x8CC46E, 0, 1.4, 0); this.tree(g, .18, 1.4, .1, .45); this.tree(g, -.2, 1.4, -.12, .4, 0x7FB860);
       for (let f = 0; f < 4; f++){
-        const y = .22 + f * .34;
-        [-.22, .22].forEach(x => { w(x, y, .48); w(x, y, -.48); this.box(g, .02, .1, .1, win, .48, y, x); this.box(g, .02, .1, .1, win, -.48, y, x); });
-        if (f) this.box(g, .7, .03, .12, 0xDB6A41, 0, y - .1, .54);
+        const y = .2 + f * .3;
+        [-.25, 0, .25].forEach(x => { if (!(f === 0 && x === 0)) w(x, y, .36); });
+        [-.2, .2].forEach(z => { this.box(g, .02, .09, .09, win, .42, y, z); this.box(g, .02, .09, .09, win, -.42, y, z); });
+        if (f) this.box(g, .62, .03, .12, 0xDB6A41, 0, y - .09, .41);
       }
-      spots.forEach(([sx, sz]) => {
-        const wg = new T.Group(); wg.position.set(sx * .74, 0, sz * .74); wg.rotation.y = Math.atan2(sx, sz); g.add(wg);
-        this.box(wg, .62, .5, .5, 0xF8F3EA, 0, .25, 0); this.roof(wg, .68, .26, .58, 0xDB6A41, .5);
-        this.box(wg, .12, .18, .02, 0x8A6A4A, 0, .09, .26); this.box(wg, .1, .1, .02, win, -.18, .3, .26); this.box(wg, .1, .1, .02, win, .18, .3, .26);
-      });
+      this.box(g, .16, .22, .02, 0x8A6A4A, 0, .11, .36); this.box(g, .3, .03, .14, 0x6E8FB0, 0, .26, .42);
+      this.tree(g, -.55, 0, .35, .6, 0x7FB860);
     } else if (type === "house"){
       this.box(g, .62, .44, .5, 0xF8F3EA, 0, .22, 0); this.roof(g, .7, .3, .62, 0xDB6A41, .44);
       this.box(g, .12, .2, .02, 0x8A6A4A, 0, .1, .26); w(-.18, .28, .26); w(.18, .28, .26);
@@ -2450,9 +2441,10 @@ const City3D = {
       const seg = new T.Mesh(new T.BoxGeometry(.9, .03, .5), col); seg.position.set(x + dx / 2, .065, z + dz / 2); seg.rotation.y = Math.atan2(-dz, dx); seg.receiveShadow = true; g.add(seg);
       const line = new T.Mesh(new T.BoxGeometry(.5, .01, .05), edge); line.position.set(x + dx / 2, .085, z + dz / 2); line.rotation.y = seg.rotation.y; g.add(line);
     });
-    /* a narrower path from the road up to the door of every building next to it */
+    /* a narrower path from the road up to every door that faces it (and to the city center) */
     CITY_DIRS.forEach(([a, b]) => {
-      const n = c.tiles[(q + a) + "," + (r + b)]; if (!n || n.b === "road" || n.d || (n.b === "park")) return;
+      const nk = (q + a) + "," + (r + b), n = c.tiles[nk]; if (!n || n.b === "road" || n.d) return;
+      if (n.b !== "hall" && doorKey(c, nk) !== q + "," + r) return;
       links++;
       const [nx, nz] = pos(q + a, r + b), dx = (nx - x) / 2, dz = (nz - z) / 2;
       const seg = new T.Mesh(new T.BoxGeometry(1.25, .03, .26), col); seg.position.set(x + dx * .62, .064, z + dz * .62); seg.rotation.y = Math.atan2(-dz, dx); seg.receiveShadow = true; g.add(seg);
@@ -3929,12 +3921,9 @@ const ACT = {
   "city-upgrade": el => {
     const c = city(), k = el.dataset.k, it = c.tiles[k]; if (!it || !it.b) return;
     const cost = upgradeCost(it), b = CITY_BUILDINGS[it.b]; if (!cost) return;
-    let cell = null;
-    if (b.fixed){ if (!knowUnlocked(HALL.know[tileLv(it)])) return; }
-    else if (!(cell = growCell(c, k))){ toast("旁邊要留一格空地，才能長大。"); return; }
+    if (b.fixed && !knowUnlocked(HALL.know[tileLv(it)])) return;
     if (!spend(cost, "城市：升級" + b.name)){ toast("金幣不夠。"); return; }
     it.lv = tileLv(it) + 1;
-    if (cell){ it.cells = (it.cells || []).concat(cell); c.tiles[cell] = {part:k}; }
     let moved = "";
     if (b.grow){
       const used = new Set(c.residents.map(p => p.name)), add = b.grow[it.lv - 1] - b.grow[it.lv - 2];
@@ -3951,6 +3940,12 @@ const ACT = {
     if (el.dataset.b === "road" && !roadOk(c, o.k)){ toast("道路要貼著建築或其他道路。"); return; }
     if (!spend(b.price, "城市：蓋" + b.name)){ toast("金幣不夠，多練習幾篇再來。"); return; }
     c.tiles[o.k] = {b:el.dataset.b};
+    if (hasDoor(c.tiles[o.k])) c.tiles[o.k].face = autoFace(c, o.k);
+    if (el.dataset.b === "road"){
+      /* buildings next to a new road that had no way in turn their door toward it */
+      const L0 = cityLinked(c);
+      cityNear(o.k).forEach((n, i) => { const t = c.tiles[n]; if (hasDoor(t) && !L0.has(n)) t.face = (i + 3) % 6; });
+    }
     if (b.make) c.prod.store += shopMake(c, o.k);   /* the first day's batch is ready right away */
     const used = new Set(c.residents.map(p => p.name));
     for (let i = 0; i < b.residents; i++){
@@ -3960,14 +3955,18 @@ const ACT = {
     const far = el.dataset.b !== "road" && !isLinked(c, o.k);
     saveCity(); closeSheet(); render(); toast(b.name + "蓋好了" + (far ? "。記得用道路接上市中心！" : b.residents ? "，" + b.residents + " 位居民搬進來！" : "！"));
   },
+  "city-turn": el => {
+    const c = city(), it = c.tiles[el.dataset.k]; if (!hasDoor(it)) return;
+    it.face = ((it.face >= 0 ? it.face : 5) + 1) % 6; saveCity(); drawSheet(); render();
+  },
   "city-deco": el => {
     const c = city(), o = S.sheet, d = el.dataset.d, i = c.owned.deco.indexOf(d); if (!o || i < 0 || c.tiles[o.k]) return;
     c.owned.deco.splice(i, 1); c.tiles[o.k] = {d}; saveCity(); closeSheet(); render();
   },
   "city-move": el => {
-    const c = city(), k = el.dataset.k, it = c.tiles[k]; if (!it || it.b === "hall" || it.part) return;
-    (it.cells || []).forEach(x => delete c.tiles[x]);
+    const c = city(), k = el.dataset.k, it = c.tiles[k]; if (!it || it.b === "hall") return;
     if (it.d) c.owned.deco.push(it.d);
+    else if (it.b === "road") earn(CITY_BUILDINGS.road.price, "城市：移除道路");
     else {
       /* residents who lived here move out; requests pointing at them are dropped */
       const gone = c.residents.map((p, i) => p.home === k ? i : -1).filter(i => i >= 0);
