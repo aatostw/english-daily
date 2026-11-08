@@ -200,6 +200,13 @@ label.btn{cursor:pointer}
 .art-more:disabled{opacity:.6}
 .warn-box{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;padding:6px 6px 6px 12px;border-radius:12px;background:#fff;border:1px solid #F3C4C4;color:#D93F3F;font-size:14px;font-weight:600}
 .btn.danger-soft{background:#FDECEC;color:#C93636;box-shadow:none}
+.style-seg{display:flex;gap:6px;margin:2px 0 8px}
+.style-seg button{flex:1;min-height:40px;border:0;border-radius:10px;background:var(--field);color:var(--muted);font-weight:700;font-family:inherit}
+.style-seg button.on{background:var(--primary);color:#fff}
+.ground-row{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.ground-btn{display:flex;align-items:center;gap:6px;min-height:40px;padding:0 8px;border:2px solid transparent;border-radius:10px;background:var(--field);color:var(--ink);font-size:13px;font-family:inherit}
+.ground-btn span{flex:none;width:18px;height:18px;border-radius:5px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.12)}
+.ground-btn.on{border-color:var(--primary);font-weight:700}
 .warn-x{flex:none;width:30px;height:30px;border:0;border-radius:50%;background:transparent;color:#D93F3F;font-size:20px;line-height:1}
 .warn-x:active{background:#FDECEC}
 .talk-row{align-items:flex-end;gap:8px;flex-wrap:nowrap}
@@ -1676,7 +1683,7 @@ const CITY_BUILDINGS = {
   books:{name:"書店", price:150, residents:1, desc:"老闆 1 位・每天產 2 份糧食", unlock:"books", make:[2, 4, 7]},
   clinic:{name:"診所", price:180, residents:1, desc:"醫生 1 位", unlock:"clinic", hall:2},
   market:{name:"市集", price:300, residents:2, desc:"老闆 2 位・每天產 4 份糧食", hall:3, make:[4, 7, 11]},
-  park:{name:"小公園", price:60, residents:0, desc:"讓島上更漂亮"}
+  park:{name:"小公園", price:60, residents:0, desc:"讓島上更漂亮・升級後居民請求變多", fun:[0, 1, 2]}
 };
 const CITY_DECOS = {statue:"公園雕像", fountain:"噴水池", sakura:"櫻花樹", lighthouse:"燈塔"};
 const CITY_PARTS = {
@@ -1736,6 +1743,7 @@ function city(){
   }
   /* every building takes one plot (older towns had big buildings spread over 2-3); each one has a front door */
   Object.keys(c.tiles).forEach(k => { const it = c.tiles[k]; if (it.part) delete c.tiles[k]; else if (it.cells) delete it.cells; });
+  const hall = c.tiles["0,0"]; if (!(hall.face >= 0 && hall.face < 6)) hall.face = autoFace(c, "0,0");
   Object.keys(c.tiles).forEach(k => { const it = c.tiles[k]; if (hasDoor(it) && !(it.face >= 0 && it.face < 6)) it.face = autoFace(c, k); });
   /* shops make food once a day; it waits in the shop (up to 2 days' worth) until you harvest */
   if (!c.prod) c.prod = {date:t, store:0};
@@ -1747,24 +1755,31 @@ function city(){
 }
 /* ---------- levels, roads and food from shops ---------- */
 const CITY_DIRS = [[1, 0], [1, -1], [0, -1], [-1, 0], [-1, 1], [0, 1]];
+/* the ground under a building, and the two building styles */
+const CITY_GROUNDS = {sand:["沙地", 0xF2E6CE, "#efe2c6"], grass:["草地", 0xA8CF7C, "#a8d88a"], stone:["石板", 0xCFCAC2, "#cfcac2"], wood:["木棧板", 0xC99A6B, "#c99a6b"], brick:["紅磚", 0xC9826A, "#c9826a"], white:["白石", 0xF4F5F2, "#f4f5f2"]};
+const CITY_STYLES = {west:"西方", cn:"中華"};
 function tileLv(it){ return (it && it.lv) || 1; }
 function cityNear(k){ const [q, r] = k.split(",").map(Number); return CITY_DIRS.map(([a, b]) => (q + a) + "," + (r + b)); }
 const HALL = {cost:[0, 300, 800], know:["", "hall2", "hall3"], reqs:[3, 4, 5]};
 function hallLv(c){ const h = c.tiles["0,0"]; return h && h.b === "hall" ? tileLv(h) : 1; }
 function anchorOf(c, k){ return k; }
-function hasDoor(it){ return !!(it && it.b && it.b !== "hall" && it.b !== "road"); }
+function hasDoor(it){ return !!(it && it.b && it.b !== "road"); }
 function hexDist(k){ const [q, r] = k.split(",").map(Number); return (Math.abs(q) + Math.abs(r) + Math.abs(q + r)) / 2; }
 function doorKey(c, k){ const it = c.tiles[k]; return cityNear(k)[(it && it.face >= 0) ? it.face : 5]; }
+/* the road network that starts at the city center's front door */
 function cityRoads(c){
-  const roads = new Set(), stack = ["0,0"];
+  const roads = new Set(), start = doorKey(c, "0,0");
+  if (!c.tiles[start] || c.tiles[start].b !== "road") return roads;
+  const stack = [start]; roads.add(start);
   while (stack.length){ const k = stack.pop(); cityNear(k).forEach(n => { const t = c.tiles[n]; if (t && t.b === "road" && !roads.has(n)){ roads.add(n); stack.push(n); } }); }
   return roads;
 }
 /* which way a new building's door should face: a road that reaches the center, then the center, then any road, then toward the middle */
 function autoFace(c, k){
   const near = cityNear(k), roads = cityRoads(c);
+  if (k === "0,0"){ const r = near.findIndex(n => c.tiles[n] && c.tiles[n].b === "road"); return c.tiles["0,1"] && c.tiles["0,1"].b === "road" ? 5 : r >= 0 ? r : 5; }
   let i = near.findIndex(n => roads.has(n)); if (i >= 0) return i;
-  i = near.indexOf("0,0"); if (i >= 0) return i;
+  i = near.indexOf("0,0"); if (i >= 0 && doorKey(c, "0,0") === k) return i;
   i = near.findIndex(n => c.tiles[n] && c.tiles[n].b === "road"); if (i >= 0) return i;
   let best = 5, bd = 1e9; near.forEach((n, j) => { const d = hexDist(n); if (d < bd){ bd = d; best = j; } });
   return best;
@@ -1772,7 +1787,8 @@ function autoFace(c, k){
 /* a building reaches the city center only through its front door: the plot in front of it is the center, or a road that leads back to it */
 function cityLinked(c){
   const roads = cityRoads(c), linked = new Set(["0,0"]);
-  Object.keys(c.tiles).forEach(k => { if (!hasDoor(c.tiles[k])) return; const d = doorKey(c, k); if (d === "0,0" || roads.has(d)) linked.add(k); });
+  const hallDoor = doorKey(c, "0,0");
+  Object.keys(c.tiles).forEach(k => { if (k === "0,0" || !hasDoor(c.tiles[k])) return; const d = doorKey(c, k); if ((d === "0,0" && hallDoor === k) || roads.has(d)) linked.add(k); });
   return linked;
 }
 function isLinked(c, k, L){ return (L || cityLinked(c)).has(anchorOf(c, k)); }
@@ -1785,9 +1801,12 @@ function cityDaily(c){ const L = cityLinked(c); return Object.keys(c.tiles).redu
 function upgradeCost(it){
   const b = CITY_BUILDINGS[it.b], lv = tileLv(it); if (lv >= 3) return 0;
   if (it.b === "hall") return HALL.cost[lv];
+  if (b.fun) return lv === 1 ? 100 : 220;
   return b.make || b.grow ? Math.round(b.price * (lv === 1 ? 1.5 : 2.5)) : 0;
 }
-function cityName(it){ return it.b ? CITY_BUILDINGS[it.b].name + (CITY_BUILDINGS[it.b].make || CITY_BUILDINGS[it.b].grow ? " Lv" + tileLv(it) : "") : CITY_DECOS[it.d]; }
+function cityName(it){ const b = it.b && CITY_BUILDINGS[it.b]; return b ? b.name + (b.make || b.grow || b.fun ? " Lv" + tileLv(it) : "") : CITY_DECOS[it.d]; }
+function parkFun(c, L){ L = L || cityLinked(c); return Object.keys(c.tiles).reduce((n, k) => { const it = c.tiles[k]; return n + (it.b === "park" && L.has(k) ? CITY_BUILDINGS.park.fun[tileLv(it) - 1] : 0); }, 0); }
+function reqCap(c){ return HALL.reqs[hallLv(c) - 1] + parkFun(c); }
 function roadOk(c, k){ return cityNear(k).some(n => c.tiles[n] && !c.tiles[n].d); }
 function saveCity(){ Store.set("city", S.city).catch(() => {}); if (typeof renderCoins === "function") renderCoins(); }
 function cityTiles(c){
@@ -1869,7 +1888,7 @@ function islandSVG(c){
   tiles.forEach(t => {
     const x = cx + t.x, y = cy + t.y, it = c.tiles[t.key];
     s += '<polygon points="' + hexPoints(x, y, 33, 9) + '" fill="#b98b5e"/>';
-    s += '<polygon class="tile" data-act="city-tile" data-k="' + t.key + '" points="' + hexPoints(x, y, 33, 0) + '" fill="' + (it ? "#a8d88a" : "#c3e6a5") + '" stroke="#8cbf6e" stroke-width="1.2"/>';
+    s += '<polygon class="tile" data-act="city-tile" data-k="' + t.key + '" points="' + hexPoints(x, y, 33, 0) + '" fill="' + (it ? (it.g && CITY_GROUNDS[it.g] ? CITY_GROUNDS[it.g][2] : "#a8d88a") : "#c3e6a5") + '" stroke="#8cbf6e" stroke-width="1.2"/>';
     if (!it) s += '<text x="' + x + '" y="' + (y + 4) + '" text-anchor="middle" font-size="14" fill="#7aa95f" pointer-events="none">+</text>';
     if (it && it.b === "road"){
       let links = 0;
@@ -1880,7 +1899,7 @@ function islandSVG(c){
       });
       CITY_DIRS.forEach(([a, b]) => {
         const nk = (t.q + a) + "," + (t.r + b), n = c.tiles[nk]; if (!n || n.b === "road" || n.d) return;
-        if (n.b !== "hall" && doorKey(c, nk) !== t.key) return;
+        if (doorKey(c, nk) !== t.key) return;
         links++; const [nx, ny] = cityPos(t.q + a, t.r + b);
         s += '<line x1="' + x + '" y1="' + y + '" x2="' + (cx + t.x + (nx - t.x) * .8) + '" y2="' + (cy + t.y + (ny - t.y) * .8) + '" stroke="#b7aa96" stroke-width="6" stroke-linecap="round" pointer-events="none"/>';
       });
@@ -1955,7 +1974,10 @@ function citySheetHTML(o){
   const c = city(), bal = wallet().balance;
   const head = t => '<div class="sh-head"><div class="sh-word phrase" style="flex:1;min-width:0">' + t + '</div><button class="icon-btn" data-act="close-sheet" aria-label="關閉">×</button></div>';
   if (o.s === "build"){
-    return head("在這裡蓋什麼？") + '<div class="stack">' + Object.entries(CITY_BUILDINGS).map(([k, b]) => {
+    const sty = c.style || "west";
+    return head("在這裡蓋什麼？") + '<div class="seg style-seg" role="radiogroup" aria-label="建築樣式">' +
+      Object.entries(CITY_STYLES).map(([k, n]) => '<button role="radio" aria-checked="' + (sty === k) + '" class="' + (sty === k ? "on" : "") + '" data-act="city-style" data-v="' + k + '">' + n + "</button>").join("") + "</div>" +
+      '<div class="stack">' + Object.entries(CITY_BUILDINGS).map(([k, b]) => {
       if (b.fixed) return "";
       if (b.hall && hallLv(c) < b.hall)
         return '<div class="menu-row locked-row"><span><b>' + b.name + '</b><span class="small muted">市中心升到 Lv' + b.hall + ' 解鎖</span></span><span class="small muted">未解鎖</span></div>';
@@ -1976,7 +1998,7 @@ function citySheetHTML(o){
     let info, next = "", lock = "";
     if (it.b === "hall"){
       const hl = lv;
-      info = "小島 " + cityTiles(c).length + " 格・每天最多 " + HALL.reqs[hl - 1] + " 個居民請求・每天產 " + b.make[hl - 1] + " 份糧食";
+      info = "小島 " + cityTiles(c).length + " 格・每天最多 " + HALL.reqs[hl - 1] + " 個居民請求" + (parkFun(c, L) ? "（公園再 +" + parkFun(c, L) + "）" : "") + "・每天產 " + b.make[hl - 1] + " 份糧食";
       if (hl < 3){
         next = "小島變成 " + (3 * (hl + 2) * (hl + 3) + 1) + " 格・每天 " + HALL.reqs[hl] + " 個請求・產 " + b.make[hl] + " 份糧食" + (hl === 1 ? "・解鎖診所" : "・解鎖市集");
         if (!knowUnlocked(HALL.know[hl])){ const u = KNOW_UNLOCKS.find(x => x.key === HALL.know[hl]); lock = "知識 " + u.at + " 才能升級（現在 " + knowledge() + "）"; }
@@ -1986,14 +2008,21 @@ function citySheetHTML(o){
     else info = who ? "住在這裡：" + esc(who) : b ? b.desc : "島上的裝飾";
     if (b && b.make && !b.fixed && lv < 3) next = "換上更大的店面・每天產 " + b.make[lv] + " 份糧食";
     if (b && b.grow && lv < 3) next = (lv === 1 ? "加蓋成兩層樓" : "改建成公寓") + "・多 1 位居民搬進來";
-    const warn = hasDoor(it) && !linked && (b.make || b.residents)
-      ? '<div class="err">還沒接上市中心：' + (b.make ? "不會產糧" : "居民不會出來") + "。門口要正對道路或市中心，可以轉方向或在門口蓋路。</div>" : "";
-    const turn = hasDoor(it) ? '<button class="btn soft block" data-act="city-turn" data-k="' + o.k + '">轉方向（門口現在' + (linked ? "對著道路" : "沒有路") + "）</button>" : "";
+    if (b && b.fun){ info = "每天多 <b>" + (linked ? b.fun[lv - 1] : 0) + "</b> 個居民請求" + (lv === 1 ? "（升級後才有）" : ""); if (lv < 3) next = (lv === 1 ? "加噴水池和花圃" : "蓋涼亭和小池塘") + "・每天多 " + b.fun[lv] + " 個請求"; }
+    const warn = hasDoor(it) && it.b !== "hall" && !linked && (b.make || b.residents || b.fun)
+      ? '<div class="err">還沒接上市中心：' + (b.make ? "不會產糧" : b.fun ? "不會多出請求" : "居民不會出來") + "。門口要正對道路，可以轉方向或在門口蓋路。</div>" : "";
+    const doorOk = it.b === "hall" ? cityRoads(c).size > 0 : linked;
+    const turn = hasDoor(it) ? '<button class="btn soft block" data-act="city-turn" data-k="' + o.k + '">轉方向（門口現在' + (doorOk ? "對著道路" : "沒有路") + "）</button>" : "";
+    const gr = it.g || (it.b === "park" ? "grass" : "sand");
+    const ground = it.b && it.b !== "road" ? '<div class="label" style="margin-top:4px">地面</div><div class="ground-row">' + Object.entries(CITY_GROUNDS).map(([k, v]) =>
+      '<button class="ground-btn' + (gr === k ? " on" : "") + '" data-act="city-ground" data-k="' + o.k + '" data-g="' + k + '" aria-pressed="' + (gr === k) + '"><span style="background:' + v[2] + '"></span>' + v[0] + "</button>").join("") + "</div>" : "";
+    const restyle = it.b && it.b !== "road" ? '<div class="label" style="margin-top:4px">樣式</div><div class="seg style-seg">' + Object.entries(CITY_STYLES).map(([k, n]) =>
+      '<button class="' + ((it.style || "west") === k ? "on" : "") + '" data-act="city-restyle" data-k="' + o.k + '" data-v="' + k + '">' + n + "</button>").join("") + "</div>" : "";
     const up = cost ? (lock ? '<div class="menu-row locked-row"><span><b>升到 Lv' + (lv + 1) + '</b><span class="small muted">' + next + "</span></span><span class=\"small muted\">" + lock + "</span></div>"
       : '<button class="menu-row" data-act="city-upgrade" data-k="' + o.k + '"' + (bal < cost ? " disabled" : "") + '><span><b>升到 Lv' + (lv + 1) + '</b><span class="small muted">' + next +
         '</span></span><span class="price"><img class="coin-icon" src="' + COIN_IMG + '" alt="">' + cost + "</span></button>")
-      : (b && (b.make || b.grow) ? '<p class="small muted" style="margin:0">已經是最高等級 Lv3</p>' : "");
-    return head(cityName(it)) + warn + '<p class="muted" style="margin:0">' + info + "</p>" + up + turn +
+      : (b && (b.make || b.grow || b.fun) ? '<p class="small muted" style="margin:0">已經是最高等級 Lv3</p>' : "");
+    return head(cityName(it)) + warn + '<p class="muted" style="margin:0">' + info + "</p>" + up + turn + restyle + ground +
       (it.b === "hall" ? "" : '<button class="btn block ' + (it.d ? "soft" : "danger-soft") + '" data-act="city-move" data-k="' + o.k + '">' + (it.d ? "收回背包" : it.b === "road" ? "移除這段道路（退回 " + CITY_BUILDINGS.road.price + " 金幣）" : "拆掉（不退金幣）") + "</button>");
   }
   if (o.s === "shop"){
@@ -2072,7 +2101,7 @@ async function cityFeed(){
   if (c.food < n){ cityOpen({s:"shop"}); toast("糧食不夠了，先買一箱吧。"); return; }
   S.busy.city = true; S.err.city = ""; render();
   try {
-    const want = Math.min(n, HALL.reqs[hallLv(c) - 1]);
+    const want = Math.min(n, reqCap(c));
     const r = await aiJson("talk", cityReqPrompt(want), {cache:false});
     const list = (r && Array.isArray(r.requests) ? r.requests : []).filter(q => q && q.say && (q.type === "choice" ? Array.isArray(q.options) && q.options.length >= 2 : true)).slice(0, want);
     if (!list.length) throw {code:"invalid_json"};
@@ -2243,7 +2272,8 @@ const City3D = {
       const key = q + "," + r, [x, z] = pos(q, r), it = c.tiles[key];
       const base = new T.Mesh(new T.CylinderGeometry(.95, 1, H, 6), this.mat(0xD7C09B)); base.position.set(x, -H / 2 - .02, z); base.castShadow = base.receiveShadow = true; g.add(base);
       const host = it && it.part ? c.tiles[it.part] : it;
-      const top = new T.Mesh(new T.CylinderGeometry(.93, .95, .07, 6), this.mat(host && host.b === "park" ? 0xA8CF7C : host && host.b === "road" ? 0xE4D8C2 : host && host.b === "hall" ? 0xE6DCCB : 0xF2E6CE)); top.position.set(x, .015, z); top.receiveShadow = true;
+      const ground = host && host.g && CITY_GROUNDS[host.g] ? CITY_GROUNDS[host.g][1] : null;
+      const top = new T.Mesh(new T.CylinderGeometry(.93, .95, .07, 6), this.mat(ground || (host && host.b === "park" ? 0xA8CF7C : host && host.b === "road" ? 0xE4D8C2 : host && host.b === "hall" ? 0xE6DCCB : 0xF2E6CE))); top.position.set(x, .015, z); top.receiveShadow = true;
       top.userData.key = key; g.add(top); this.pick.push(top);
       if (it && it.b === "road"){ this.road(g, c, q, r, x, z, pos); return; }
       if (it && it.part) return;
@@ -2261,7 +2291,9 @@ const City3D = {
       centers[key] = [gx, gz, pts];
       const lv = tileLv(it), linked = !it.b || L.has(key), b = it.b && CITY_BUILDINGS[it.b];
       const bg = new T.Group(); bg.position.set(gx, .05, gz); bg.rotation.y = rot; bg.userData.key = key;
+      this.sty = it.style === "cn" ? "cn" : "west";
       this.building(bg, it.b || it.d, win, (it.b && it.b !== "park" && it.b !== "hall" && !c.day.fed) || !linked, lv, spots);
+      this.sty = "west";
       bg.traverse(m => { if (m.isMesh){ m.castShadow = true; m.receiveShadow = true; m.userData.key = key; this.pick.push(m); } });
       const top3 = new T.Box3().setFromObject(bg).max.y;
       if (!this.known.has(key + ":" + lv) && this.known.size){ bg.scale.setScalar(.01); this.grow.push({g:bg, t0:performance.now()}); }
@@ -2300,11 +2332,23 @@ const City3D = {
     this.overlay.appendChild(el); this.labels.push({v, el});
   },
   box(parent, w, h, d, col, x, y, z, extra){
+    if (this.sty === "cn" && typeof col === "number") col = ({0x8A6A4A:0xB8322A, 0xF8F3EA:0xF4E9D8, 0xF3E9DA:0xF1E3CF, 0xE9DFCF:0xA8322A, 0xDB6A41:0xA8322A})[col] || col;
     const m = new this.T.Mesh(new this.T.BoxGeometry(w, h, d), typeof col === "object" ? col : this.mat(col, extra)); m.position.set(x, y, z); parent.add(m); return m;
   },
   roof(parent, w, h, d, col, y){
+    const T = this.T;
+    if (this.sty === "cn"){
+      /* Chinese style: dark tiled hip roof with wide eaves, a ridge, and corners that curl up */
+      const tile = col === 0x8E6B5A ? 0xD9A53A : 0x4F5D68, m = this.mat(tile);
+      const eave = new T.Mesh(new T.BoxGeometry(w + .2, .04, d + .2), m); eave.position.y = y + .02; parent.add(eave);
+      const hip = new T.Mesh(new T.CylinderGeometry(.08, 1, 1, 4, 1), m); hip.rotation.y = Math.PI / 4; hip.scale.set((w + .12) / Math.SQRT2, h * .9, (d + .12) / Math.SQRT2); hip.position.y = y + .04 + h * .45; parent.add(hip);
+      const ridge = new T.Mesh(new T.BoxGeometry(w * .55, .06, .07), m); ridge.position.y = y + .04 + h * .9; parent.add(ridge);
+      [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => { const t = new T.Mesh(new T.ConeGeometry(.035, .14, 5), m); t.position.set(sx * (w / 2 + .1), y + .08, sz * (d / 2 + .1)); t.rotation.set(sz * .6, 0, -sx * .6); parent.add(t); });
+      [-1, 1].forEach(sx => { const t = new T.Mesh(new T.ConeGeometry(.03, .12, 5), m); t.position.set(sx * w * .28, y + .1 + h * .9, 0); t.rotation.z = -sx * .5; parent.add(t); });
+      return hip;
+    }
     /* a gable roof: a triangle (front view) pushed out along the house's width */
-    const T = this.T, sh = new T.Shape();
+    const sh = new T.Shape();
     sh.moveTo(-d / 2, 0); sh.lineTo(d / 2, 0); sh.lineTo(0, h); sh.closePath();
     const geo = new T.ExtrudeGeometry(sh, {depth:w, bevelEnabled:false});
     geo.translate(0, 0, -w / 2); geo.rotateY(Math.PI / 2);
@@ -2413,8 +2457,34 @@ const City3D = {
       this.box(g, .06, .2, .02, 0x48A88B, 0, .34, .27); this.box(g, .2, .06, .02, 0x48A88B, 0, .34, .27);
       w(-.24, .3, .27); w(.24, .3, .27); this.box(g, .14, .18, .02, 0x9BD3C0, 0, .09, .27);
     } else if (type === "park"){
-      this.tree(g, -.3, 0, -.2, 1.1); this.tree(g, .32, 0, -.3, .9); this.tree(g, .05, 0, .35, .8, 0x7FB860);
-      this.box(g, .3, .04, .1, 0xA0784F, .3, .12, .3); this.box(g, .03, .1, .03, 0x6b5240, .18, .05, .3); this.box(g, .03, .1, .03, 0x6b5240, .42, .05, .3);
+      const bench = (x, z) => { this.box(g, .3, .04, .1, 0xA0784F, x, .12, z); this.box(g, .03, .1, .03, 0x6b5240, x - .12, .05, z); this.box(g, .03, .1, .03, 0x6b5240, x + .12, .05, z); };
+      const flowers = (x, z, col) => { this.box(g, .22, .05, .14, 0x8A6A4A, x, .03, z); [-.06, 0, .06].forEach(dx => { const f = new T.Mesh(new T.IcosahedronGeometry(.035, 0), this.mat(col)); f.position.set(x + dx, .09, z); g.add(f); }); };
+      if (lv === 1){
+        /* a lawn with trees and a bench */
+        this.tree(g, -.3, 0, -.2, 1.1); this.tree(g, .32, 0, -.3, .9); this.tree(g, .05, 0, .35, .8, 0x7FB860);
+        bench(.3, .3);
+      } else if (lv === 2){
+        /* paths crossing at a little fountain, with flower beds */
+        this.box(g, 1.3, .015, .2, 0xE9DCC3, 0, .02, 0); this.box(g, .2, .015, 1.3, 0xE9DCC3, 0, .02, 0);
+        const basin = new T.Mesh(new T.CylinderGeometry(.26, .28, .1, 14), this.mat(0xD5DBDF)); basin.position.y = .05; g.add(basin);
+        const water = new T.Mesh(new T.CylinderGeometry(.22, .22, .02, 14), this.mat(0x7EC8E3)); water.position.y = .1; g.add(water);
+        const spout = new T.Mesh(new T.CylinderGeometry(.03, .05, .22, 8), this.mat(0xD5DBDF)); spout.position.y = .2; g.add(spout);
+        const drop = new T.Mesh(new T.SphereGeometry(.07, 10, 8), this.mat(0xA8E0F0)); drop.position.y = .34; g.add(drop);
+        flowers(-.42, -.4, 0xF48FB1); flowers(.42, -.4, 0xF3CC58); flowers(-.42, .42, 0xE57373); flowers(.42, .42, 0xBA68C8);
+        this.tree(g, -.55, 0, 0, .8); this.tree(g, .55, 0, 0, .75, 0x7FB860); bench(0, -.5);
+      } else {
+        /* a garden with a pond, a little bridge, a pavilion and lamps */
+        const pond = new T.Mesh(new T.CylinderGeometry(.34, .34, .02, 18), this.mat(0x6FBEDC)); pond.scale.z = .7; pond.position.set(-.22, .03, .25); g.add(pond);
+        this.box(g, .4, .03, .12, 0xB98B5E, -.22, .08, .25); this.box(g, .03, .06, .14, 0x8A6A4A, -.4, .06, .25); this.box(g, .03, .06, .14, 0x8A6A4A, -.04, .06, .25);
+        [[-.3, .2, 0xF48FB1], [-.12, .32, 0xFFFFFF]].forEach(([x, z, col]) => { const l = new T.Mesh(new T.CylinderGeometry(.05, .05, .01, 8), this.mat(0x8CC46E)); l.position.set(x, .045, z); g.add(l); const f = new T.Mesh(new T.IcosahedronGeometry(.025, 0), this.mat(col)); f.position.set(x, .06, z); g.add(f); });
+        /* pavilion */
+        [[-.15, -.15], [.15, -.15], [-.15, .15], [.15, .15]].forEach(([x, z]) => this.box(g, .04, .36, .04, this.sty === "cn" ? 0xB8322A : 0xFFFFFF, .3 + x, .18, -.25 + z));
+        this.box(g, .38, .03, .38, 0xD8CCB6, .3, .015, -.25);
+        const pg = new T.Group(); pg.position.set(.3, 0, -.25); g.add(pg); this.roof(pg, .38, .22, .38, 0x6E8FB0, .36);
+        /* lamps */
+        [[-.62, -.3], [.62, .35]].forEach(([x, z]) => { this.box(g, .03, .42, .03, 0x3B4A59, x, .21, z); const b = new T.Mesh(new T.SphereGeometry(.055, 10, 8), this.mat(0xFFE9A8, {emissive:0xFFD36B, emissiveIntensity:.6})); b.position.set(x, .45, z); g.add(b); });
+        flowers(.35, .4, 0xF3CC58); this.tree(g, -.5, 0, -.42, .9); this.tree(g, .62, 0, -.62, .7, 0x7FB860);
+      }
     } else if (type === "statue"){
       this.box(g, .34, .2, .34, 0xD5DBDF, 0, .1, 0); const b = new T.Mesh(new T.CapsuleGeometry(.08, .2, 3, 6), this.mat(0xB8C2C9)); b.position.set(0, .38, 0); g.add(b);
       const h = new T.Mesh(new T.IcosahedronGeometry(.08, 0), this.mat(0xB8C2C9)); h.position.set(0, .58, 0); g.add(h);
@@ -2429,6 +2499,13 @@ const City3D = {
       const t1 = new T.Mesh(new T.CylinderGeometry(.13, .2, 1.2, 10), this.mat(0xFFFFFF)); t1.position.y = .6; g.add(t1);
       [.25, .65].forEach(y => { const s = new T.Mesh(new T.CylinderGeometry(.18 - y * .04, .19 - y * .04, .16, 10), this.mat(0xDB6A41)); s.position.y = y; g.add(s); });
       this.box(g, .24, .16, .24, win, 0, 1.28, 0); const cap = new T.Mesh(new T.ConeGeometry(.2, .2, 8), this.mat(0xDB6A41)); cap.position.y = 1.46; g.add(cap);
+    }
+    if (this.sty === "cn" && type !== "park"){
+      /* red lanterns on both sides of every red door */
+      g.updateMatrixWorld(true);
+      const doors = []; g.traverse(m => { if (m.isMesh && m.geometry.type === "BoxGeometry" && m.material.color && m.material.color.getHex() === 0xB8322A && m.geometry.parameters.depth <= .03) doors.push(m); });
+      doors.slice(0, 2).forEach(d => { const p = d.position.clone(); d.parent.localToWorld(p); g.worldToLocal(p);
+        [-1, 1].forEach(sx => { const l = new T.Mesh(new T.SphereGeometry(.045, 10, 8), this.mat(0xE53935, {emissive:0xB71C1C, emissiveIntensity:.35})); l.scale.y = 1.25; l.position.set(p.x + sx * (d.geometry.parameters.width / 2 + .07), p.y + .12, p.z + .05); g.add(l); }); });
     }
     if (shade) g.traverse(m => { if (m.isMesh && m.material !== win){ m.material = m.material.clone(); m.material.color.lerp(new T.Color(0x9a9a9a), .35); } });
   },
@@ -2447,7 +2524,7 @@ const City3D = {
     /* a narrower path from the road up to every door that faces it (and to the city center) */
     CITY_DIRS.forEach(([a, b]) => {
       const nk = (q + a) + "," + (r + b), n = c.tiles[nk]; if (!n || n.b === "road" || n.d) return;
-      if (n.b !== "hall" && doorKey(c, nk) !== q + "," + r) return;
+      if (doorKey(c, nk) !== q + "," + r) return;
       links++;
       const [nx, nz] = pos(q + a, r + b), dx = (nx - x) / 2, dz = (nz - z) / 2;
       const seg = new T.Mesh(new T.BoxGeometry(1.25, .03, .26), col); seg.position.set(x + dx * .62, .064, z + dz * .62); seg.rotation.y = Math.atan2(-dz, dx); seg.receiveShadow = true; g.add(seg);
@@ -3072,9 +3149,10 @@ function prefsParts(){
     '<div class="row wrap"><button class="btn" data-act="export-file">匯出進度檔</button>' + (canShareFile() ? '<button class="btn soft" data-act="share-file">分享進度檔</button>' : "") +
       '<label class="btn soft" for="import-file">匯入進度檔</label><input type="file" id="import-file" accept="application/json,.json,text/plain,.txt" hidden></div>' +
     '<p class="muted small" style="margin:0">進度檔包含每週主題、句型、單字、每天的文章和造句、週日對話回饋、收藏的單字和學習紀錄，不包含 API Key。匯入會取代這支手機目前的進度。</p>' +
-    '<div class="divider"></div><div class="row between" style="align-items:center"><div><b>開發人員</b><div class="small muted">測試用，可以直接改金幣和知識</div></div>' +
+    '<div class="divider"></div><div class="row between" style="align-items:center"><div><b>開發人員</b><div class="small muted">測試用，可以直接改金幣、糧食和知識</div></div>' +
       '<button class="switch" role="switch" aria-checked="' + !!st.devMode + '" data-act="dev-toggle" aria-label="開發人員模式"><span></span></button></div>' +
     (st.devMode ? '<div class="field"><label for="dev-coins">金幣數量</label><div class="row"><input class="input en" id="dev-coins" type="number" inputmode="numeric" min="0" step="1" value="' + wallet().balance + '"><button class="btn" data-act="dev-coins">套用</button></div></div>' +
+      '<div class="field"><label for="dev-food">糧食</label><div class="row"><input class="input en" id="dev-food" type="number" inputmode="numeric" min="0" step="1" value="' + city().food + '"><button class="btn" data-act="dev-food">套用</button></div></div>' +
       '<div class="field"><label for="dev-know">知識</label><div class="row"><input class="input en" id="dev-know" type="number" inputmode="numeric" min="0" step="1" value="' + knowledge() + '"><button class="btn" data-act="dev-know">套用</button></div></div>' : "") +
     '<div class="divider"></div><div class="row"><button class="btn danger" data-act="reset">全部重來</button></div></section>';
   return parts;
@@ -3945,11 +4023,14 @@ const ACT = {
     if (el.dataset.b === "road" && !roadOk(c, o.k)){ toast("道路要貼著建築或其他道路。"); return; }
     if (!spend(b.price, "城市：蓋" + b.name)){ toast("金幣不夠，多練習幾篇再來。"); return; }
     c.tiles[o.k] = {b:el.dataset.b};
+    if (el.dataset.b !== "road") c.tiles[o.k].style = c.style || "west";
     if (hasDoor(c.tiles[o.k])) c.tiles[o.k].face = autoFace(c, o.k);
     if (el.dataset.b === "road"){
       /* buildings next to a new road that had no way in turn their door toward it */
       const L0 = cityLinked(c);
-      cityNear(o.k).forEach((n, i) => { const t = c.tiles[n]; if (hasDoor(t) && !L0.has(n)) t.face = (i + 3) % 6; });
+        if (!cityRoads(c).size && cityNear("0,0").includes(o.k)) c.tiles["0,0"].face = cityNear("0,0").indexOf(o.k);   /* the first road by the center becomes its front */
+      const L1 = cityLinked(c);
+      cityNear(o.k).forEach((n, i) => { const t = c.tiles[n]; if (hasDoor(t) && n !== "0,0" && !L1.has(n)) t.face = (i + 3) % 6; });
     }
     if (b.make) c.prod.store += shopMake(c, o.k);   /* the first day's batch is ready right away */
     const used = new Set(c.residents.map(p => p.name));
@@ -3961,6 +4042,14 @@ const ACT = {
     saveCity(); closeSheet(); render(); toast(b.name + "蓋好了" + (far ? "。記得用道路接上市中心！" : b.residents ? "，" + b.residents + " 位居民搬進來！" : "！"));
   },
   "talk-warn-x": () => { S.talk.warn = ""; render(); },
+  "city-style": el => { const c = city(); c.style = el.dataset.v === "cn" ? "cn" : "west"; saveCity(); drawSheet(); },
+  "city-restyle": el => { const c = city(), it = c.tiles[el.dataset.k]; if (!it || !it.b) return; it.style = el.dataset.v === "cn" ? "cn" : "west"; saveCity(); drawSheet(); render(); },
+  "city-ground": el => { const c = city(), it = c.tiles[el.dataset.k]; if (!it || !CITY_GROUNDS[el.dataset.g]) return; it.g = el.dataset.g; saveCity(); drawSheet(); render(); },
+  "dev-food": () => {
+    const v = Math.max(0, Math.floor(Number(($("#dev-food") || {}).value)));
+    if (!isFinite(v)){ toast("請輸入數字"); return; }
+    const c = city(); c.food = v; saveCity(); renderPill(); render(); toast("糧食改成 " + v);
+  },
   "city-turn": el => {
     const c = city(), it = c.tiles[el.dataset.k]; if (!hasDoor(it)) return;
     it.face = ((it.face >= 0 ? it.face : 5) + 1) % 6; saveCity(); drawSheet(); render();
