@@ -181,6 +181,11 @@ label.btn{cursor:pointer}
 .dd-opt:hover{background:var(--field)}
 .dd-opt[aria-selected="true"]{background:var(--primary-soft);font-weight:600}
 .dd-opt .check{margin-left:auto;color:var(--primary-text);display:grid}
+.prep-ov{position:absolute;inset:0;background:rgba(20,32,44,.45);display:flex;align-items:center;justify-content:center;padding:24px;z-index:30}
+.prep-card{background:var(--surface);color:var(--ink);border-radius:18px;padding:20px;width:100%;max-width:360px;display:flex;flex-direction:column;gap:12px;box-shadow:0 10px 40px rgba(20,32,44,.25)}
+.prep-t{font-weight:800;font-size:18px;color:var(--primary-text)}
+.prep-card .bar{height:10px;border-radius:99px;background:var(--line);overflow:hidden}
+.prep-card .bar>span{display:block;height:100%;width:0;background:var(--green);transition:width .3s}
 .coin-icon{width:18px;height:18px;border-radius:50%;vertical-align:-3px;flex:none}
 .paid-badge{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;background:#F5B301;color:#fff;font:700 11px/1 var(--font-en);vertical-align:-3px;flex:none}
 .switch-row{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--ink);cursor:pointer}
@@ -831,6 +836,74 @@ function aiMissing(){
    Speech (the phone's built-in voices)
    ========================================================= */
 const DEFAULT_VOICE_URL = "voice-ref.wav";
+/* Audio made on the phone is kept in a local database (IndexedDB, only on this phone),
+   so a word or sentence is made once and then plays instantly, even offline.
+   Up to AUDIO_LIMIT bytes; the least recently played clips are removed first. */
+const AUDIO_LIMIT = 100 * 1024 * 1024;
+const AudioDB = {
+  p:null, ok:typeof indexedDB !== "undefined",
+  open(){
+    if (!this.ok) return Promise.reject(new Error("no indexedDB"));
+    if (!this.p) this.p = new Promise((res, rej) => {
+      const r = indexedDB.open("eel-audio", 1);
+      r.onupgradeneeded = () => { const db = r.result; db.createObjectStore("clips", {keyPath:"k"}); db.createObjectStore("meta", {keyPath:"k"}).createIndex("at", "at"); };
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+    }).catch(e => { this.p = null; throw e; });
+    return this.p;
+  },
+  req(r){ return new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); },
+  async get(k){
+    try {
+      const db = await this.open();
+      const rec = await this.req(db.transaction("clips").objectStore("clips").get(k));
+      if (!rec) return null;
+      const tx = db.transaction("meta", "readwrite"); tx.objectStore("meta").put({k, bytes:rec.pcm.byteLength, at:Date.now()});
+      const i16 = new Int16Array(rec.pcm), f = new Float32Array(i16.length);
+      for (let i = 0; i < i16.length; i++) f[i] = i16[i] / 32767;
+      return [f];
+    } catch (e) { return null; }
+  },
+  async put(k, chunks){
+    try {
+      const n = chunks.reduce((a, c) => a + c.length, 0), i16 = new Int16Array(n);
+      let o = 0;
+      for (const c of chunks) for (let i = 0; i < c.length; i++, o++){ const v = Math.max(-1, Math.min(1, c[i])); i16[o] = v * 32767; }
+      const db = await this.open();
+      const tx = db.transaction(["clips", "meta"], "readwrite");
+      tx.objectStore("clips").put({k, pcm:i16.buffer});
+      tx.objectStore("meta").put({k, bytes:i16.byteLength, at:Date.now()});
+      await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = () => rej(tx.error); });
+      if (!this.asked && navigator.storage && navigator.storage.persist){ this.asked = true; navigator.storage.persist().catch(() => {}); }
+      this.trim();
+    } catch (e) {}
+  },
+  async usage(){
+    try {
+      const db = await this.open();
+      const all = await this.req(db.transaction("meta").objectStore("meta").getAll());
+      return {count:all.length, bytes:all.reduce((a, m) => a + (m.bytes || 0), 0)};
+    } catch (e) { return {count:0, bytes:0}; }
+  },
+  async trim(){
+    const u = await this.usage(); if (u.bytes <= AUDIO_LIMIT) return;
+    const db = await this.open();
+    const all = (await this.req(db.transaction("meta").objectStore("meta").getAll())).sort((a, b) => a.at - b.at);
+    let total = u.bytes;
+    const tx = db.transaction(["clips", "meta"], "readwrite");
+    for (const m of all){ if (total <= AUDIO_LIMIT * 0.9) break; tx.objectStore("clips").delete(m.k); tx.objectStore("meta").delete(m.k); total -= m.bytes || 0; }
+  },
+  async clear(){
+    const db = await this.open();
+    const tx = db.transaction(["clips", "meta"], "readwrite");
+    tx.objectStore("clips").clear(); tx.objectStore("meta").clear();
+    await new Promise(res => { tx.oncomplete = res; tx.onerror = res; });
+  }
+};
+/* Split a paragraph into sentences the same way the reader does (a full stop, ! or ? then a space). */
+function splitSentences(text){
+  return String(text || "").replace(/\s+/g, " ").trim().split(/(?<=[.!?…]["”’)\]]*)\s+/).map(x => x.trim()).filter(Boolean);
+}
 const TTS = {
   ok: typeof window.speechSynthesis !== "undefined",
   voices: [], seq: 0,
@@ -864,7 +937,7 @@ const TTS = {
   batch:0, ready:0, total:0,
   prefetchAll(texts){
     if (!texts || !texts.length) return;
-    if (!this.pcOn()){ this.pocketPrefetch(texts, false); return; }
+    if (!this.pcOn()) return;
     const id = ++this.batch; this.total = texts.length; this.ready = 0; this.showPrep();
     const next = i => {
       if (id !== this.batch || i >= texts.length) return;
@@ -1003,7 +1076,20 @@ const TTS = {
      Background jobs (pocketPrefetch) are stopped when you press play on something not ready yet. */
   pocketClips:new Map(), pfQueue:[], pfRunning:null, pocketLock:Promise.resolve(), pocketSpeaking:0,
   pocketTag(){ const w = (set().pocketVoice || {}).wavData || ""; return w ? w.length + ":" + w.slice(-24) : "default"; },
-  pocketKey(text){ return this.pocketTag() + "\u0001" + String(text).trim(); },
+  pocketNorm(text){ const t = String(text || "").replace(/’/g, "'").replace(/\s+/g, " ").trim(); return this.isWord(t) ? t.toLowerCase() : t; },
+  pocketKey(text){ return this.pocketTag() + "\u0001" + this.pocketNorm(text); },
+  async pocketLoad(text){
+    const key = this.pocketKey(text);
+    let c = this.pocketClips.get(key);
+    if (c) return c;
+    c = await AudioDB.get(key);
+    if (c) this.pocketRemember(key, c);
+    return c;
+  },
+  pocketRemember(key, chunks){
+    this.pocketClips.delete(key); this.pocketClips.set(key, chunks);
+    while (this.pocketClips.size > 80) this.pocketClips.delete(this.pocketClips.keys().next().value);
+  },
   pocketWithLock(fn){
     const run = this.pocketLock.then(fn, fn);
     this.pocketLock = run.catch(() => {});
@@ -1013,16 +1099,16 @@ const TTS = {
     const {tts} = await this.pocketEngine(quiet);
     const voice = await this.pocketVoice(tts);
     const key = this.pocketKey(text), chunks = [];
-    const m = await tts.generate(text, {voice, onChunk:(a, meta) => { chunks.push(a); if (onChunk) onChunk(a, meta); }});
+    const m = await tts.generate(this.pocketNorm(text), {voice, onChunk:(a, meta) => { chunks.push(a); if (onChunk) onChunk(a, meta); }});
     if (m && m.rtfx > 0 && m.audioDuration > 1) this.pocketLearn(m.rtfx);
     if (!chunks.length || (m && m.stopped)) return null;
-    this.pocketClips.delete(key); this.pocketClips.set(key, chunks);
-    while (this.pocketClips.size > 60) this.pocketClips.delete(this.pocketClips.keys().next().value);
+    this.pocketRemember(key, chunks);
+    AudioDB.put(key, chunks);
     return chunks;
   },
   pocketPrefetch(texts, first){
     if (!this.pocketOn()) return;
-    const list = (texts || []).map(t => String(t || "").trim()).filter(t => t && !(this.pcOn() && !this.isWord(t)));
+    const list = [...new Set((texts || []).map(t => this.pocketNorm(t)).filter(t => t && !(this.pcOn() && !this.isWord(t))))];
     const add = list.filter(t => !this.pocketClips.has(this.pocketKey(t)) && !(this.pfRunning && this.pfRunning.text === t));
     this.pfQueue = this.pfQueue.filter(t => !add.includes(t));
     this.pfQueue = first ? add.concat(this.pfQueue) : this.pfQueue.concat(add);
@@ -1031,20 +1117,42 @@ const TTS = {
   async pocketPump(){
     if (this.pfRunning || this.pocketSpeaking) return;
     const text = this.pfQueue.shift(); if (!text) return;
-    if (this.pocketClips.has(this.pocketKey(text))) return this.pocketPump();
-    const promise = this.pocketWithLock(() => this.pocketGenerate(text, null, true));
+    const promise = (async () => (await this.pocketLoad(text)) || this.pocketWithLock(() => this.pocketGenerate(text, null, true)))();
     this.pfRunning = {text, promise};
     let got = null; try { got = await promise; } catch (e) {}
     this.pfRunning = null;
-    if (!got && this.pocketSpeaking) this.pfQueue.unshift(text);
+    if (got) this.batchDone(text);
+    else if (this.pocketSpeaking) this.pfQueue.unshift(text);
     this.pocketPump();
   },
-  pocketPlayClip(player, chunks, seq, onEnd){
-    try { player.reset(); } catch (e) {}
-    player._primeSeconds = 0;
-    chunks.forEach((c, i) => player.play(c, {isLast:i === chunks.length - 1}));
-    player.flush();
-    this.pocketAfter(player, seq, onEnd);
+  /* Progress of preparing one article: sentences first, then its words. */
+  batchInfo:null,
+  batchStart(sents, words){
+    const norm = a => [...new Set(a.map(t => this.pocketNorm(t)).filter(Boolean))];
+    const S1 = norm(sents), W1 = norm(words).filter(t => !S1.includes(t));
+    this.batchInfo = {sents:new Set(S1), words:new Set(W1), doneS:new Set(), doneW:new Set()};
+    S1.forEach(t => { if (this.pocketClips.has(this.pocketKey(t))) this.batchInfo.doneS.add(t); });
+    W1.forEach(t => { if (this.pocketClips.has(this.pocketKey(t))) this.batchInfo.doneW.add(t); });
+    this.batchShow();
+    this.pocketPrefetch(S1.concat(W1), true);
+  },
+  batchDone(text){
+    const b = this.batchInfo; if (!b) return;
+    const t = this.pocketNorm(text);
+    if (b.sents.has(t)) b.doneS.add(t); else if (b.words.has(t)) b.doneW.add(t); else return;
+    this.batchShow();
+  },
+  batchShow(){
+    const b = this.batchInfo; if (!b) return;
+    const total = b.sents.size + b.words.size, done = b.doneS.size + b.doneW.size;
+    const chip = document.getElementById("rd-voice");
+    if (chip){ chip.hidden = !total; chip.textContent = done >= total ? "語音準備好了" : "準備語音 " + done + "/" + total; }
+    const ov = document.getElementById("prep-ov");
+    if (ov){
+      ov.querySelector(".bar > span").style.width = (total ? Math.round(done / total * 100) : 100) + "%";
+      ov.querySelector(".prep-s").textContent = "句子 " + b.doneS.size + " / " + b.sents.size;
+      ov.querySelector(".prep-w").textContent = "單字 " + b.doneW.size + " / " + b.words.size;
+    }
   },
   pocketAfter(player, seq, onEnd){
     if (!onEnd) return;
@@ -1062,25 +1170,39 @@ const TTS = {
       const {tts, player} = await this.pocketEngine();
       if (seq !== this.seq) return;
       try { await player.resume(); } catch (e) {}
-      const key = this.pocketKey(text);
-      let chunks = this.pocketClips.get(key);
-      /* already being prepared in the background: just wait for it */
-      if (!chunks && this.pfRunning && this.pfRunning.text === String(text).trim()) chunks = await this.pfRunning.promise.catch(() => null);
+      try { player.reset(); } catch (e) {}
+      /* A paragraph is spoken sentence by sentence: each one comes from the saved clips if it was
+         prepared, otherwise it is made now (playing while it's made). Gapless either way. */
+      const parts = this.isWord(text) ? [text] : splitSentences(text);
+      let first = true;
+      for (const part of parts){
+        if (seq !== this.seq) return;
+        let chunks = await this.pocketLoad(part);
+        if (!chunks && this.pfRunning && this.pfRunning.text === this.pocketNorm(part)) chunks = await this.pfRunning.promise.catch(() => null);
+        if (seq !== this.seq) return;
+        if (chunks){
+          if (first) player._primeSeconds = 0;
+          chunks.forEach(c => player.play(c, {}));
+          player.flush();
+        } else {
+          if (this.pfRunning){ try { await tts.stop(); } catch (e) {} }
+          await this.pocketWithLock(async () => {
+            if (seq !== this.seq) return;
+            if (first){
+              const est = Math.max(0.5, String(part).length / 14), sp = this.pocketSpeed();
+              player._primeSeconds = sp >= 1.5 ? 0.4 : Math.min(est + 1, 0.4 + est * Math.max(0.1, 1.15 - sp * 0.75));
+            }
+            const got = await this.pocketGenerate(part, (a, meta) => { if (seq === this.seq) player.play(a, {}); });
+            if (seq !== this.seq) return;
+            if (!got) throw new Error("沒有產生聲音");
+            player.flush();
+          });
+          this.batchDone(part);
+        }
+        first = false;
+      }
       if (seq !== this.seq) return;
-      if (chunks){ this.pocketPlayClip(player, chunks, seq, onEnd); return; }
-      /* not ready: stop background work, then make it now and play while it's being made */
-      if (this.pfRunning){ try { await tts.stop(); } catch (e) {} }
-      await this.pocketWithLock(async () => {
-        if (seq !== this.seq) return;
-        try { player.reset(); } catch (e) {}
-        const est = Math.max(0.5, String(text).length / 14), sp = this.pocketSpeed();
-        player._primeSeconds = sp >= 1.5 ? 0.4 : Math.min(est + 1, 0.4 + est * Math.max(0.1, 1.15 - sp * 0.75));
-        const got = await this.pocketGenerate(text, (a, meta) => { if (seq === this.seq) player.play(a, meta); });
-        if (seq !== this.seq) return;
-        if (!got) throw new Error("沒有產生聲音");
-        player.flush();
-        this.pocketAfter(player, seq, onEnd);
-      });
+      this.pocketAfter(player, seq, onEnd);
     } catch (e) {
       try { console.error("Pocket TTS", e); } catch (x) {}
       if (seq !== this.seq) return;
@@ -1764,7 +1886,11 @@ function aiCardHTML(){
     (tr ? '<div class="' + (tr.ok ? "note ok" : "err") + '">' + esc(tr.msg) + "</div>" : "") +
     '<div class="row" style="justify-content:flex-end"><button class="btn green" data-act="ai-test"' + (S.busy.provTest ? " disabled" : "") + ">" + (S.busy.provTest ? '<span class="spinner"></span>測試中' : "測試連線") + "</button></div></section>";
 }
+function fillAudioUsage(){
+  AudioDB.usage().then(u => { const el = $("#audio-usage"); if (el) el.textContent = "已存的聲音：" + u.count + " 個・" + (u.bytes / 1048576).toFixed(1) + " MB（上限 " + Math.round(AUDIO_LIMIT / 1048576) + " MB）"; });
+}
 function renderPrefs(){
+  setTimeout(fillAudioUsage, 0);
   const st = set();
   let html = aiCardHTML();
   const voices = TTS.voices;
@@ -1783,6 +1909,7 @@ function renderPrefs(){
     (/^https?:$/.test(location.protocol)
       ? '<button class="btn ghost block" data-act="pocket-prefetch"' + (S.busy.pocketPrefetch ? " disabled" : "") + ">" + (S.busy.pocketPrefetch ? '<span class="spinner"></span>下載中，請稍等…' : "先下載好，之後關網路也能唸") + "</button>"
       : '<div class="small muted">現在是從檔案直接打開的，語音模型存不住，關網路就不能用。從 https 網址打開才能離線使用。</div>') +
+    '<div class="row between" style="align-items:center"><span class="small muted" id="audio-usage">已存的聲音：計算中…</span><button class="btn ghost sm" data-act="audio-clear">清除</button></div>' +
     '<div class="field"><label>句子朗讀</label><div class="seg" role="group"><button data-act="setting" data-key="voiceSource" data-val="builtin" aria-pressed="' + !pc + '">手機（同上）</button><button data-act="setting" data-key="voiceSource" data-val="pc" aria-pressed="' + pc + '">我的電腦（GPT-SoVITS）</button></div>' +
       '<div class="small muted">' + (pc ? "文章段落和例句用電腦的聲音，單字還是用手機。電腦沒開或連不上時，會自動改回手機。" : "想要更好的句子聲音，可以改用電腦上的 GPT-SoVITS。") + "</div></div>" +
     (pc ? '<div class="field"><label for="pc-url">伺服器網址</label><input class="input en" id="pc-url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://xxxx.trycloudflare.com" value="' + esc(pv.url || "") + '" data-act-change="pc-url"><div class="small muted">電腦上語音伺服器視窗裡顯示的網址。網址換了就貼新的。</div></div>' +
@@ -1821,9 +1948,40 @@ function openReader(r){
   const el = $("#reader"); el.hidden = false;
   drawReader(true);
 }
+/* After an article is made (or opened): prepare its sentences first, then all its words.
+   A new article shows a progress screen for 5-10 seconds while the first sentences are made. */
+function prepareArticleVoice(isNew){
+  const r = S.reader, ctx = S.ctx.reader || {}; if (!r) return;
+  const w = S.weeks[r.week];
+  TTS.prefetchAll(ctx.paras);
+  const sents = TTS.pcOn() ? [] : (ctx.sentences || []).filter(Boolean);
+  const kw = (w ? w.words : []).concat(r.extra || []).map(x => x && x.en).filter(Boolean);
+  const words = [];
+  (ctx.paras || []).forEach(p => (String(p).match(/[A-Za-z][A-Za-z'’-]*/g) || []).forEach(x => words.push(x)));
+  TTS.batchStart(sents, kw.concat(words).slice(0, 300));
+  if (isNew) showPrepOverlay();
+}
+function showPrepOverlay(){
+  const rd = $("#reader"); if (!rd || !TTS.batchInfo) return;
+  const old = $("#prep-ov"); if (old) old.remove();
+  const ov = document.createElement("div");
+  ov.id = "prep-ov"; ov.className = "prep-ov";
+  ov.innerHTML = '<div class="prep-card"><div class="prep-t">正在準備語音</div><div class="bar"><span></span></div>' +
+    '<div class="row between small muted"><span class="prep-s"></span><span class="prep-w"></span></div>' +
+    '<div class="small muted">先把句子做好，按播放就不用等。單字會在背景繼續準備。</div>' +
+    '<button class="btn soft block" data-act="prep-skip">先開始讀</button></div>';
+  rd.appendChild(ov); TTS.batchShow();
+  const t0 = Date.now();
+  const tick = () => {
+    const el = $("#prep-ov"); if (!el) return;
+    const b = TTS.batchInfo, ms = Date.now() - t0, sentsDone = !b || b.doneS.size >= b.sents.size;
+    if (ms >= 10000 || (ms >= 5000 && sentsDone)) el.remove(); else setTimeout(tick, 250);
+  };
+  setTimeout(tick, 250);
+}
 function closeReader(){
   if (S.reader && S.reader.ctl){ try { S.reader.ctl.abort(); } catch (e) {} }
-  TTS.stop(); S.reader = null;
+  TTS.stop(); S.reader = null; TTS.batchInfo = null;
   const el = $("#reader"); el.hidden = true; el.innerHTML = "";
   render();
 }
@@ -1863,6 +2021,7 @@ function drawReader(first){
   const atBottom = body.scrollTop + body.clientHeight >= body.scrollHeight - 40;
   body.innerHTML = html;
   if (TTS.total && TTS.pcOn() && r.state === "ready") TTS.showPrep();
+  if (TTS.batchInfo && r.state === "ready") TTS.batchShow();
   if (streaming && atBottom && r.raw) body.scrollTop = body.scrollHeight;
 }
 function practiceHTML(a, w){
@@ -2102,7 +2261,7 @@ async function generateArticle(n, d, k){
     S.arts[artId(art)] = art;
     S.busy[key] = false;
     Store.set(artId(art), art).catch(() => {});
-    if (S.reader && S.reader.ctl === ctl){ S.reader.state = "ready"; S.reader.art = art; S.reader.ctl = null; drawReader(true); TTS.prefetchAll((S.ctx.reader || {}).paras); }
+    if (S.reader && S.reader.ctl === ctl){ S.reader.state = "ready"; S.reader.art = art; S.reader.ctl = null; drawReader(true); prepareArticleVoice(true); }
     render();
   } catch (e) {
     S.busy[key] = false;
@@ -2116,7 +2275,7 @@ async function generateArticle(n, d, k){
 function openArticle(id){
   const a = S.arts[id]; if (!a) return;
   openReader({week:a.week, day:a.day, k:a.k, genre:a.genre, state:"ready", art:a});
-  TTS.prefetchAll((S.ctx.reader || {}).paras);
+  prepareArticleVoice(false);
 }
 async function checkPractice(){
   const r = S.reader; if (!r || !r.art) return;
@@ -2506,6 +2665,11 @@ const ACT = {
   "set-tier": el => { S.profile.tier = Number(el.dataset.i); saveProfile(); render(); toast("之後的文章會用「" + TIERS[S.profile.tier].name + "」的難度"); },
   "pick-theme": el => { const pk = themeChoices(); pk.sel = Number(el.dataset.i); pk.custom = ""; drawSheet(); },
   "shuffle-themes": () => { S.pick = null; drawSheet(); },
+  "prep-skip": () => { const el = $("#prep-ov"); if (el) el.remove(); },
+  "audio-clear": async () => {
+    try { await AudioDB.clear(); } catch (e) {}
+    TTS.pocketClips.clear(); toast("已清除存在手機裡的聲音，之後用到會再重新產生。"); render();
+  },
   "pocket-prefetch": async () => {
     if (S.busy.pocketPrefetch) return;
     S.busy.pocketPrefetch = true; render();
