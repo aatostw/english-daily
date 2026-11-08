@@ -424,8 +424,48 @@ main.flush{padding:0;gap:0;overflow:hidden}
 @media (prefers-reduced-motion: reduce){
   *,*::before,*::after{animation:none !important;transition:none !important}
 }
-@media (min-width:640px){
+@media (min-width:640px) and (max-width:767px){
   .app{border-left:1px solid var(--line);border-right:1px solid var(--line)}
+}
+/* ---------- tablet: a navigation rail on the left, wider centered content ---------- */
+@media (min-width:768px){
+  .app{max-width:none;display:grid;grid-template-columns:92px minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto}
+  .app:has(.tabs[hidden]){grid-template-columns:minmax(0,1fr)}
+  .top{grid-column:1 / -1;grid-row:1;padding:10px 20px}
+  main{grid-column:-2;grid-row:2;padding:22px max(24px,calc(50% - 370px)) 36px}
+  main.flush{padding:0}
+  .dock{grid-column:-2;grid-row:3;padding-left:max(24px,calc(50% - 370px));padding-right:max(24px,calc(50% - 370px))}
+  .tabs{grid-column:1;grid-row:2 / 4;display:flex;flex-direction:column;align-items:stretch;gap:6px;padding:16px 8px;border-top:0;border-right:1px solid var(--line)}
+  .tab{padding:8px 2px}
+  .sheet{justify-content:center;align-items:center;padding:24px}
+  .sheet-card{width:min(560px,100%);border-radius:22px;max-height:84%;box-shadow:0 18px 50px rgba(10,20,30,.28)}
+  .sheet-card .grab{display:none}
+  .reader-body{padding-left:max(22px,calc(50% - 380px));padding-right:max(22px,calc(50% - 380px))}
+  .toast{bottom:40px}
+  .city-top{right:auto;width:min(520px,calc(100% - 20px))}
+  .city-stage .city3d{border-radius:0}
+  .city-side{right:16px}
+  /* chatting with Lisa in town: island on the left, chat on the right */
+  .city-stage.chat{flex-direction:row}
+  .city-stage.chat .city3d{flex:1 1 auto}
+  .city-stage.chat .city-chat{flex:0 0 400px;margin-top:0;border-radius:0;box-shadow:-8px 0 20px rgba(30,50,60,.12)}
+  .city-stage.chat .cc-head{border-radius:0}
+  body.city-chat-on .dock{width:400px;margin-left:auto;padding-left:16px;padding-right:16px;justify-self:end}
+}
+/* ---------- desktop: a full sidebar with labels, roomier content ---------- */
+@media (min-width:1100px){
+  .app{grid-template-columns:220px minmax(0,1fr)}
+  main{padding:28px max(32px,calc(50% - 400px)) 40px}
+  .dock{padding-left:max(32px,calc(50% - 400px));padding-right:max(32px,calc(50% - 400px))}
+  .tabs{padding:18px 12px;gap:4px}
+  .tab{flex-direction:row;justify-content:flex-start;gap:12px;padding:8px 12px;font-size:15px;border-radius:14px}
+  .tab .tab-ic{width:44px;height:36px}
+  .tab[aria-current="page"]{background:#EEF1F5}
+  .tab[aria-current="page"] .tab-ic{background:none}
+  .city-stage.chat .city-chat{flex-basis:440px}
+  body.city-chat-on .dock{width:440px}
+  .city-side{right:22px;gap:18px}
+  .cs-ic{width:58px;height:58px}
 }
 
 /* ---- user's style: flat pages, centered blue titles, bottom action bar ---- */
@@ -1704,6 +1744,7 @@ function render(){
   const keepScroll = render.lastView === S.view ? main.scrollTop : 0;
   const cc = $("#cc-body"), ccKeep = cc ? cc.scrollTop : 0;
   main.classList.toggle("flush", S.view === "city");
+  document.body.classList.toggle("city-chat-on", S.view === "city" && !!S.cityChat);
   main.innerHTML = fn();
   main.scrollTop = keepScroll;
   const cc2 = $("#cc-body");
