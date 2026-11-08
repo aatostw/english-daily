@@ -207,6 +207,32 @@ label.btn{cursor:pointer}
 .ground-btn{display:flex;align-items:center;gap:6px;min-height:40px;padding:0 8px;border:2px solid transparent;border-radius:10px;background:var(--field);color:var(--ink);font-size:13px;font-family:inherit}
 .ground-btn span{flex:none;width:18px;height:18px;border-radius:5px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.12)}
 .ground-btn.on{border-color:var(--primary);font-weight:700}
+main.flush{padding:0;gap:0;overflow:hidden}
+.city-stage{position:relative;flex:1;min-height:0;display:flex;flex-direction:column;background:#CFE6DF}
+.city-stage .city3d{flex:1;min-height:0;border-radius:0}
+.city-stage .city3d > svg{width:100%;height:100%}
+.city-stage.chat .city3d{flex:0 0 34%}
+.city-top{position:absolute;top:12px;left:12px;right:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 12px;border-radius:18px;background:rgba(255,255,255,.94);box-shadow:0 6px 18px rgba(30,50,60,.14);backdrop-filter:blur(6px);z-index:3}
+.ct-ic{flex:none;width:40px;height:40px}.ct-ic svg{width:100%;height:100%}
+.ct-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.ct-label{font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.04em}
+.ct-body b{font-size:15px}
+.ct-bar{height:8px;border-radius:999px;background:#F1EBDD;overflow:hidden}.ct-bar span{display:block;height:100%;border-radius:999px;background:#F5B72E}
+.ct-err{flex-basis:100%;margin:0}
+.city-side{position:absolute;right:10px;top:50%;transform:translateY(-38%);display:flex;flex-direction:column;gap:10px;z-index:3}
+.cs-btn{display:flex;flex-direction:column;align-items:center;gap:2px;width:62px;padding:8px 0 6px;border:0;border-radius:16px;background:rgba(255,255,255,.94);box-shadow:0 4px 12px rgba(30,50,60,.16);color:var(--ink);font-size:12px;font-weight:700;font-family:inherit;transition:transform .1s;-webkit-tap-highlight-color:transparent}
+.cs-btn:active{transform:scale(.92)}
+.cs-ic{position:relative;width:32px;height:32px}.cs-ic svg{width:100%;height:100%}
+.cs-badge{position:absolute;top:-6px;right:-10px;min-width:18px;height:18px;padding:0 4px;border-radius:999px;background:#E53935;color:#fff;font:800 11px/18px var(--font-en);font-style:normal}
+.city-chat{flex:1;min-height:0;display:flex;flex-direction:column;margin-top:-18px;border-radius:22px 22px 0 0;background:var(--bg);box-shadow:0 -6px 18px rgba(30,50,60,.12);position:relative;z-index:2}
+.cc-head{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:22px 22px 0 0;background:var(--surface);border-bottom:1px solid var(--line)}
+.cc-head .lisa-av{width:44px;height:44px}
+.cc-who{flex:1;min-width:0}.cc-who b{font-size:17px}
+.cc-on{margin-left:8px;font-size:12px;font-weight:700;color:#3E9C7A}.cc-on::before{content:"";display:inline-block;width:8px;height:8px;margin-right:4px;border-radius:50%;background:#4DB892;vertical-align:1px}
+.cc-x{flex:none;width:40px;height:40px;border:0;border-radius:50%;background:#E53935;color:#fff;display:grid;place-items:center;box-shadow:0 3px 8px rgba(229,57,53,.35)}
+.cc-x svg{width:20px;height:20px}.cc-x:active{transform:scale(.92)}
+.cc-body{flex:1;min-height:0;overflow-y:auto;padding:14px 16px 18px;display:flex;flex-direction:column;gap:12px;-webkit-overflow-scrolling:touch}
+.day-row .state{flex:none;font-size:12px;font-weight:700;color:#C97A00}.day-row .state.done{color:#3E9C7A}
 .warn-x{flex:none;width:30px;height:30px;border:0;border-radius:50%;background:transparent;color:#D93F3F;font-size:20px;line-height:1}
 .warn-x:active{background:#FDECEC}
 .talk-row{align-items:flex-end;gap:8px;flex-wrap:nowrap}
@@ -1658,8 +1684,11 @@ function render(){
   tabs.querySelectorAll(".tab").forEach(t => t.setAttribute("aria-current", t.dataset.v === tabView ? "page" : "false"));
   const fn = {learn:renderLearn, home:renderHome, city:renderCity, talk:renderTalk, words:renderWords, prefs:renderPrefs}[S.view] || renderHome;
   const keepScroll = render.lastView === S.view ? main.scrollTop : 0;
+  const cc = $("#cc-body"), ccKeep = cc ? cc.scrollTop : 0;
+  main.classList.toggle("flush", S.view === "city");
   main.innerHTML = fn();
   main.scrollTop = keepScroll;
+  const cc2 = $("#cc-body"); if (cc2){ cc2.scrollTop = S.talk.scrollDown ? cc2.scrollHeight : ccKeep; if (S.talk.scrollDown) S.talk.scrollDown = false; }
   render.lastView = S.view;
   const dh = dockHTML(); dock.innerHTML = dh; dock.hidden = !dh;
   if (S.view === "city") City3D.mount();
@@ -1930,30 +1959,54 @@ function islandSVG(c){
 
 /* ---------- screen ---------- */
 function renderCity(){
-  const c = city(), food = c.food, n = activeResidents(c).length, away = c.residents.length - n;
-  const open = c.day.requests.filter(q => q.status === "open").length;
-  let html = '<section class="card city-card"><div class="row between" style="align-items:center"><div><div class="label">我的城市</div><h2 style="margin:0">' + (c.residents.length ? c.residents.length + " 位居民" : "空空的小島") + "</h2>" + (away ? '<div class="small muted">' + away + " 位還沒用道路接上市中心</div>" : "") + "</div>" +
-    "</div>" +
-    knowBarHTML() + '<div id="city3d" class="city3d">' + islandSVG(c) + "</div>" +
-    '<div class="small muted" style="text-align:center">拖曳可以轉小島，雙指縮放，點空地蓋建築</div>' +
-    harvestHTML(c) +
-    '<div class="row city-actions"><button class="btn soft" data-act="city-sheet" data-s="shop">商店</button><button class="btn soft" data-act="city-sheet" data-s="avatar">裝扮</button><button class="btn soft" data-act="city-sheet" data-s="bag">背包</button></div></section>';
-  html += cityLisaHTML();
-  html += '<section class="card"><div class="label">今天的居民請求</div>';
-  if (!n) html += '<p class="muted" style="margin:0">' + (away ? "居民住的房子還沒接上市中心。在房子和市中心之間蓋道路，他們就會來找你。" : "在市中心旁邊蓋一間小屋，就會有居民搬進來。") + "</p>";
-  else if (!c.day.fed){
-    html += '<p class="muted" style="margin:0">先發放糧食，居民吃飽了才會用英文來找你幫忙。今天需要 <b>' + n + "</b> 份糧食。</p>" +
-      (S.err.city ? '<div class="err">' + esc(S.err.city) + "</div>" : "") +
-      '<button class="btn green block" data-act="city-feed"' + (S.busy.city ? " disabled" : "") + ">" + (S.busy.city ? '<span class="spinner"></span>居民在想要問什麼…' : (food >= n ? "發放糧食（" + n + " 份）" : "糧食不夠，去商店買")) + "</button>";
-  } else {
-    html += c.day.requests.length ? '<div class="stack">' + c.day.requests.map(q => {
-      const p = c.residents[q.who] || {name:"居民", color:"#999"};
-      return '<button class="day-row" data-act="city-req" data-id="' + q.id + '"><span class="d"><b>' + esc(p.name) + '</b><span>' + (q.type === "choice" ? "選擇題" : "回答") + '</span></span><span class="t"><div class="en">' + esc(q.say) + '</div></span><span class="status' + (q.status === "done" ? " read" : "") + '">' + (q.status === "open" ? "去幫忙" : q.status === "done" ? "已幫忙" : "下次加油") + "</span></button>";
-    }).join("") + "</div>" : '<p class="muted" style="margin:0">今天沒有請求了。</p>';
-    html += '<p class="small muted" style="margin:0">' + (open ? "還有 " + open + " 個請求。答對會拿到隨機禮物！" : "今天的請求都處理完了，明天再來。") + "</p>";
-  }
-  return html + "</section>";
+  const c = city(), islandSVG = c2 => window.islandSVG(c2).replace("<svg ", '<svg preserveAspectRatio="xMidYMid slice" ');
+  if (S.cityChat && curWeek()) return '<div class="city-stage chat"><div id="city3d" class="city3d">' + islandSVG(c) + "</div>" + cityChatHTML() + "</div>";
+  return '<div class="city-stage"><div id="city3d" class="city3d">' + islandSVG(c) + "</div>" + cityTopHTML(c) + citySideHTML(c) + "</div>";
 }
+/* the floating card at the top: today's resident requests */
+function cityTopHTML(c){
+  const n = activeResidents(c).length, away = c.residents.length - n, food = c.food;
+  const done = c.day.requests.filter(q => q.status !== "open").length, total = c.day.requests.length;
+  let title, sub = "", btn = "", pct = 0;
+  if (!n){
+    title = away ? "居民還出不了門" : "還沒有居民";
+    sub = away ? "房子的門口要對著接上市中心的道路" : "點空地蓋一間小屋，就會有人搬進來";
+  } else if (!c.day.fed){
+    title = "居民肚子餓了";
+    sub = "發放 " + n + " 份糧食，他們就會用英文來找你";
+    btn = S.busy.city ? '<button class="btn green sm" disabled><span class="spinner"></span></button>'
+      : food >= n ? '<button class="btn green sm" data-act="city-feed">發放</button>' : '<button class="btn sm" data-act="city-sheet" data-s="shop">買糧食</button>';
+  } else {
+    pct = total ? Math.round(done / total * 100) : 100;
+    title = total ? "完成 " + done + " / " + total + " 個" : "今天沒有請求";
+    sub = total && done < total ? "答對會拿到隨機禮物" : "今天都處理完了，明天再來";
+    btn = total ? '<button class="btn sm" data-act="city-sheet" data-s="reqs">' + (done < total ? "前往" : "查看") + "</button>" : "";
+  }
+  return '<div class="city-top"><div class="ct-ic" aria-hidden="true">' + CITY_ICONS.req + '</div><div class="ct-body"><div class="ct-label">今天的居民請求</div><b>' + title + "</b>" +
+    (pct ? '<div class="ct-bar"><span style="width:' + pct + '%"></span></div>' : '<div class="small muted">' + sub + "</div>") + "</div>" + btn +
+    (S.err.city ? '<div class="err ct-err">' + esc(S.err.city) + "</div>" : "") + "</div>";
+}
+/* the floating buttons down the right side */
+function citySideHTML(c){
+  const st = c.prod.store, item = (act, s, ic, label, badge) => '<button class="cs-btn" data-act="' + act + '"' + (s ? ' data-s="' + s + '"' : "") + '><span class="cs-ic">' + ic + (badge ? '<i class="cs-badge">' + badge + "</i>" : "") + "</span>" + label + "</button>";
+  return '<div class="city-side">' + item("city-sheet", "shop", CITY_ICONS.shop, "商店") + item("city-sheet", "avatar", CITY_ICONS.outfit, "裝扮") + item("city-sheet", "bag", CITY_ICONS.bag, "背包") +
+    (st ? item("city-harvest", "", CITY_ICONS.harvest, "收成", st) : "") + "</div>";
+}
+/* chatting with Lisa right in town: the island shrinks to the top, focused on her, and the chat opens below */
+function cityChatHTML(){
+  const {w, d} = curChat();
+  return '<div class="city-chat"><div class="cc-head"><span class="lisa-av">' + LISA_SVG + '</span><div class="cc-who"><div><b>Lisa</b><span class="cc-on">Online</span></div><div class="small muted">' +
+    (w ? "第 " + w.n + " 週 · " + (d >= 6 ? "週日總複習" : DAY_NAMES[d]) : "") + '</div></div><button class="cc-x" data-act="city-chat-close" aria-label="結束聊天，回到城市">' +
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></button></div>' +
+    '<div class="cc-body" id="cc-body">' + talkBodyHTML(true) + "</div></div>";
+}
+const CITY_ICONS = {
+  req:'<svg viewBox="0 0 32 32"><rect x="3" y="5" width="26" height="19" rx="7" fill="#FFD873"/><path d="M10 24l-2 5 7-5z" fill="#FFD873"/><rect x="14.4" y="9" width="3.2" height="8.5" rx="1.6" fill="#8A5A00"/><circle cx="16" cy="20.6" r="1.8" fill="#8A5A00"/></svg>',
+  shop:'<svg viewBox="0 0 32 32"><rect x="5" y="14" width="22" height="14" rx="2" fill="#F6EAD3"/><path d="M3 8h26l-1.5 7H4.5z" fill="#E66B44"/><path d="M8.2 8l-1 7M13.4 8l-.5 7M18.6 8l.5 7M23.8 8l1 7" stroke="#fff" stroke-width="2.2"/><rect x="13" y="19" width="6" height="9" rx="1" fill="#4C8BE0"/><rect x="7.5" y="18" width="4" height="4" rx="1" fill="#9DD3F0"/><rect x="20.5" y="18" width="4" height="4" rx="1" fill="#9DD3F0"/><rect x="4" y="4" width="24" height="4" rx="2" fill="#B9502F"/></svg>',
+  outfit:'<svg viewBox="0 0 32 32"><path d="M11 4l-8 5 3 6 3-1.5V28h14V13.5l3 1.5 3-6-8-5c-.6 2.4-2.6 4-5 4s-4.4-1.6-5-4z" fill="#4C8BE0"/><path d="M11 4c.6 2.4 2.6 4 5 4s4.4-1.6 5-4" fill="none" stroke="#2F6AB8" stroke-width="1.5"/><circle cx="16" cy="18" r="3" fill="#FFD873"/></svg>',
+  bag:'<svg viewBox="0 0 32 32"><path d="M11 9V7a5 5 0 0 1 10 0v2" fill="none" stroke="#8A5A3A" stroke-width="2.4"/><rect x="5" y="9" width="22" height="19" rx="6" fill="#C98A55"/><rect x="9" y="17" width="14" height="8" rx="3" fill="#A86E3E"/><rect x="14" y="15" width="4" height="4" rx="1" fill="#FFD873"/></svg>',
+  harvest:'<svg viewBox="0 0 32 32"><path d="M5 15h22l-2.5 11a3 3 0 0 1-3 2.3h-11a3 3 0 0 1-3-2.3z" fill="#C98A55"/><path d="M5 15h22" stroke="#A86E3E" stroke-width="2.4" stroke-linecap="round"/><circle cx="11" cy="11" r="4" fill="#F5B72E"/><circle cx="17" cy="9" r="4.5" fill="#E66B44"/><circle cx="22" cy="12" r="3.5" fill="#4DB892"/></svg>'
+};
 
 /* Lisa lives in town: tap her on the island or here, any time */
 function cityLisaHTML(){
@@ -1992,6 +2045,14 @@ function citySheetHTML(o){
       return '<button class="menu-row" data-act="city-build" data-b="' + k + '"' + (bal < b.price ? " disabled" : "") + '><span><b>' + b.name + '</b><span class="small muted">' + b.desc + '</span></span><span class="price"><img class="coin-icon" src="' + COIN_IMG + '" alt="">' + b.price + "</span></button>";
     }).join("") +
       (c.owned.deco.length ? '<div class="label" style="margin-top:6px">背包裡的裝飾（免費放）</div>' + [...new Set(c.owned.deco)].map(d => '<button class="menu-row" data-act="city-deco" data-d="' + d + '"><span><b>' + CITY_DECOS[d] + "</b></span><span>放這裡</span></button>").join("") : "") + "</div>";
+  }
+  if (o.s === "reqs"){
+    const open = c.day.requests.filter(q => q.status === "open").length;
+    return head("今天的居民請求") + (c.day.requests.length ? '<div class="stack">' + c.day.requests.map(q => {
+      const p = c.residents[q.who] || {name:"居民", color:"#999"};
+      return '<button class="day-row" data-act="city-req" data-id="' + q.id + '"><span class="d"><b>' + esc(p.name) + '</b><span>' + (q.type === "choice" ? "選擇題" : "回答") + '</span></span><span class="t"><div class="en">' + esc(q.say) + '</div></span><span class="state ' + (q.status === "open" ? "" : "done") + '">' + (q.status === "open" ? "待回答" : q.status === "right" ? "答對" : "完成") + "</span></button>";
+    }).join("") + "</div>" : '<p class="muted" style="margin:0">今天沒有請求了。</p>') +
+      '<p class="small muted" style="margin:0">' + (open ? "還有 " + open + " 個請求。答對會拿到隨機禮物！" : "今天的請求都處理完了，明天再來。") + "</p>";
   }
   if (o.s === "tile"){
     const it = c.tiles[o.k] || {}, b = it.b && CITY_BUILDINGS[it.b], lv = tileLv(it), L = cityLinked(c), linked = isLinked(c, o.k, L);
@@ -2622,9 +2683,16 @@ const City3D = {
     this.r.setSize(w, h); this.cam.aspect = w / h; this.cam.updateProjectionMatrix(); this.w = w; this.h = h;
   },
   place(){
-    const d = this.dist, el = this.el, az = this.az;
-    this.cam.position.set(d * Math.cos(el) * Math.sin(az), d * Math.sin(el), d * Math.cos(el) * Math.cos(az));
-    this.cam.lookAt(0, 0, 0);
+    const d = this.dist, el = this.el, az = this.az, f = this.focus || [0, 0, 0];
+    this.cam.position.set(f[0] + d * Math.cos(el) * Math.sin(az), f[1] + d * Math.sin(el), f[2] + d * Math.cos(el) * Math.cos(az));
+    this.cam.lookAt(f[0], f[1], f[2]);
+  },
+  /* chatting with Lisa: swing the camera in close to her; afterwards go back to the whole island */
+  focusLisa(on){
+    if (on){ if (!this.saved) this.saved = {dist:this.dist, el:this.el, az:this.az}; this.focus = [-.45, .42, .86]; this.dist = 3.4; this.el = .42; this.az = .35; }
+    else if (this.saved){ Object.assign(this, this.saved); this.saved = null; this.focus = null; }
+    else this.focus = null;
+    this.draw();
   },
   draw(){
     if (this.frame) return;
@@ -2671,6 +2739,7 @@ const City3D = {
     cv.addEventListener("wheel", e => { e.preventDefault(); this.dist = Math.min(26, Math.max(5, this.dist * (e.deltaY > 0 ? 1.08 : .93))); this.draw(); }, {passive:false});
   },
   tap(e){
+    if (S.cityChat) return;
     const T = this.T, rect = this.r.domElement.getBoundingClientRect();
     const v = new T.Vector2((e.clientX - rect.left) / rect.width * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
     const ray = new T.Raycaster(); ray.setFromCamera(v, this.cam);
@@ -2868,6 +2937,7 @@ function chatChecklistHTML(w, conv, d){
 /* Lisa's portrait (lisa.jpg, a 256px crop of her illustration) */
 const LISA_SVG = '<img src="lisa.jpg" alt="" width="96" height="96" decoding="async">';
 function lisaHead(sub){
+  if (talkBodyHTML.compact) return "";
   return '<div class="lisa-head"><span class="lisa-av" aria-hidden="true">' + LISA_SVG + '</span><div><b>與 Lisa 對話</b><div class="small muted">' + sub + "</div></div></div>";
 }
 function lisaCardHTML(w){
@@ -3045,7 +3115,14 @@ function feedbackHTML(w, conv, d){
 }
 function renderTalk(){
   const from = S.talkFrom === "city" ? "city" : "home";
-  const back = '<div class="row"><button class="btn ghost sm" data-act="tab" data-v="' + from + '">' + ICON.back.replace("<svg", '<svg width="16" height="16"') + (from === "city" ? "我的城市" : "首頁") + "</button></div>";
+  return '<div class="row"><button class="btn ghost sm" data-act="tab" data-v="' + from + '">' + ICON.back.replace("<svg", '<svg width="16" height="16"') + (from === "city" ? "我的城市" : "首頁") + "</button></div>" + talkBodyHTML(false);
+}
+function talkBodyHTML(compact){
+  talkBodyHTML.compact = compact;
+  try { return talkBodyInner(); } finally { talkBodyHTML.compact = false; }
+}
+function talkBodyInner(){
+  const back = "";
   const {w, d, conv} = curChat();
   if (!w) return back + lisaCardHTML(null);
   let html = back;
@@ -3079,7 +3156,7 @@ function renderTalk(){
 }
 
 function dockHTML(){
-  if (!S.profile || S.view !== "talk") return "";
+  if (!S.profile || !(S.view === "talk" || (S.view === "city" && S.cityChat))) return "";
   const conv = curChat().conv;
   if (!conv || conv.done) return "";
   const mineCount = conv.turns.filter(t => t.role === "user").length;
@@ -3629,7 +3706,7 @@ async function sendTalk(){
   try {
     const res = await ai("talk", turns, {cache:false, onText: ({text}) => {
       S.talk.live = text;
-      if (!pending){ pending = true; requestAnimationFrame(() => { pending = false; const b = $("#live-text"); if (b){ b.textContent = S.talk.live; $("#main").scrollTop = $("#main").scrollHeight; } }); }
+      if (!pending){ pending = true; requestAnimationFrame(() => { pending = false; const b = $("#live-text"); if (b){ b.textContent = S.talk.live; const sc = $("#cc-body") || $("#main"); sc.scrollTop = sc.scrollHeight; } }); }
     }});
     conv.turns.push({role:"assistant", content:res.text.trim()});
   } catch (e) {
@@ -3774,7 +3851,7 @@ function earn(amount, reason){
   Object.keys(W.daily).forEach(k => { if (diffDays(k, d) > 14) delete W.daily[k]; });
   Store.set("wallet", W).catch(() => {});
   coinPop(give); renderCoins();
-  if (S.reader || S.view === "talk") toast("+" + give + " 金幣・" + reason);
+  if (S.reader || S.view === "talk" || S.cityChat) toast("+" + give + " 金幣・" + reason);
   return give;
 }
 /* For the mini game: spends coins if there are enough. */
@@ -3983,12 +4060,16 @@ function backupNagHTML(){
 }
 const ACT = {
   "tab": el => {
+    if (S.cityChat && el.dataset.v !== "city"){ S.cityChat = false; City3D.focusLisa(false); }
     /* a small buzz and a pop on the icon, so the tap clearly lands */
     try { if (navigator.vibrate) navigator.vibrate(8); } catch (e) {}
     const v = el.dataset.v;
     setTimeout(() => { const t = document.querySelector('#tabs .tab[data-v="' + v + '"]'); if (t){ t.classList.remove("pop"); void t.offsetWidth; t.classList.add("pop"); } }, 0);
     if (S.reader) closeReader(); closeSheet(); if (el.dataset.v === "prefs") S.prefPage = null; go(el.dataset.v); },
-  "open-chat": () => { const w = curWeek(); if (!w) return; S.talkFrom = S.view === "city" ? "city" : "home"; S.chatDay = chatDayFor(w); S.talk.scrollDown = true; go("talk"); },
+  "city-chat-close": () => { S.cityChat = false; City3D.focusLisa(false); render(); },
+  "open-chat": () => { const w = curWeek(); if (!w) return;
+    if (S.view === "city"){ S.chatDay = chatDayFor(w); S.cityChat = true; S.talk.scrollDown = true; closeSheet && S.sheet && closeSheet(); City3D.focusLisa(true); render(); return; }
+    S.talkFrom = S.view === "city" ? "city" : "home"; S.chatDay = chatDayFor(w); S.talk.scrollDown = true; go("talk"); },
   "pref-open": el => { S.prefPage = el.dataset.p; go("prefs"); $("#main").scrollTop = 0; },
   "pref-back": () => { S.prefPage = null; render(); $("#main").scrollTop = 0; },
   "onb-next": () => { S.onb.step = Math.min(2, S.onb.step + 1); S.err.week = ""; render(); $("#main").scrollTop = 0; },
