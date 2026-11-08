@@ -198,7 +198,9 @@ label.btn{cursor:pointer}
 .art-go{flex:none;width:38%;min-width:112px;max-width:180px;min-height:44px;padding:8px 12px;font-size:15px}
 .art-more{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;border:0;background:transparent;color:var(--muted);font-family:inherit;font-weight:700;font-size:14px;padding:4px 0 0}
 .art-more:disabled{opacity:.6}
-.warn-box{margin-bottom:8px;padding:9px 12px;border-radius:12px;background:#fff;border:1px solid #F3C4C4;color:#D93F3F;font-size:14px;font-weight:600}
+.warn-box{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;padding:6px 6px 6px 12px;border-radius:12px;background:#fff;border:1px solid #F3C4C4;color:#D93F3F;font-size:14px;font-weight:600}
+.warn-x{flex:none;width:30px;height:30px;border:0;border-radius:50%;background:transparent;color:#D93F3F;font-size:20px;line-height:1}
+.warn-x:active{background:#FDECEC}
 .talk-row{align-items:flex-end;gap:8px;flex-wrap:nowrap}
 .talk-row .input{flex:1;min-width:0}
 .send-btn{flex:none;width:46px;height:46px;border-radius:50%;border:0;background:var(--primary);color:#fff;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 3px 0 #2A4A68;transition:transform .1s}
@@ -2933,7 +2935,7 @@ function dockHTML(){
   if (!conv || conv.done) return "";
   const mineCount = conv.turns.filter(t => t.role === "user").length;
   const send = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.4 20.4 21 12 3.4 3.6l.1 6.5L15 12 3.5 13.9z" fill="currentColor"/></svg>';
-  return (S.talk.warn ? '<div class="warn-box" role="alert">' + esc(S.talk.warn) + "</div>" : "") +
+  return (S.talk.warn ? '<div class="warn-box" role="alert"><span>' + esc(S.talk.warn) + '</span><button class="warn-x" data-act="talk-warn-x" aria-label="關閉提醒">×</button></div>' : "") +
     '<div class="row talk-row"><textarea class="input" id="talk-input" rows="1" placeholder="用英文回答…" aria-label="你的回答">' + esc(S.talk.draft || "") + '</textarea>' +
     '<button class="send-btn" data-act="talk-send" aria-label="送出"' + (S.busy.reply || S.busy.fb ? " disabled" : "") + ">" + send + "</button>" +
     '<button class="btn ghost sm settle-btn" data-act="talk-end"' + (S.busy.fb || S.busy.reply ? " disabled" : "") + ">" + (S.busy.fb ? '<span class="spinner"></span>結算中' : "結算") + "</button></div>";
@@ -3955,6 +3957,7 @@ const ACT = {
     const far = el.dataset.b !== "road" && !isLinked(c, o.k);
     saveCity(); closeSheet(); render(); toast(b.name + "蓋好了" + (far ? "。記得用道路接上市中心！" : b.residents ? "，" + b.residents + " 位居民搬進來！" : "！"));
   },
+  "talk-warn-x": () => { S.talk.warn = ""; render(); },
   "city-turn": el => {
     const c = city(), it = c.tiles[el.dataset.k]; if (!hasDoor(it)) return;
     it.face = ((it.face >= 0 ? it.face : 5) + 1) % 6; saveCity(); drawSheet(); render();
