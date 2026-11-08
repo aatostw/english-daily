@@ -226,6 +226,7 @@ label.btn{cursor:pointer}
 .pin{position:absolute;left:0;top:0;will-change:transform}
 .pin .lbl{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:rgba(255,255,255,.93);font-size:11px;font-weight:700;color:#3a3330;box-shadow:0 2px 6px rgba(60,40,20,.15);white-space:nowrap}
 .pin .lbl::before{content:"";width:6px;height:6px;border-radius:50%;background:#DB6A41}
+.pin .lbl.off{color:#8a8a8a}.pin .lbl.off::before{background:#bbb}
 .req-pin{pointer-events:auto;width:30px;height:30px;border-radius:50%;border:2px solid #DB6A41;background:#fff;color:#DB6A41;font:900 16px var(--font-en);box-shadow:0 3px 10px rgba(60,40,20,.25);padding:0}
 .sec-title{font-size:20px;font-weight:900;margin:10px 4px 0}
 .menu-row{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;text-align:left;border:0;background:#F2F4FB;border-radius:14px;padding:14px 16px;font:inherit;color:inherit}
@@ -1632,12 +1633,14 @@ function go(view){
    good answers give random gifts (outfit parts, decorations, double-coin cards).
    ========================================================= */
 const CITY_BUILDINGS = {
-  house:{name:"小屋", price:80, residents:2, desc:"住 2 位居民・可升到 Lv3", grow:[2, 3, 4]},
-  road:{name:"道路", price:10, residents:0, desc:"旁邊的店多產 1 份糧食，旁邊的房子每天多 1 個請求"},
+  hall:{name:"市中心", price:0, residents:0, desc:"整座城的中心", make:[2, 4, 6], fixed:true},
+  house:{name:"小屋", price:80, residents:2, desc:"住 2 位居民・升級會長大到 2、3 格", grow:[2, 3, 4]},
+  road:{name:"道路", price:10, residents:0, desc:"要貼著建築或道路，把建築接上市中心"},
   cafe:{name:"咖啡店", price:120, residents:1, desc:"老闆 1 位・每天產 2 份糧食", make:[2, 4, 7]},
   bakery:{name:"麵包店", price:120, residents:1, desc:"老闆 1 位・每天產 2 份糧食", unlock:"bakery", make:[2, 4, 7]},
   books:{name:"書店", price:150, residents:1, desc:"老闆 1 位・每天產 2 份糧食", unlock:"books", make:[2, 4, 7]},
-  clinic:{name:"診所", price:180, residents:1, desc:"醫生 1 位", unlock:"clinic"},
+  clinic:{name:"診所", price:180, residents:1, desc:"醫生 1 位", unlock:"clinic", hall:2},
+  market:{name:"市集", price:300, residents:2, desc:"老闆 2 位・每天產 4 份糧食", hall:3, make:[4, 7, 11]},
   park:{name:"小公園", price:60, residents:0, desc:"讓島上更漂亮"}
 };
 const CITY_DECOS = {statue:"公園雕像", fountain:"噴水池", sakura:"櫻花樹", lighthouse:"燈塔"};
@@ -1659,8 +1662,9 @@ const KNOW_UNLOCKS = [
   {at:60, key:"books", name:"書店"},
   {at:100, key:"clinic", name:"診所"},
   {at:150, key:"rare", name:"禮物開始出現稀有寶物"},
-  {at:250, key:"expand", name:"擴建小島"},
-  {at:400, key:"rare2", name:"稀有寶物機率變兩倍"}
+  {at:250, key:"hall2", name:"市中心可以升到 Lv2"},
+  {at:400, key:"rare2", name:"稀有寶物機率變兩倍"},
+  {at:500, key:"hall3", name:"市中心可以升到 Lv3"}
 ];
 function knowledge(){ return (S.city && S.city.knowledge) || 0; }
 function knowUnlocked(key){ const u = KNOW_UNLOCKS.find(x => x.key === key); return !u || knowledge() >= u.at; }
@@ -1686,6 +1690,20 @@ function city(){
   if (!S.city) S.city = newCity();
   const c = S.city, t = todayStr();
   if (c.day.date !== t) c.day = {date:t, fed:false, requests:[]};
+  /* every town has a city center in the middle; an older town's building there moves aside */
+  if (!c.tiles["0,0"] || c.tiles["0,0"].b !== "hall"){
+    const old = c.tiles["0,0"]; c.tiles["0,0"] = {b:"hall", lv:1};
+    if (old){
+      const spot = cityNear("0,0").concat(cityTiles(c).map(([q, r]) => q + "," + r)).find(k => !c.tiles[k]);
+      if (spot){ c.tiles[spot] = old; c.residents.forEach(p => { if (p.home === "0,0") p.home = spot; }); }
+      else if (old.d) c.owned.deco.push(old.d);
+    }
+  }
+  /* buildings upgraded before they took up extra plots grow into them now, if there is room */
+  Object.keys(c.tiles).forEach(k => {
+    const it = c.tiles[k], b = it.b && CITY_BUILDINGS[it.b]; if (!b || b.fixed || !(b.make || b.grow)) return;
+    while ((it.cells || []).length < tileLv(it) - 1){ const n = growCell(c, k); if (!n) break; it.cells = (it.cells || []).concat(n); c.tiles[n] = {part:k}; }
+  });
   /* shops make food once a day; it waits in the shop (up to 2 days' worth) until you harvest */
   if (!c.prod) c.prod = {date:t, store:0};
   if (c.prod.date !== t){
@@ -1698,18 +1716,47 @@ function city(){
 const CITY_DIRS = [[1, 0], [1, -1], [0, -1], [-1, 0], [-1, 1], [0, 1]];
 function tileLv(it){ return (it && it.lv) || 1; }
 function cityNear(k){ const [q, r] = k.split(",").map(Number); return CITY_DIRS.map(([a, b]) => (q + a) + "," + (r + b)); }
-function onRoad(c, k){ return cityNear(k).some(n => c.tiles[n] && c.tiles[n].b === "road"); }
-function shopMake(c, k){
-  const it = c.tiles[k], b = it && it.b && CITY_BUILDINGS[it.b];
-  return b && b.make ? b.make[tileLv(it) - 1] + (onRoad(c, k) ? 1 : 0) : 0;
+const HALL = {cost:[0, 300, 800], know:["", "hall2", "hall3"], reqs:[3, 4, 5]};
+function hallLv(c){ const h = c.tiles["0,0"]; return h && h.b === "hall" ? tileLv(h) : 1; }
+function anchorOf(c, k){ const it = c.tiles[k]; return it && it.part ? it.part : k; }
+function cellsOf(c, k){ const it = c.tiles[k]; return [k].concat((it && it.cells) || []); }
+/* which buildings reach the city center: next to it, or next to a road that leads back to it */
+function cityLinked(c){
+  const roads = new Set(), linked = new Set(["0,0"]), stack = ["0,0"];
+  while (stack.length){
+    const k = stack.pop();
+    cityNear(k).forEach(n => {
+      const t = c.tiles[n]; if (!t) return;
+      if (t.b === "road"){ if (!roads.has(n)){ roads.add(n); stack.push(n); } }
+      else if (!t.d) linked.add(anchorOf(c, n));
+    });
+  }
+  return linked;
 }
-function cityDaily(c){ return Object.keys(c.tiles).reduce((n, k) => n + shopMake(c, k), 0); }
-function upgradeCost(it){ const b = CITY_BUILDINGS[it.b], lv = tileLv(it); return lv >= 3 || !(b.make || b.grow) ? 0 : Math.round(b.price * (lv === 1 ? 1.5 : 2.5)); }
+function isLinked(c, k, L){ return (L || cityLinked(c)).has(anchorOf(c, k)); }
+function activeResidents(c){ const L = cityLinked(c); return c.residents.map((p, i) => L.has(p.home) ? i : -1).filter(i => i >= 0); }
+function shopMake(c, k, L){
+  const it = c.tiles[k], b = it && it.b && CITY_BUILDINGS[it.b];
+  return b && b.make && isLinked(c, k, L) ? b.make[tileLv(it) - 1] : 0;
+}
+function cityDaily(c){ const L = cityLinked(c); return Object.keys(c.tiles).reduce((n, k) => n + shopMake(c, k, L), 0); }
+function upgradeCost(it){
+  const b = CITY_BUILDINGS[it.b], lv = tileLv(it); if (lv >= 3) return 0;
+  if (it.b === "hall") return HALL.cost[lv];
+  return b.make || b.grow ? Math.round(b.price * (lv === 1 ? 1.5 : 2.5)) : 0;
+}
 function cityName(it){ return it.b ? CITY_BUILDINGS[it.b].name + (CITY_BUILDINGS[it.b].make || CITY_BUILDINGS[it.b].grow ? " Lv" + tileLv(it) : "") : CITY_DECOS[it.d]; }
-function roadHouses(c){ return Object.keys(c.tiles).filter(k => c.tiles[k].b === "house" && onRoad(c, k)).length; }
+/* the empty plot a building grows into: on the island, touching it, and touching as much of it as possible */
+function growCell(c, k){
+  const mine = cellsOf(c, k), land = new Set(cityTiles(c).map(([q, r]) => q + "," + r)), score = {};
+  mine.forEach(m => cityNear(m).forEach(n => { if (land.has(n) && !c.tiles[n]) score[n] = (score[n] || 0) + 1; }));
+  const best = Object.keys(score).sort((a, b) => score[b] - score[a]);
+  return best[0] || null;
+}
+function roadOk(c, k){ return cityNear(k).some(n => c.tiles[n] && !c.tiles[n].d); }
 function saveCity(){ Store.set("city", S.city).catch(() => {}); if (typeof renderCoins === "function") renderCoins(); }
 function cityTiles(c){
-  const R = c.level >= 2 ? 2 : 1, out = [];
+  const R = hallLv(c) + 1, out = [];
   for (let q = -R; q <= R; q++) for (let r = -R; r <= R; r++) if (Math.abs(-q - r) <= R) out.push([q, r]);
   return out;
 }
@@ -1729,6 +1776,8 @@ function buildingSVG(type, x, y, dim){
   const win = (dx, dy) => '<rect x="' + (x + dx - 3) + '" y="' + (y + dy - 3) + '" width="6" height="6" rx="1" fill="#fff6c8" stroke="#5b4a3a" stroke-width=".6"/>';
   let s = "";
   if (type === "house") s = box(26, 18, "#fff3d6", "#E57373") + door() + win(-8, -11) + win(8, -11);
+  else if (type === "hall") s = box(30, 24, "#f2e6cf", "#C9574A") + door("#8a6a4a") + win(-9, -15) + win(9, -15) + '<rect x="' + (x + 12) + '" y="' + (y - 50) + '" width="1.5" height="16" fill="#5b4a3a"/><rect x="' + (x + 13.5) + '" y="' + (y - 50) + '" width="8" height="5" fill="#E57373"/>';
+  else if (type === "market") s = [-10, 10].map(dx => '<rect x="' + (x + dx - 8) + '" y="' + (y - 12) + '" width="16" height="12" fill="#f6e3cf" stroke="#5b4a3a" stroke-width="1"/><path d="M' + (x + dx - 10) + " " + (y - 12) + " h20 l-3 -6 h-14z" + '" fill="#E8945A"/>').join("");
   else if (type === "cafe") s = box(30, 18, "#f6e3cf", null) + '<path d="M' + (x - 17) + " " + (y - 18) + " h34 l-3 7 h-28z" + '" fill="#C98B5B"/>' + [0, 1, 2, 3].map(i => '<rect x="' + (x - 14 + i * 7) + '" y="' + (y - 18) + '" width="3.5" height="7" fill="#fff"/>').join("") + door("#5b4a3a") + win(9, -6);
   else if (type === "bakery") s = box(28, 18, "#ffe3e3", "#F06292") + '<circle cx="' + x + '" cy="' + (y - 24) + '" r="4" fill="#fff" stroke="#c2185b" stroke-width="1"/>' + door() + win(-9, -10) + win(9, -10);
   else if (type === "books") s = box(24, 30, "#dbe9f7", null) + '<rect x="' + (x - 13) + '" y="' + (y - 33) + '" width="26" height="4" rx="1" fill="#3f6fa8"/>' + win(-6, -22) + win(6, -22) + win(-6, -13) + win(6, -13) + door("#3f6fa8");
@@ -1776,12 +1825,12 @@ function citySky(){
 function islandSVG(c){
   const tiles = cityTiles(c).map(([q, r]) => { const [x, y] = cityPos(q, r); return {q, r, x, y, key:q + "," + r}; }).sort((a, b) => a.y - b.y);
   const [sky1, sky2, night] = citySky();
-  const W = c.level >= 2 ? 340 : 270, H = c.level >= 2 ? 290 : 205, cx = W / 2, cy = H / 2 + 6;
+  const R = hallLv(c) + 1, W = Math.round(59 * (2 * R + 1) + 30), H = Math.round(32 * 2 * R + 150), cx = W / 2, cy = H / 2 + 6;
   const fed = c.day.fed;
   let s = '<svg viewBox="0 0 ' + W + " " + H + '" class="island" role="img" aria-label="我的城市"><defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + sky1 + '"/><stop offset="1" stop-color="' + sky2 + '"/></linearGradient></defs>' +
     '<rect width="' + W + '" height="' + H + '" fill="url(#sky)"/>';
   if (night) for (let i = 0; i < 18; i++) s += '<circle cx="' + ((i * 53) % W) + '" cy="' + ((i * 29) % 70 + 6) + '" r="' + (i % 3 ? 1 : 1.6) + '" fill="#fff" opacity=".8"/>';
-  s += '<ellipse cx="' + cx + '" cy="' + (cy + 8) + '" rx="' + (c.level >= 2 ? 165 : 120) + '" ry="' + (c.level >= 2 ? 95 : 70) + '" fill="#8ED1E6" opacity=".9"/>';
+  s += '<ellipse cx="' + cx + '" cy="' + (cy + 8) + '" rx="' + (W / 2 - 8) + '" ry="' + (32 * R + 40) + '" fill="#8ED1E6" opacity=".9"/>';
   tiles.forEach(t => {
     const x = cx + t.x, y = cy + t.y, it = c.tiles[t.key];
     s += '<polygon points="' + hexPoints(x, y, 33, 9) + '" fill="#b98b5e"/>';
@@ -1799,9 +1848,10 @@ function islandSVG(c){
   });
   tiles.forEach(t => {
     const x = cx + t.x, y = cy + t.y + 6, it = c.tiles[t.key];
-    if (!it || it.b === "road") return;
+    if (!it || it.b === "road" || it.part) return;
     const kind = it.b || it.d;
-    s += '<g pointer-events="none">' + buildingSVG(kind, x, y, it.b && it.b !== "park" && !fed) + "</g>";
+    const sc = 1 + .3 * (tileLv(it) - 1);
+    s += '<g pointer-events="none" transform="translate(' + x + " " + y + ") scale(" + sc + ") translate(" + (-x) + " " + (-y) + ')">' + buildingSVG(kind, x, y, it.b && it.b !== "park" && !fed) + "</g>";
   });
   /* residents stand beside their home; the ones with a question show a bubble you can tap */
   c.residents.forEach((p, i) => {
@@ -1811,22 +1861,22 @@ function islandSVG(c){
     const req = c.day.requests.find(q => q.who === i && q.status === "open");
     if (req) s += '<g class="req-bubble" data-act="city-req" data-id="' + req.id + '"><circle cx="' + x + '" cy="' + (y - 30) + '" r="9" fill="#fff" stroke="#E57373" stroke-width="2"/><text x="' + x + '" y="' + (y - 26) + '" text-anchor="middle" font-size="12" font-weight="800" fill="#E57373">!</text></g>';
   });
-  s += '<g transform="translate(' + (cx - 26) + " " + (cy + (c.level >= 2 ? 90 : 62)) + ')" pointer-events="none">' + avatarSVG(c.avatar, 52).replace("<svg ", '<svg x="0" y="-40" ') + "</g>";
+  s += '<g transform="translate(' + (cx - 26) + " " + (cy + 32 * R + 30) + ')" pointer-events="none">' + avatarSVG(c.avatar, 52).replace("<svg ", '<svg x="0" y="-40" ') + "</g>";
   return s + "</svg>";
 }
 
 /* ---------- screen ---------- */
 function renderCity(){
-  const c = city(), food = c.food, n = c.residents.length;
+  const c = city(), food = c.food, n = activeResidents(c).length, away = c.residents.length - n;
   const open = c.day.requests.filter(q => q.status === "open").length;
-  let html = '<section class="card city-card"><div class="row between" style="align-items:center"><div><div class="label">我的城市</div><h2 style="margin:0">' + (n ? n + " 位居民" : "空空的小島") + "</h2></div>" +
+  let html = '<section class="card city-card"><div class="row between" style="align-items:center"><div><div class="label">我的城市</div><h2 style="margin:0">' + (c.residents.length ? c.residents.length + " 位居民" : "空空的小島") + "</h2>" + (away ? '<div class="small muted">' + away + " 位還沒用道路接上市中心</div>" : "") + "</div>" +
     "</div>" +
     knowBarHTML() + '<div id="city3d" class="city3d">' + islandSVG(c) + "</div>" +
     '<div class="small muted" style="text-align:center">拖曳可以轉小島，雙指縮放，點空地蓋建築</div>' +
     harvestHTML(c) +
     '<div class="row city-actions"><button class="btn soft" data-act="city-sheet" data-s="shop">商店</button><button class="btn soft" data-act="city-sheet" data-s="avatar">裝扮</button><button class="btn soft" data-act="city-sheet" data-s="bag">背包</button></div></section>';
   html += '<section class="card"><div class="label">今天的居民請求</div>';
-  if (!n) html += '<p class="muted" style="margin:0">點島上的空地蓋一間小屋，就會有居民搬進來。</p>';
+  if (!n) html += '<p class="muted" style="margin:0">' + (away ? "居民住的房子還沒接上市中心。在房子和市中心之間蓋道路，他們就會來找你。" : "在市中心旁邊蓋一間小屋，就會有居民搬進來。") + "</p>";
   else if (!c.day.fed){
     html += '<p class="muted" style="margin:0">先發放糧食，居民吃飽了才會用英文來找你幫忙。今天需要 <b>' + n + "</b> 份糧食。</p>" +
       (S.err.city ? '<div class="err">' + esc(S.err.city) + "</div>" : "") +
@@ -1855,6 +1905,11 @@ function citySheetHTML(o){
   const head = t => '<div class="sh-head"><div class="sh-word phrase" style="flex:1;min-width:0">' + t + '</div><button class="icon-btn" data-act="close-sheet" aria-label="關閉">×</button></div>';
   if (o.s === "build"){
     return head("在這裡蓋什麼？") + '<div class="stack">' + Object.entries(CITY_BUILDINGS).map(([k, b]) => {
+      if (b.fixed) return "";
+      if (b.hall && hallLv(c) < b.hall)
+        return '<div class="menu-row locked-row"><span><b>' + b.name + '</b><span class="small muted">市中心升到 Lv' + b.hall + ' 解鎖</span></span><span class="small muted">未解鎖</span></div>';
+      if (k === "road" && !roadOk(c, o.k))
+        return '<div class="menu-row locked-row"><span><b>道路</b><span class="small muted">道路要貼著建築或其他道路</span></span><span class="small muted">不能蓋</span></div>';
       if (b.unlock && !knowUnlocked(b.unlock)){
         const u = KNOW_UNLOCKS.find(x => x.key === b.unlock);
         return '<div class="menu-row locked-row"><span><b>' + b.name + '</b><span class="small muted">知識 ' + u.at + " 解鎖（現在 " + knowledge() + '）</span></span><span class="small muted">未解鎖</span></div>';
@@ -1864,25 +1919,37 @@ function citySheetHTML(o){
       (c.owned.deco.length ? '<div class="label" style="margin-top:6px">背包裡的裝飾（免費放）</div>' + [...new Set(c.owned.deco)].map(d => '<button class="menu-row" data-act="city-deco" data-d="' + d + '"><span><b>' + CITY_DECOS[d] + "</b></span><span>放這裡</span></button>").join("") : "") + "</div>";
   }
   if (o.s === "tile"){
-    const it = c.tiles[o.k] || {}, kind = it.b || it.d;
-    const who = c.residents.filter(p => p.home === o.k).map(p => p.name).join("、"), b = it.b && CITY_BUILDINGS[it.b];
-    let info = who ? "住在這裡：" + esc(who) : it.b === "road" ? "道路會自動和旁邊的路接起來。" : b ? b.desc : "島上的裝飾";
-    if (b && b.make) info = "老闆：" + esc(who || "—") + "<br>每天產 <b>" + shopMake(c, o.k) + "</b> 份糧食" + (onRoad(c, o.k) ? "（含道路 +1）" : "，旁邊蓋道路可以多 1 份");
-    if (it.b === "house") info += "<br>" + (onRoad(c, o.k) ? "靠著道路：每天多 1 個請求" : "旁邊蓋道路，每天就多 1 個請求");
-    const cost = it.b ? upgradeCost(it) : 0, lv = tileLv(it);
-    const up = cost ? '<button class="menu-row" data-act="city-upgrade" data-k="' + o.k + '"' + (bal < cost ? " disabled" : "") + '><span><b>升到 Lv' + (lv + 1) + '</b><span class="small muted">' +
-      (b.make ? "每天產 " + (b.make[lv] + (onRoad(c, o.k) ? 1 : 0)) + " 份糧食" : "多 1 位居民搬進來") + '</span></span><span class="price"><img class="coin-icon" src="' + COIN_IMG + '" alt="">' + cost + "</span></button>"
+    const it = c.tiles[o.k] || {}, b = it.b && CITY_BUILDINGS[it.b], lv = tileLv(it), L = cityLinked(c), linked = isLinked(c, o.k, L);
+    const who = c.residents.filter(p => p.home === o.k).map(p => p.name).join("、");
+    const cost = it.b ? upgradeCost(it) : 0;
+    let info, next = "", lock = "";
+    if (it.b === "hall"){
+      const hl = lv;
+      info = "小島 " + cityTiles(c).length + " 格・每天最多 " + HALL.reqs[hl - 1] + " 個居民請求・每天產 " + b.make[hl - 1] + " 份糧食";
+      if (hl < 3){
+        next = "小島變成 " + (3 * (hl + 2) * (hl + 3) + 1) + " 格・每天 " + HALL.reqs[hl] + " 個請求・產 " + b.make[hl] + " 份糧食" + (hl === 1 ? "・解鎖診所" : "・解鎖市集");
+        if (!knowUnlocked(HALL.know[hl])){ const u = KNOW_UNLOCKS.find(x => x.key === HALL.know[hl]); lock = "知識 " + u.at + " 才能升級（現在 " + knowledge() + "）"; }
+      }
+    } else if (it.b === "road") info = linked || cityNear(o.k).some(n => n === "0,0") ? "這段路有接上市中心。" : "道路會自動和旁邊的路接起來。";
+    else if (b && b.make) info = "老闆：" + esc(who || "—") + "<br>每天產 <b>" + shopMake(c, o.k, L) + "</b> 份糧食";
+    else info = who ? "住在這裡：" + esc(who) : b ? b.desc : "島上的裝飾";
+    if (b && b.make && !b.fixed && lv < 3) next = "長大到 " + (lv + 1) + " 格・每天產 " + b.make[lv] + " 份糧食";
+    if (b && b.grow && lv < 3) next = "長大到 " + (lv + 1) + " 格・多 1 位居民搬進來";
+    if (b && !b.fixed && (b.make || b.grow) && lv < 3 && !growCell(c, o.k)) lock = "旁邊要留一格空地，才能長大";
+    const warn = it.b && it.b !== "road" && !b.fixed && !linked && (b.make || b.residents)
+      ? '<div class="err">還沒接上市中心：' + (b.make ? "不會產糧" : "居民不會出來") + "。在它和市中心之間蓋道路。</div>" : "";
+    const up = cost ? (lock ? '<div class="menu-row locked-row"><span><b>升到 Lv' + (lv + 1) + '</b><span class="small muted">' + next + "</span></span><span class=\"small muted\">" + lock + "</span></div>"
+      : '<button class="menu-row" data-act="city-upgrade" data-k="' + o.k + '"' + (bal < cost ? " disabled" : "") + '><span><b>升到 Lv' + (lv + 1) + '</b><span class="small muted">' + next +
+        '</span></span><span class="price"><img class="coin-icon" src="' + COIN_IMG + '" alt="">' + cost + "</span></button>")
       : (b && (b.make || b.grow) ? '<p class="small muted" style="margin:0">已經是最高等級 Lv3</p>' : "");
-    return head(cityName(it)) + '<p class="muted" style="margin:0">' + info + "</p>" + up +
-      '<button class="btn ghost block" data-act="city-move" data-k="' + o.k + '">' + (it.d ? "收回背包" : "拆掉（不退金幣）") + "</button>";
+    return head(cityName(it)) + warn + '<p class="muted" style="margin:0">' + info + "</p>" + up +
+      (it.b === "hall" ? "" : '<button class="btn ghost block" data-act="city-move" data-k="' + o.k + '">' + (it.d ? "收回背包" : "拆掉（不退金幣）") + "</button>");
   }
   if (o.s === "shop"){
     return head("商店") + '<div class="stack">' +
       '<div class="label">糧食</div><button class="menu-row" data-act="city-food"' + (bal < CITY_FOOD.price ? " disabled" : "") + '><span><b>一箱糧食 × ' + CITY_FOOD.n + '</b><span class="small muted">現在有 ' + c.food + ' 份・每位居民一天吃 1 份</span></span><span class="price"><img class="coin-icon" src="' + COIN_IMG + '" alt="">' + CITY_FOOD.price + "</span></button>" +
       '<div class="label">建築</div><p class="small muted" style="margin:0">點島上的空地就能選建築來蓋。</p>' +
-      (c.level < 2 ? '<div class="label">擴建</div>' + (knowUnlocked("expand")
-        ? '<button class="menu-row" data-act="city-expand"' + (bal < CITY_EXPAND ? " disabled" : "") + '><span><b>擴建小島</b><span class="small muted">從 7 塊地變成 19 塊</span></span><span class="price"><img class="coin-icon" src="' + COIN_IMG + '" alt="">' + CITY_EXPAND + "</span></button>"
-        : '<div class="menu-row locked-row"><span><b>擴建小島</b><span class="small muted">知識 250 解鎖（現在 ' + knowledge() + '）</span></span><span class="small muted">未解鎖</span></div>') : "") +
+      '<p class="small muted" style="margin:0">想讓小島變大？點島中央的市中心升級。</p>' +
       "</div>";
   }
   if (o.s === "avatar"){
@@ -1949,16 +2016,16 @@ function cityJudgePrompt(q, answer){
   ].join("\n");
 }
 async function cityFeed(){
-  const c = city(), n = c.residents.length;
+  const c = city(), act = activeResidents(c), n = act.length;
   if (!n || c.day.fed || S.busy.city) return;
   if (c.food < n){ cityOpen({s:"shop"}); toast("糧食不夠了，先買一箱吧。"); return; }
   S.busy.city = true; S.err.city = ""; render();
   try {
-    const want = Math.min(n, 5, 3 + roadHouses(c));
+    const want = Math.min(n, HALL.reqs[hallLv(c) - 1]);
     const r = await aiJson("talk", cityReqPrompt(want), {cache:false});
     const list = (r && Array.isArray(r.requests) ? r.requests : []).filter(q => q && q.say && (q.type === "choice" ? Array.isArray(q.options) && q.options.length >= 2 : true)).slice(0, want);
     if (!list.length) throw {code:"invalid_json"};
-    const order = c.residents.map((_, i) => i).sort(() => Math.random() - .5);
+    const order = act.slice().sort(() => Math.random() - .5);
     c.food -= n; c.day.fed = true;
     c.day.requests = list.map((q, i) => ({id:Date.now().toString(36) + i, who:order[i % order.length], type:q.type === "choice" ? "choice" : "free",
       say:String(q.say), question_zh:String(q.question_zh || ""), options:(q.options || []).map(String), answer:Number(q.answer) || 0,
@@ -2105,43 +2172,64 @@ const City3D = {
   /* ---------- the town ---------- */
   rebuild(){
     const T = this.T, c = city();
-    const sig = JSON.stringify([c.level, c.tiles, c.residents.map(r => r.home + r.color), c.day.fed, c.day.requests.map(q => q.id + q.status + q.who), c.avatar, this.timeOfDay()]);
+    const sig = JSON.stringify([c.tiles, c.residents.map(r => r.home + r.color), c.day.fed, c.day.requests.map(q => q.id + q.status + q.who), c.avatar, this.timeOfDay()]);
     if (sig === this.sig) return;
     this.sig = sig;
     const win = this.light();
     const g = this.group;
     while (g.children.length) g.remove(g.children[0]);
     this.pick = []; this.labels = []; this.overlay.innerHTML = "";
-    const tiles = cityTiles(c), R = c.level >= 2 ? 2 : 1;
-    const H = .55, pos = (q, r) => [Math.sqrt(3) * (q + r / 2), 1.5 * r];
+    const tiles = cityTiles(c), R = hallLv(c) + 1, L = cityLinked(c);
+    const H = .55, pos = (q, r) => [Math.sqrt(3) * (q + r / 2), 1.5 * r], posK = k => pos(...k.split(",").map(Number));
     this.shallow.scale.setScalar(R * 1.9 + 2.2);
-    if (this.dist == null || this.lastR !== R){ this.dist = R >= 2 ? 16 : 11; this.lastR = R; }
+    if (this.dist == null || this.lastR !== R){
+      this.dist = [11, 16, 21, 26][R - 1]; this.lastR = R;
+      const sc = this.sun.shadow.camera, e = R * 2 + 3; Object.assign(sc, {left:-e, right:e, top:e, bottom:-e}); sc.updateProjectionMatrix();
+      this.scene.fog.near = this.dist + 6; this.scene.fog.far = this.dist + 44;
+    }
+    const centers = {};
     tiles.forEach(([q, r]) => {
       const key = q + "," + r, [x, z] = pos(q, r), it = c.tiles[key];
       const base = new T.Mesh(new T.CylinderGeometry(.95, 1, H, 6), this.mat(0xD7C09B)); base.position.set(x, -H / 2 - .02, z); base.castShadow = base.receiveShadow = true; g.add(base);
-      const top = new T.Mesh(new T.CylinderGeometry(.93, .95, .07, 6), this.mat(it && it.b === "park" ? 0xA8CF7C : it && it.b === "road" ? 0xE4D8C2 : 0xF2E6CE)); top.position.set(x, .015, z); top.receiveShadow = true;
+      const host = it && it.part ? c.tiles[it.part] : it;
+      const top = new T.Mesh(new T.CylinderGeometry(.93, .95, .07, 6), this.mat(host && host.b === "park" ? 0xA8CF7C : host && host.b === "road" ? 0xE4D8C2 : host && host.b === "hall" ? 0xE6DCCB : 0xF2E6CE)); top.position.set(x, .015, z); top.receiveShadow = true;
       top.userData.key = key; g.add(top); this.pick.push(top);
       if (it && it.b === "road"){ this.road(g, c, q, r, x, z, pos); return; }
+      if (it && it.part) return;
       if (!it){
         /* an empty plot: a soft plus sign and a little bush on the edge */
         [[.36, .05], [.05, .36]].forEach(([w, d]) => { const m = new T.Mesh(new T.BoxGeometry(w, .02, d), this.mat(0xDCCBA8)); m.position.set(x, .06, z); g.add(m); });
         this.tree(g, x + .55, .05, z + .3, .6, 0x9ACB78);
         return;
       }
-      const bg = new T.Group(); bg.position.set(x, .05, z); bg.userData.key = key;
-      this.building(bg, it.b || it.d, win, it.b && it.b !== "park" && !c.day.fed, tileLv(it));
+      /* a building that grew over 2 or 3 plots stands in the middle of them, turned to line up with them */
+      const cells = cellsOf(c, key).filter(k => c.tiles[k]), pts = cells.map(posK);
+      const gx = pts.reduce((a, p) => a + p[0], 0) / pts.length, gz = pts.reduce((a, p) => a + p[1], 0) / pts.length;
+      const rot = pts.length > 1 ? Math.atan2(-(pts[1][1] - pts[0][1]), pts[1][0] - pts[0][0]) : 0;
+      const spots = pts.map(([px, pz]) => { const v = new T.Vector3(px - gx, 0, pz - gz).applyAxisAngle(new T.Vector3(0, 1, 0), -rot); return [v.x, v.z]; });
+      centers[key] = [gx, gz, pts];
+      const lv = tileLv(it), linked = !it.b || L.has(key), b = it.b && CITY_BUILDINGS[it.b];
+      const bg = new T.Group(); bg.position.set(gx, .05, gz); bg.rotation.y = rot; bg.userData.key = key;
+      this.building(bg, it.b || it.d, win, (it.b && it.b !== "park" && it.b !== "hall" && !c.day.fed) || !linked, lv, spots);
       bg.traverse(m => { if (m.isMesh){ m.castShadow = true; m.receiveShadow = true; m.userData.key = key; this.pick.push(m); } });
-      if (!this.known.has(key) && this.known.size){ bg.scale.setScalar(.01); this.grow.push({g:bg, t0:performance.now()}); }
+      const top3 = new T.Box3().setFromObject(bg).max.y;
+      if (!this.known.has(key + ":" + lv) && this.known.size){ bg.scale.setScalar(.01); this.grow.push({g:bg, t0:performance.now()}); }
       g.add(bg);
-      const lv = tileLv(it), tall = it.b === "house" ? .3 * (lv - 1) : it.b && CITY_BUILDINGS[it.b].make ? .15 * (lv - 1) * (it.b === "books" ? 2 : 1) : 0;
-      this.label(new T.Vector3(x, (it.b === "books" ? 1.3 : it.d === "lighthouse" ? 1.7 : 1) + .05 + tall, z), '<span class="lbl">' + esc(cityName(it)) + "</span>");
+      const off = b && !b.fixed && (b.make || b.residents) && !linked;
+      this.label(new T.Vector3(gx, top3 + .08, gz), '<span class="lbl' + (off ? " off" : "") + '">' + esc(cityName(it)) + (off ? "・未接市中心" : "") + "</span>");
     });
-    this.known = new Set(Object.keys(c.tiles)); if (!this.known.size) this.known.add("_");
+    this.known = new Set(Object.keys(c.tiles).filter(k => !c.tiles[k].part).map(k => k + ":" + tileLv(c.tiles[k]))); if (!this.known.size) this.known.add("_");
     /* residents beside their homes; a "!" above the ones who need you */
     c.residents.forEach((p, i) => {
-      const t = tiles.find(([q, r]) => q + "," + r === p.home); if (!t) return;
+      const ct = centers[p.home]; if (!ct || !L.has(p.home)) return;      /* people only come out once their home reaches the center */
       const j = c.residents.slice(0, i).filter(o => o.home === p.home).length;
-      const [x, z] = pos(t[0], t[1]), ox = [-.58, .58, -.62, .62][j % 4], oz = [.45, .45, -.05, -.05][j % 4];
+      let x, z, ox, oz;
+      if (ct[2].length === 1){ [x, z] = ct[2][0]; ox = [-.58, .58, -.62, .62][j % 4]; oz = [.45, .45, -.05, -.05][j % 4]; }
+      else {
+        /* stand on the outside edge of a big building, spread along it */
+        const [ax, az] = ct[2][j % ct[2].length], dx = ax - ct[0], dz = az - ct[1], d = Math.hypot(dx, dz) || 1;
+        x = ax; z = az; ox = dx / d * .62 + (-dz / d) * .25 * (j >= ct[2].length ? 1 : -1); oz = dz / d * .62 + (dx / d) * .25 * (j >= ct[2].length ? 1 : -1);
+      }
       this.person(g, x + ox, z + oz, p.color, .9);
       const req = c.day.requests.find(q => q.who === i && q.status === "open");
       if (req) this.label(new T.Vector3(x + ox, .62, z + oz), '<button class="req-pin" data-act="city-req" data-id="' + req.id + '" aria-label="' + esc(p.name) + ' 的請求">!</button>', true);
@@ -2165,17 +2253,93 @@ const City3D = {
     geo.translate(0, 0, -w / 2); geo.rotateY(Math.PI / 2);
     const m = new T.Mesh(geo, this.mat(col)); m.position.y = y; parent.add(m); return m;
   },
-  building(g, type, win, dim, lv){
+  building(g, type, win, dim, lv, spots){
     const T = this.T, w = (x, y, z) => this.box(g, .1, .1, .02, win, x, y, z);
     const shade = dim ? {color:0xbbbbbb} : null;
-    lv = lv || 1;
-    if (type === "house"){
-      const hh = .44 + .3 * (lv - 1);
-      this.box(g, .62, hh, .5, 0xF8F3EA, 0, hh / 2, 0); this.roof(g, .7, .3, .62, 0xDB6A41, hh);
-      this.box(g, .12, .2, .02, 0x8A6A4A, 0, .1, .26);
-      for (let f = 0; f < lv; f++){ w(-.18, .28 + .3 * f, .26); w(.18, .28 + .3 * f, .26); if (f) this.box(g, .66, .03, .54, 0xE9DFCF, 0, .44 + .3 * (f - 1) - .02, 0); }
-      this.box(g, .08, .18, .08, 0xC8B49A, .18, hh + .18, -.08);
-      if (lv >= 3) this.box(g, .2, .14, .02, 0x8CC46E, -.18, .07, .27);
+    lv = lv || 1; spots = spots || [[0, 0]];
+    const B = CITY_BUILDINGS[type], cyl = (r, h, col, x, y, z) => { const m = new T.Mesh(new T.CylinderGeometry(r, r, h, 10), this.mat(col)); m.position.set(x, y, z); g.add(m); return m; };
+    if (B && B.make && !B.fixed && lv > 1){
+      /* bigger shops: Lv2 stretches over two plots with a big sign; Lv3 is a two-tier store with a little plaza in each plot */
+      const sub = new T.Group(); g.add(sub); this.building(sub, type, win, false, 1);
+      const col = {cafe:0xE8945A, bakery:0xC9574A, books:0x6E8FB0, market:0x6DB4A0}[type] || 0xE8945A, h1 = {cafe:.45, bakery:.74, books:1.0, market:.4}[type] || .5;
+      if (lv === 2){
+        sub.scale.set(2.2, 1.35, 1.25);
+        this.box(g, 1.1, .26, .05, col, 0, h1 * 1.35 + .16, .2); this.box(g, .8, .05, .06, 0xFFFFFF, 0, h1 * 1.35 + .16, .23);
+        [-1.05, 1.05].forEach(x => { this.box(g, .16, .14, .16, 0xB98B5E, x, .07, .4); this.tree(g, x, .12, .4, .55, 0x7FB860); });
+      } else {
+        this.box(g, 1.5, .5, 1.3, 0xEDE6DA, 0, .25, 0); this.box(g, 1.3, .3, .02, win, 0, .26, .66); this.box(g, 1.56, .05, 1.36, col, 0, .52, 0);
+        sub.position.y = .54; sub.scale.set(1.9, 1.5, 1.9);
+        const top = .54 + h1 * 1.5; this.box(g, .02, .5, .02, 0x6b5240, .6, top + .25, -.3); this.box(g, .22, .14, .01, 0xF3CC58, .72, top + .42, -.3);
+        spots.forEach(([sx, sz]) => {
+          const px = sx * 1.05, pz = sz * 1.05;
+          this.box(g, .02, .3, .02, 0xFFFFFF, px, .15, pz); const u = new T.Mesh(new T.ConeGeometry(.22, .12, 8), this.mat(col)); u.position.set(px, .34, pz); g.add(u);
+          this.box(g, .2, .02, .2, 0x9C7B5B, px, .16, pz); this.tree(g, px + .3, 0, pz - .2, .6, 0x7FB860);
+        });
+      }
+    } else if (type === "hall"){
+      if (lv === 1){
+        /* a timber town hall with a flag */
+        this.box(g, .9, .5, .7, 0xE9D3A8, 0, .25, 0); this.roof(g, 1.0, .34, .82, 0xC9574A, .5);
+        this.box(g, .18, .26, .02, 0x8A6A4A, 0, .13, .36); w(-.28, .28, .36); w(.28, .28, .36);
+        this.box(g, .5, .05, .2, 0xCDBB9A, 0, .025, .48);
+        this.box(g, .025, .8, .025, 0x6b5240, .55, .4, .3); this.box(g, .24, .14, .01, 0xDB6A41, .68, .72, .3);
+      } else if (lv === 2){
+        /* a stone hall with columns and a clock tower */
+        this.box(g, 1.1, .6, .8, 0xEDE7DC, 0, .3, -.05); this.box(g, 1.2, .06, .9, 0xD5CBB8, 0, .63, -.05); this.roof(g, 1.2, .3, .92, 0x8E6B5A, .66);
+        [-.42, -.14, .14, .42].forEach(x => cyl(.05, .55, 0xF7F3EC, x, .3, .42));
+        this.box(g, 1.0, .06, .25, 0xD5CBB8, 0, .03, .5);
+        this.box(g, .34, 1.6, .34, 0xEDE7DC, 0, .8, -.32);
+        const face = new T.Mesh(new T.CylinderGeometry(.11, .11, .02, 16), this.mat(0xFFFFFF)); face.rotation.x = Math.PI / 2; face.position.set(0, 1.35, -.14); g.add(face);
+        this.box(g, .015, .08, .01, 0x333333, 0, 1.38, -.13); this.box(g, .06, .015, .01, 0x333333, .025, 1.35, -.13);
+        const cap = new T.Mesh(new T.ConeGeometry(.28, .38, 4), this.mat(0x8E6B5A)); cap.rotation.y = Math.PI / 4; cap.position.set(0, 1.79, -.32); g.add(cap);
+        w(-.35, .35, .36); w(.35, .35, .36);
+      } else {
+        /* a grand hall with a golden dome */
+        this.box(g, 1.3, .7, 1.0, 0xF4EFE6, 0, .35, 0); this.box(g, 1.38, .07, 1.08, 0xD9CDB5, 0, .73, 0);
+        [-.55, -.33, -.11, .11, .33, .55].forEach(x => cyl(.045, .66, 0xFFFFFF, x, .35, .56));
+        this.box(g, 1.3, .05, .3, 0xD9CDB5, 0, .025, .62); this.box(g, 1.1, .05, .2, 0xE6DCCB, 0, .07, .6);
+        cyl(.38, .32, 0xF4EFE6, 0, .92, 0);
+        const dome = new T.Mesh(new T.SphereGeometry(.4, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2), this.mat(0xE8C35A, {metalness:.35, roughness:.5})); dome.position.y = 1.08; g.add(dome);
+        cyl(.02, .35, 0xE8C35A, 0, 1.62, 0); const ball = new T.Mesh(new T.IcosahedronGeometry(.06, 1), this.mat(0xF3CC58, {metalness:.4})); ball.position.y = 1.82; g.add(ball);
+        [-.6, .6].forEach((x, i) => { this.box(g, .025, .9, .025, 0x6b5240, x, .45, .8); this.box(g, .22, .13, .01, i ? 0xDB6A41 : 0x3f6fa8, x + .12, .82, .8); });
+        [-.45, .45].forEach(x => { w(x, .5, -.51); });
+      }
+    } else if (type === "market"){
+      [-.28, .28].forEach((x, i) => {
+        this.box(g, .42, .3, .36, 0xF6E9D6, x, .15, .02);
+        const a = this.box(g, .48, .03, .3, i ? 0xE8945A : 0x6DB4A0, x, .36, .26); a.rotation.x = .4;
+        this.box(g, .03, .34, .03, 0xffffff, x - .22, .17, .38); this.box(g, .03, .34, .03, 0xffffff, x + .22, .17, .38);
+        this.box(g, .12, .08, .1, 0xC9A26B, x - .08, .04, .44); this.box(g, .12, .08, .1, i ? 0xE57373 : 0xF3CC58, x + .08, .04, .44);
+      });
+      this.tree(g, 0, 0, -.45, .7);
+    } else if (type === "house" && lv === 2){
+      /* a two-storey row house over two plots, with a garden fence */
+      this.box(g, 1.9, .78, .66, 0xF8F3EA, 0, .39, 0); this.box(g, 1.94, .04, .7, 0xE9DFCF, 0, .4, 0);
+      this.roof(g, 2.0, .36, .8, 0xDB6A41, .78);
+      [-.75, -.25, .25, .75].forEach(x => { w(x, .26, .34); w(x, .6, .34); });
+      this.box(g, .14, .22, .02, 0x8A6A4A, -.5, .11, .34); this.box(g, .14, .22, .02, 0x8A6A4A, .5, .11, .34);
+      this.box(g, .1, .26, .1, 0xC8B49A, .6, 1.0, -.1);
+      for (let i = -4; i <= 4; i++) this.box(g, .03, .12, .03, 0xFFFFFF, i * .22, .06, .56);
+      this.box(g, 1.8, .02, .02, 0xFFFFFF, 0, .1, .56);
+      this.tree(g, -.95, 0, -.45, .8); this.tree(g, .95, 0, -.45, .65, 0x7FB860);
+    } else if (type === "house" && lv >= 3){
+      /* a four-storey apartment in the middle, with a cottage wing reaching into each plot and a roof garden */
+      this.box(g, .95, 1.5, .95, 0xF3E9DA, 0, .75, 0); this.box(g, 1.0, .06, 1.0, 0xB9A58A, 0, 1.53, 0);
+      this.box(g, .72, .05, .72, 0x8CC46E, 0, 1.58, 0); this.tree(g, .2, 1.58, .2, .5); this.tree(g, -.22, 1.58, -.15, .45, 0x7FB860);
+      for (let f = 0; f < 4; f++){
+        const y = .22 + f * .34;
+        [-.22, .22].forEach(x => { w(x, y, .48); w(x, y, -.48); this.box(g, .02, .1, .1, win, .48, y, x); this.box(g, .02, .1, .1, win, -.48, y, x); });
+        if (f) this.box(g, .7, .03, .12, 0xDB6A41, 0, y - .1, .54);
+      }
+      spots.forEach(([sx, sz]) => {
+        const wg = new T.Group(); wg.position.set(sx * .74, 0, sz * .74); wg.rotation.y = Math.atan2(sx, sz); g.add(wg);
+        this.box(wg, .62, .5, .5, 0xF8F3EA, 0, .25, 0); this.roof(wg, .68, .26, .58, 0xDB6A41, .5);
+        this.box(wg, .12, .18, .02, 0x8A6A4A, 0, .09, .26); this.box(wg, .1, .1, .02, win, -.18, .3, .26); this.box(wg, .1, .1, .02, win, .18, .3, .26);
+      });
+    } else if (type === "house"){
+      this.box(g, .62, .44, .5, 0xF8F3EA, 0, .22, 0); this.roof(g, .7, .3, .62, 0xDB6A41, .44);
+      this.box(g, .12, .2, .02, 0x8A6A4A, 0, .1, .26); w(-.18, .28, .26); w(.18, .28, .26);
+      this.box(g, .08, .18, .08, 0xC8B49A, .18, .62, -.08);
       this.tree(g, -.5, 0, -.35, .7);
     } else if (type === "cafe"){
       this.box(g, .7, .4, .5, 0xF3E3CB, 0, .2, -.05); this.box(g, .74, .05, .56, 0xE7D2B3, 0, .42, -.05);
@@ -2211,13 +2375,6 @@ const City3D = {
       const t1 = new T.Mesh(new T.CylinderGeometry(.13, .2, 1.2, 10), this.mat(0xFFFFFF)); t1.position.y = .6; g.add(t1);
       [.25, .65].forEach(y => { const s = new T.Mesh(new T.CylinderGeometry(.18 - y * .04, .19 - y * .04, .16, 10), this.mat(0xDB6A41)); s.position.y = y; g.add(s); });
       this.box(g, .24, .16, .24, win, 0, 1.28, 0); const cap = new T.Mesh(new T.ConeGeometry(.2, .2, 8), this.mat(0xDB6A41)); cap.position.y = 1.46; g.add(cap);
-    }
-    if (lv > 1 && CITY_BUILDINGS[type] && CITY_BUILDINGS[type].make){
-      /* bigger shop: grows a little and puts a flag on top */
-      g.scale.set(1 + .08 * (lv - 1), 1 + .15 * (lv - 1), 1 + .08 * (lv - 1));
-      const top = type === "books" ? 1.02 : .5;
-      this.box(g, .015, .3, .015, 0x6b5240, .26, top + .15, -.15);
-      this.box(g, .14, .09, .01, lv >= 3 ? 0xF3CC58 : 0xDB6A41, .33, top + .25, -.15);
     }
     if (shade) g.traverse(m => { if (m.isMesh && m.material !== win){ m.material = m.material.clone(); m.material.color.lerp(new T.Color(0x9a9a9a), .35); } });
   },
@@ -3667,7 +3824,7 @@ const ACT = {
     W.balance = v; W.ledger.push({at:Date.now(), amount:diff, reason:"開發人員調整"});
     Store.set("wallet", W).catch(() => {}); renderCoins(); render(); toast("金幣改成 " + v.toLocaleString());
   },
-  "city-tile": el => { const c = city(), k = el.dataset.k; cityOpen(c.tiles[k] ? {s:"tile", k} : {s:"build", k}); },
+  "city-tile": el => { const c = city(), k = anchorOf(c, el.dataset.k); cityOpen(c.tiles[k] ? {s:"tile", k} : {s:"build", k}); },
   "city-sheet": el => cityOpen({s:el.dataset.s}),
   "city-req": el => cityOpen({s:"req", id:el.dataset.id}),
   "city-feed": () => cityFeed(),
@@ -3675,8 +3832,12 @@ const ACT = {
   "city-upgrade": el => {
     const c = city(), k = el.dataset.k, it = c.tiles[k]; if (!it || !it.b) return;
     const cost = upgradeCost(it), b = CITY_BUILDINGS[it.b]; if (!cost) return;
+    let cell = null;
+    if (b.fixed){ if (!knowUnlocked(HALL.know[tileLv(it)])) return; }
+    else if (!(cell = growCell(c, k))){ toast("旁邊要留一格空地，才能長大。"); return; }
     if (!spend(cost, "城市：升級" + b.name)){ toast("金幣不夠。"); return; }
     it.lv = tileLv(it) + 1;
+    if (cell){ it.cells = (it.cells || []).concat(cell); c.tiles[cell] = {part:k}; }
     let moved = "";
     if (b.grow){
       const used = new Set(c.residents.map(p => p.name)), add = b.grow[it.lv - 1] - b.grow[it.lv - 2];
@@ -3685,11 +3846,12 @@ const ACT = {
         used.add(name); c.residents.push({name, color:CITY_COLORS[c.residents.length % CITY_COLORS.length], home:k}); moved = name;
       }
     }
-    saveCity(); drawSheet(); render(); toast(b.name + "升到 Lv" + it.lv + (moved ? "，" + moved + " 搬進來了！" : "！"));
+    saveCity(); drawSheet(); render(); toast(b.name + "升到 Lv" + it.lv + (b.fixed ? "，小島變大了！" : moved ? "，" + moved + " 搬進來了！" : "！"));
   },
   "city-answer": el => cityAnswer(el),
   "city-build": el => {
-    const c = city(), o = S.sheet, b = CITY_BUILDINGS[el.dataset.b]; if (!o || !b || c.tiles[o.k] || (b.unlock && !knowUnlocked(b.unlock))) return;
+    const c = city(), o = S.sheet, b = CITY_BUILDINGS[el.dataset.b]; if (!o || !b || b.fixed || c.tiles[o.k] || (b.unlock && !knowUnlocked(b.unlock)) || (b.hall && hallLv(c) < b.hall)) return;
+    if (el.dataset.b === "road" && !roadOk(c, o.k)){ toast("道路要貼著建築或其他道路。"); return; }
     if (!spend(b.price, "城市：蓋" + b.name)){ toast("金幣不夠，多練習幾篇再來。"); return; }
     c.tiles[o.k] = {b:el.dataset.b};
     if (b.make) c.prod.store += shopMake(c, o.k);   /* the first day's batch is ready right away */
@@ -3698,14 +3860,16 @@ const ACT = {
       const free = CITY_NAMES.filter(n => !used.has(n)), name = free.length ? free[Math.floor(Math.random() * free.length)] : "Kai" + c.residents.length;
       used.add(name); c.residents.push({name, color:CITY_COLORS[c.residents.length % CITY_COLORS.length], home:o.k});
     }
-    saveCity(); closeSheet(); render(); toast(b.name + "蓋好了" + (b.residents ? "，" + b.residents + " 位居民搬進來！" : "！"));
+    const far = el.dataset.b !== "road" && !isLinked(c, o.k);
+    saveCity(); closeSheet(); render(); toast(b.name + "蓋好了" + (far ? "。記得用道路接上市中心！" : b.residents ? "，" + b.residents + " 位居民搬進來！" : "！"));
   },
   "city-deco": el => {
     const c = city(), o = S.sheet, d = el.dataset.d, i = c.owned.deco.indexOf(d); if (!o || i < 0 || c.tiles[o.k]) return;
     c.owned.deco.splice(i, 1); c.tiles[o.k] = {d}; saveCity(); closeSheet(); render();
   },
   "city-move": el => {
-    const c = city(), k = el.dataset.k, it = c.tiles[k]; if (!it) return;
+    const c = city(), k = el.dataset.k, it = c.tiles[k]; if (!it || it.b === "hall" || it.part) return;
+    (it.cells || []).forEach(x => delete c.tiles[x]);
     if (it.d) c.owned.deco.push(it.d);
     else {
       /* residents who lived here move out; requests pointing at them are dropped */
@@ -3716,7 +3880,6 @@ const ACT = {
     delete c.tiles[k]; saveCity(); closeSheet(); render();
   },
   "city-food": () => { const c = city(); if (!spend(CITY_FOOD.price, "城市：買糧食")){ toast("金幣不夠。"); return; } c.food += CITY_FOOD.n; saveCity(); drawSheet(); render(); toast("買了 " + CITY_FOOD.n + " 份糧食"); },
-  "city-expand": () => { const c = city(); if (c.level >= 2 || !knowUnlocked("expand")) return; if (!spend(CITY_EXPAND, "城市：擴建小島")){ toast("金幣不夠。"); return; } c.level = 2; saveCity(); closeSheet(); render(); toast("小島變大了！"); },
   "city-wear": el => { const c = city(); c.avatar[el.dataset.slot] = el.dataset.k; saveCity(); drawSheet(); render(); },
   "city-buypart": el => {
     const c = city(), slot = el.dataset.slot, k = el.dataset.k, price = CITY_PART_PRICE[k];
