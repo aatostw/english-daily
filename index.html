@@ -344,6 +344,10 @@ label.btn{cursor:pointer}
 .score i.on{background:var(--yellow)}
 .fix{display:flex;flex-direction:column;gap:3px;padding:10px 12px;border-radius:12px;background:var(--field)}
 .fix .from{font-family:var(--font-en);text-decoration:line-through;text-decoration-color:var(--danger);color:var(--muted)}
+.fix-line{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.fix-line>span{flex:1;min-width:0}
+.play-mini{width:34px;height:34px;border-radius:50%;background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.play-mini svg{width:16px;height:16px}
 .fix .to{font-family:var(--font-en);font-weight:600;color:var(--green-text)}
 
 @media (prefers-reduced-motion: reduce){
@@ -3119,11 +3123,14 @@ function practiceHTML(a, w){
     '<button class="btn" data-act="practice"' + (busy ? " disabled" : "") + ">" + (busy ? '<span class="spinner"></span>批改中' : fb ? "再批改一次" : "送出批改") + "</button>";
   if (S.err.practice) html += '<div class="err">' + esc(S.err.practice) + "</div>";
   if (fb){
+    /* a small play button sits right after each sentence worth hearing: the fix, and the more natural version */
+    const play = t => '<button class="icon-btn play-mini" data-act="say" data-text="' + esc(t) + '" aria-label="播放">' + ICON.play + "</button>";
+    const line = (cls, t, id) => '<span class="fix-line"><span class="' + cls + '">' + tapText(t, id) + "</span>" + play(t) + "</span>";
+    const fixed = fb.corrected && fb.corrected.trim() !== (a.answer || "").trim();
     html += '<div class="fix">' + (fb.ok ? '<span class="to">寫得很好！</span>' : "") +
-      (fb.corrected && fb.corrected.trim() !== (a.answer || "").trim() ? '<span class="from">' + esc(a.answer) + '</span><span class="to">' + tapText(fb.corrected, "fb1") + "</span>" : "") +
+      (fixed ? '<span class="from">' + esc(a.answer) + "</span>" + line("to", fb.corrected, "fb1") : fb.ok && !fb.natural && a.answer ? line("to", a.answer, "fb1") : "") +
       (fb.notes_zh || []).map(n => '<span class="small">・' + esc(n) + "</span>").join("") +
-      (fb.natural ? '<span class="small muted">更自然的說法：</span><span class="en">' + tapText(fb.natural, "fb2") + "</span>" : "") + "</div>" +
-      '<button class="btn soft sm" data-act="say" data-text="' + esc(fb.corrected || a.answer) + '">' + ICON.speaker.replace("<svg", '<svg width="16" height="16"') + "唸給我聽</button>";
+      (fb.natural ? '<span class="small muted">更自然的說法：</span>' + line("en", fb.natural, "fb2") : "") + "</div>";
   }
   return html + "</section>";
 }
