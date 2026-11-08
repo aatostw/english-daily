@@ -1976,7 +1976,7 @@ async function cityAnswer(el){
 const THREE_URL = "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js";
 const City3D = {
   T:null, loading:null, failed:false, r:null, scene:null, cam:null, group:null, overlay:null, host:null,
-  sig:"", az:Math.PI / 4, el:0.92, dist:null, pick:[], labels:[], known:new Set(), grow:[], frame:0, mats:{},
+  sig:"", az:Math.PI / 5, el:1.0, dist:null, pick:[], labels:[], known:new Set(), grow:[], frame:0, mats:{},
   load(){
     if (!this.loading) this.loading = import(THREE_URL).then(m => (this.T = m)).catch(e => { this.loading = null; throw e; });
     return this.loading;
@@ -2070,7 +2070,7 @@ const City3D = {
     const tiles = cityTiles(c), R = c.level >= 2 ? 2 : 1;
     const H = .55, pos = (q, r) => [Math.sqrt(3) * (q + r / 2), 1.5 * r];
     this.shallow.scale.setScalar(R * 1.9 + 2.2);
-    if (this.dist == null || this.lastR !== R){ this.dist = R >= 2 ? 13 : 8.6; this.lastR = R; }
+    if (this.dist == null || this.lastR !== R){ this.dist = R >= 2 ? 19 : 12.5; this.lastR = R; }
     tiles.forEach(([q, r]) => {
       const key = q + "," + r, [x, z] = pos(q, r), it = c.tiles[key];
       const base = new T.Mesh(new T.CylinderGeometry(.95, 1, H, 6), this.mat(0xD7C09B)); base.position.set(x, -H / 2 - .02, z); base.castShadow = base.receiveShadow = true; g.add(base);
@@ -2219,7 +2219,7 @@ const City3D = {
         this.az -= dx * .009; this.el = Math.min(1.3, Math.max(.55, this.el + dy * .006));
       } else if (pts.size === 2){
         const [a, b] = [...pts.values()], d = Math.hypot(a.x - b.x, a.y - b.y);
-        if (pinch) this.dist = Math.min(20, Math.max(5, this.dist * pinch / d));
+        if (pinch) this.dist = Math.min(26, Math.max(5, this.dist * pinch / d));
         pinch = d; moved = 99;
       }
       this.draw();
@@ -2230,7 +2230,7 @@ const City3D = {
       if (!pts.size && moved < 8 && performance.now() - t0 < 400) this.tap(e);
     };
     cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", e => { pts.delete(e.pointerId); });
-    cv.addEventListener("wheel", e => { e.preventDefault(); this.dist = Math.min(20, Math.max(5, this.dist * (e.deltaY > 0 ? 1.08 : .93))); this.draw(); }, {passive:false});
+    cv.addEventListener("wheel", e => { e.preventDefault(); this.dist = Math.min(26, Math.max(5, this.dist * (e.deltaY > 0 ? 1.08 : .93))); this.draw(); }, {passive:false});
   },
   tap(e){
     const T = this.T, rect = this.r.domElement.getBoundingClientRect();
