@@ -2,7 +2,7 @@
    The app itself: network first (so updates arrive), cached copy when offline.
    Fonts, the Pocket TTS library, its runtime and voice models: cache first —
    downloaded once while online, then served from the phone. */
-const SHELL = "eel-shell-v3";
+const SHELL = "eel-shell-v4";
 const ASSETS = "eel-assets-v1";
 const SHELL_FILES = ["./", "./index.html", "./pts-worker.js", "./voice-ref.wav"];
 const ASSET_HOSTS = /(^|\.)(jsdelivr\.net|huggingface\.co|hf\.co|googleapis\.com|gstatic\.com)$/;
@@ -17,6 +17,16 @@ self.addEventListener("activate", e => {
   )).then(() => self.clients.claim()));
 });
 
+/* Cross-origin isolation lets the voice model use several CPU cores (SharedArrayBuffer).
+   GitHub Pages can't send these headers, so the service worker adds them. */
+function isolate(res){
+  if (!res || res.type === "opaque" || res.status === 0) return res;
+  const h = new Headers(res.headers);
+  h.set("Cross-Origin-Opener-Policy", "same-origin");
+  h.set("Cross-Origin-Embedder-Policy", "credentialless");
+  return new Response(res.body, {status:res.status, statusText:res.statusText, headers:h});
+}
+
 self.addEventListener("fetch", e => {
   const req = e.request;
   if (req.method !== "GET") return;
@@ -27,8 +37,8 @@ self.addEventListener("fetch", e => {
     e.respondWith(
       fetch(req, {cache:"no-cache"}).then(res => {
         if (res.ok) { const copy = res.clone(); caches.open(SHELL).then(c => c.put(req, copy)); }
-        return res;
-      }).catch(() => caches.match(req, {ignoreSearch:true}).then(r => r || caches.match("./index.html")))
+        return isolate(res);
+      }).catch(() => caches.match(req, {ignoreSearch:true}).then(r => r || caches.match("./index.html")).then(isolate))
     );
     return;
   }

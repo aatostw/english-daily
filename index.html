@@ -1010,7 +1010,12 @@ const TTS = {
       if (seq !== this.seq) return;
       try { player.reset(); } catch (e) {}
       try { await player.resume(); } catch (e) {}
-      await tts.generate(text, {voice, onChunk:(audio, meta) => { if (seq === this.seq) player.play(audio, meta); }});
+      /* Buffer enough audio before playing that a slower phone never runs dry mid-sentence.
+         speed = seconds of audio made per second of work, learned from earlier sentences. */
+      const est = Math.max(0.5, String(text).length / 14), sp = this.pocketSpeed();
+      player._primeSeconds = sp >= 1.5 ? 0.4 : Math.min(est + 1, 0.4 + est * Math.max(0.1, 1.15 - sp * 0.75));
+      const m = await tts.generate(text, {voice, onChunk:(audio, meta) => { if (seq === this.seq) player.play(audio, meta); }});
+      if (m && m.rtfx > 0 && m.audioDuration > 1) this.pocketLearn(m.rtfx);
       if (seq !== this.seq) return;
       player.flush();
       if (onEnd){
@@ -1027,6 +1032,11 @@ const TTS = {
     }
   },
   pocketReset(){ this.pocketVoiceId = null; this.pocketVoiceKey = ""; },
+  pocketSpeed(){ try { return Number(localStorage.getItem(LS + "pocketSpeed")) || 0.8; } catch (e) { return 0.8; } },
+  pocketLearn(r){
+    const v = Math.round((this.pocketSpeed() * 0.6 + Math.min(r, 4) * 0.4) * 100) / 100;
+    try { localStorage.setItem(LS + "pocketSpeed", String(v)); } catch (e) {}
+  },
   speak(text, rate, onEnd){
     /* Sentences go to the computer when that's switched on; everything else uses the phone's Pocket TTS voice. */
     if (this.pcOn() && !this.isWord(text)) return this.speakPc(text, rate, onEnd);
