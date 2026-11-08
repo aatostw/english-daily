@@ -198,6 +198,10 @@ label.btn{cursor:pointer}
 .art-go{flex:none;width:38%;min-width:112px;max-width:180px;min-height:44px;padding:8px 12px;font-size:15px}
 .art-more{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;border:0;background:transparent;color:var(--muted);font-family:inherit;font-weight:700;font-size:14px;padding:4px 0 0}
 .art-more:disabled{opacity:.6}
+.genre-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px}
+.genre-btn{min-height:46px;border:0;border-radius:12px;background:var(--field);color:var(--ink);font-weight:700;font-size:15px;font-family:inherit;transition:transform .1s}
+.genre-btn:active{transform:scale(.96)}
+.genre-btn.rand{grid-column:1 / -1;background:#FFF4D6;color:#8A5A00}
 .prog-row{display:flex;align-items:center;gap:12px}
 .prog-row .progress{flex:1}
 .prog-n{flex:none;font:600 15px var(--font-en);color:var(--muted);white-space:nowrap}
@@ -418,11 +422,11 @@ h1,h2{color:var(--primary-text)}
   </main>
   <div id="dock" class="dock" hidden></div>
   <nav class="tabs" id="tabs" hidden>
-    <button class="tab" data-act="tab" data-v="learn"><span class="tab-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="tb-g1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7FD6B4"/><stop offset="1" stop-color="#3FA383"/></linearGradient><linearGradient id="tb-g2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7DB4F2"/><stop offset="1" stop-color="#3E7BD0"/></linearGradient><linearGradient id="tb-g3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFD873"/><stop offset="1" stop-color="#F0A520"/></linearGradient></defs><rect x="3" y="12" width="5" height="9" rx="1.6" fill="url(#tb-g1)"/><rect x="9.5" y="4" width="5" height="17" rx="1.6" fill="url(#tb-g2)"/><rect x="16" y="8.5" width="5" height="12.5" rx="1.6" fill="url(#tb-g3)"/><rect x="4.2" y="13.2" width="1.2" height="3.5" rx=".6" fill="#fff" opacity=".6"/><rect x="10.7" y="5.2" width="1.2" height="5" rx=".6" fill="#fff" opacity=".6"/><rect x="17.2" y="9.7" width="1.2" height="4" rx=".6" fill="#fff" opacity=".6"/></svg></span>學習進度</button>
-    <button class="tab" data-act="tab" data-v="home"><span class="tab-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="tb-roof" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F58A63"/><stop offset="1" stop-color="#D9532E"/></linearGradient><linearGradient id="tb-wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF8EA"/><stop offset="1" stop-color="#F1DDBA"/></linearGradient></defs><path d="M5 10.5V20.5H19V10.5" fill="url(#tb-wall)"/><path d="M2.5 11.5 12 3.2l9.5 8.3-1.6 1.6L12 6.3l-7.9 6.8z" fill="url(#tb-roof)"/><rect x="9.8" y="14" width="4.4" height="6.5" rx="1" fill="#3E7BD0"/><circle cx="13.2" cy="17.4" r=".5" fill="#FFD873"/><rect x="15.6" y="2.8" width="2.4" height="4" fill="#B98B5E"/></svg></span>首頁</button>
-    <button class="tab" data-act="tab" data-v="city"><span class="tab-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="tb-b1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7DB4F2"/><stop offset="1" stop-color="#3E7BD0"/></linearGradient><linearGradient id="tb-b2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7FD6B4"/><stop offset="1" stop-color="#3FA383"/></linearGradient></defs><path d="M3.5 21V7.5L9.5 4V21z" fill="url(#tb-b1)"/><rect x="9.5" y="9" width="11" height="12" rx="1.2" fill="url(#tb-b2)"/><g fill="#FFE07A"><rect x="5.3" y="9" width="2" height="2" rx=".4"/><rect x="5.3" y="13" width="2" height="2" rx=".4"/><rect x="11.8" y="11.5" width="2.2" height="2.2" rx=".4"/><rect x="16" y="11.5" width="2.2" height="2.2" rx=".4"/><rect x="11.8" y="15.5" width="2.2" height="2.2" rx=".4"/></g><rect x="16" y="16.5" width="2.2" height="4.5" rx=".4" fill="#2F6A57"/></svg></span>我的城市</button>
-    <button class="tab" data-act="tab" data-v="words"><span class="tab-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="tb-bm" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FF8A8A"/><stop offset="1" stop-color="#E04A4A"/></linearGradient></defs><path d="M6 3.5A1.5 1.5 0 0 1 7.5 2h9A1.5 1.5 0 0 1 18 3.5V21.5l-6-4.2-6 4.2z" fill="url(#tb-bm)"/><path d="M12 6.2l1.2 2.5 2.7.4-2 1.9.5 2.7-2.4-1.3-2.4 1.3.5-2.7-2-1.9 2.7-.4z" fill="#FFE07A" stroke="#C78A00" stroke-width=".7" stroke-linejoin="round"/></svg></span>收藏</button>
-    <button class="tab" data-act="tab" data-v="prefs"><span class="tab-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="tb-gear" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#B7C3D3"/><stop offset="1" stop-color="#7C8BA1"/></linearGradient></defs><path d="M10.3 2h3.4l.5 2.6 1.7.8 2.2-1.5 2.4 2.4-1.5 2.2.8 1.7 2.6.5v3.4l-2.6.5-.8 1.7 1.5 2.2-2.4 2.4-2.2-1.5-1.7.8-.5 2.6h-3.4l-.5-2.6-1.7-.8-2.2 1.5-2.4-2.4 1.5-2.2-.8-1.7L2 13.7v-3.4l2.6-.5.8-1.7-1.5-2.2 2.4-2.4 2.2 1.5 1.7-.8z" fill="url(#tb-gear)"/><circle cx="12" cy="12" r="3.6" fill="#FFF8EA"/><circle cx="12" cy="12" r="1.4" fill="#3E7BD0"/></svg></span>設定</button>
+    <button class="tab" data-act="tab" data-v="learn"><span class="tab-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="12" width="5" height="9" rx="1.6" fill="#4DB892"/><rect x="9.5" y="4" width="5" height="17" rx="1.6" fill="#4C8BE0"/><rect x="16" y="8.5" width="5" height="12.5" rx="1.6" fill="#F5B72E"/></svg></span>學習進度</button>
+    <button class="tab" data-act="tab" data-v="home"><span class="tab-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 10.5V20.5H19V10.5" fill="#F6EAD3"/><path d="M2.5 11.5 12 3.2l9.5 8.3-1.6 1.6L12 6.3l-7.9 6.8z" fill="#E66B44"/><rect x="9.8" y="14" width="4.4" height="6.5" rx="1" fill="#3E7BD0"/><circle cx="13.2" cy="17.4" r=".5" fill="#FFD873"/><rect x="15.6" y="2.8" width="2.4" height="4" fill="#B98B5E"/></svg></span>首頁</button>
+    <button class="tab" data-act="tab" data-v="city"><span class="tab-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 21V7.5L9.5 4V21z" fill="#4C8BE0"/><rect x="9.5" y="9" width="11" height="12" rx="1.2" fill="#4DB892"/><g fill="#FFE07A"><rect x="5.3" y="9" width="2" height="2" rx=".4"/><rect x="5.3" y="13" width="2" height="2" rx=".4"/><rect x="11.8" y="11.5" width="2.2" height="2.2" rx=".4"/><rect x="16" y="11.5" width="2.2" height="2.2" rx=".4"/><rect x="11.8" y="15.5" width="2.2" height="2.2" rx=".4"/></g><rect x="16" y="16.5" width="2.2" height="4.5" rx=".4" fill="#2F6A57"/></svg></span>我的城市</button>
+    <button class="tab" data-act="tab" data-v="words"><span class="tab-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.5A1.5 1.5 0 0 1 7.5 2h9A1.5 1.5 0 0 1 18 3.5V21.5l-6-4.2-6 4.2z" fill="#EB5D5D"/><path d="M12 6.2l1.2 2.5 2.7.4-2 1.9.5 2.7-2.4-1.3-2.4 1.3.5-2.7-2-1.9 2.7-.4z" fill="#FFE07A" stroke="#C78A00" stroke-width=".7" stroke-linejoin="round"/></svg></span>收藏</button>
+    <button class="tab" data-act="tab" data-v="prefs"><span class="tab-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 2h3.4l.5 2.6 1.7.8 2.2-1.5 2.4 2.4-1.5 2.2.8 1.7 2.6.5v3.4l-2.6.5-.8 1.7 1.5 2.2-2.4 2.4-2.2-1.5-1.7.8-.5 2.6h-3.4l-.5-2.6-1.7-.8-2.2 1.5-2.4-2.4 1.5-2.2-.8-1.7L2 13.7v-3.4l2.6-.5.8-1.7-1.5-2.2 2.4-2.4 2.2 1.5 1.7-.8z" fill="#94A3B8"/><circle cx="12" cy="12" r="3.6" fill="#FFF8EA"/><circle cx="12" cy="12" r="1.4" fill="#3E7BD0"/></svg></span>設定</button>
   </nav>
   <section id="reader" class="reader" hidden></section>
   <div id="sheet" class="sheet" hidden>
@@ -619,7 +623,9 @@ function genreFor(d, k){
   if (g === "alt" && k % 2 === 1) base = base === "story" ? "know" : "story";
   return base;
 }
-const GENRE = {story:"情感短文", know:"知識短文"};
+const GENRE = {story:"情感短文", know:"知識短文", dialog:"生活對話", humor:"幽默小品", diary:"日記書信", tips:"實用技巧", custom:"自訂"};
+const GENRE_PICK = ["story", "know", "dialog", "humor", "diary", "tips"];
+function genreLabel(a){ return a.genre === "custom" ? (a.topic ? "自訂：" + a.topic : "自訂") : (GENRE[a.genre] || "短文"); }
 
 function toast(msg){
   const t = $("#toast"); t.textContent = msg; t.hidden = false;
@@ -1381,6 +1387,10 @@ function wordsPrompt(theme, pids){
 }
 const GENRE_SPEC = {
   story:"Story or reflection: a tiny story or a reflective mini-essay about feelings, people, growth or everyday moments. Concrete details, a gentle turn at the end.",
+  dialog:"Everyday dialogue: a short, natural conversation between two people (name them, one line each, like a script) in a real-life situation linked to the theme. Keep it warm and believable.",
+  humor:"Light humor: a short funny piece about an everyday situation, with a gentle twist or punchline at the end. Kind humor, no sarcasm about groups of people.",
+  diary:"Diary or letter: a first-person diary entry or a short letter to someone, honest and personal, about something that happened today.",
+  tips:"Practical tips: a short, friendly how-to with 3 to 5 simple tips the reader can try today, linked to the theme. Only common-sense, widely accepted advice.",
   know:"Knowledge: explain one interesting, well-established idea or fact (psychology, health, science, language, history, or how something works) linked to the theme, with simple everyday examples. Only widely accepted facts; no invented numbers or studies."
 };
 function pickSaved(){
@@ -1388,7 +1398,7 @@ function pickSaved(){
   for (let i = all.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [all[i], all[j]] = [all[j], all[i]]; }
   return all.slice(0, 5).map(x => ({en:x.en, pos:x.pos || "", ipa:x.ipa || "", zh:x.zh || "", note_zh:x.note_zh || "", example_en:x.example_en || "", example_zh:x.example_zh || "", saved:true}));
 }
-function articlePrompt(w, d, k, genre, extra){
+function articlePrompt(w, d, k, genre, extra, topic){
   const plan = DAY_PLAN[d], L = LENGTHS[set().length] || LENGTHS.mid;
   const P = weekPats(w);
   const strong = plan.use.length === 1 ? "at least 4 times" : "at least 3 times";
@@ -1404,7 +1414,7 @@ function articlePrompt(w, d, k, genre, extra){
     'You write daily reading pieces for an adult in Taiwan who is learning English. Copy the style of the TikTok account "English Everyday": short, simple sentences; repetition and rhythm (for example: "They wait. They wait for a friend. They wait for the perfect moment."); talk to the reader as "you" when it fits; warm, honest, one clear idea. No cliches like "in today\'s fast-paced world".',
     "",
     "Learner level: " + levelText(),
-    "Genre: " + GENRE_SPEC[genre],
+    "Genre: " + (genre === "custom" ? "Written to the learner's own request: \"" + String(topic || "").slice(0, 80) + "\". Write that kind of piece (still linked to the week theme where it fits), and follow every rule below." : GENRE_SPEC[genre] || GENRE_SPEC.story),
     "Week theme: " + w.theme_en + " (" + w.theme_zh + ")",
     "Length: about " + L.words + " words (about " + L.min + " minutes to read aloud).",
     "",
@@ -2593,15 +2603,22 @@ function articleCardHTML(w, d){
   } else {
     arts.forEach((a, i) => {
       if (i > 0) html += '<div class="divider"></div>';
-      html += '<div class="row wrap"><span class="chip">' + GENRE[a.genre] + "</span>" + (a.read ? '<span class="chip done">讀完了</span>' : "") + "</div>" +
+      html += '<div class="row wrap"><span class="chip">' + genreLabel(a) + "</span>" + (a.read ? '<span class="chip done">讀完了</span>' : "") + "</div>" +
         '<div class="art-row"><div class="art-t"><h2>' + esc(a.title) + '</h2><div class="zh">' + esc(a.title_zh) + "</div></div>" +
         '<button class="btn art-go' + (a.read ? " soft" : "") + '" data-act="open-art" data-id="' + artId(a) + '">' + (a.read ? "再讀一次" : "開始閱讀") + "</button></div>";
     });
     const k = arts.length;
-    html += '<button class="art-more" data-act="gen" data-n="' + w.n + '" data-d="' + d + '" data-k="' + k + '"' + (busy ? " disabled" : "") + ">" + (busy ? '<span class="spinner"></span>正在寫…' : plus + "再讀一篇（" + GENRE[genreFor(d, k)] + "）") + "</button>";
+    html += '<button class="art-more" data-act="gen-pick" data-n="' + w.n + '" data-d="' + d + '" data-k="' + k + '"' + (busy ? " disabled" : "") + ">" + (busy ? '<span class="spinner"></span>正在寫…' : plus + "再讀一篇") + "</button>";
   }
   if (S.err["gen-" + w.n + "-" + d]) html += '<div class="err">' + esc(S.err["gen-" + w.n + "-" + d]) + "</div>";
   return html + "</section>";
+}
+/* 再讀一篇: pick a kind of article, let chance pick, or ask for anything */
+function genPickHTML(o){
+  return '<div class="grab" aria-hidden="true"></div><div class="sh-head"><div class="sh-word phrase" style="flex:1;min-width:0">想讀哪一種？</div><button class="icon-btn" data-act="close-sheet" aria-label="關閉">×</button></div>' +
+    '<div class="genre-grid">' + GENRE_PICK.map(g => '<button class="genre-btn" data-act="gen-go" data-g="' + g + '">' + GENRE[g] + "</button>").join("") +
+    '<button class="genre-btn rand" data-act="gen-go" data-g="random">隨機</button></div>' +
+    '<div class="field"><label for="gen-topic">自訂</label><div class="row"><input class="input" id="gen-topic" maxlength="80" placeholder="例如：關於貓咪的冒險、面試前的緊張"><button class="btn" data-act="gen-go" data-g="custom">寫這篇</button></div></div>';
 }
 function aiBannerHTML(){
   const miss = aiMissing();
@@ -2660,8 +2677,9 @@ function renderHome(){
   if (!w) html += previewHTML(need);
   else {
     html += heroHTML(w);
-    if (dayIdx(w) < 0) html += '<section class="card"><div class="label">準備好了</div><h2>' + md(w.monday) + "（週一）正式開始第 " + w.n + " 週</h2>" +
-      '<p class="muted" style="margin:0">不用等，今天就可以到「學習進度」先讀第一篇。</p></section>';
+    const di = dayIdx(w);
+    html += secTitle("每日的文章");
+    html += articleCardHTML(w, Math.max(0, Math.min(5, di)));   /* on Sunday, Saturday's set stays open for more reading */
   }
   return html + lisaCardHTML(w);
 }
@@ -2703,8 +2721,7 @@ function renderLearn(){
   html += '<section class="card"><div class="label">句型課程</div><div class="prog-row"><div class="progress"><span style="width:' + Math.round(pos / PAIRS * 100) + '%"></span></div><span class="prog-n"><b>' + pos + "</b> / " + PAIRS + "</span></div>" + '<div class="small muted">' + STAGES.map((st, i) => (i === stageOf(w.patterns[0]) ? "<b>" + st.name + "</b>" : st.name)).join(" → ") + "</div>" +
     '<div class="stats"><div><b>' + ps.streak + '</b><span>連續天數</span></div><div><b>' + ps.weeksDone + '</b><span>完成週數</span></div><div><b>' + ps.articlesRead + '</b><span>讀完篇數</span></div><div><b>' + ps.savedWords + '</b><span>收藏單字</span></div></div></section>';
   html += secTitle("每日的文章");
-  if (di <= 5) html += articleCardHTML(w, Math.max(0, di));
-  else html += '<section class="card"><div class="label">今天是週日</div><p class="muted" style="margin:0">今天沒有新文章，到首頁跟 Lisa 做這週的總複習。</p><button class="btn soft block" data-act="open-chat">跟 Lisa 總複習</button></section>';
+  html += articleCardHTML(w, Math.max(0, Math.min(5, di)));
   html += dailyHistoryHTML();
   html += secTitle("本週習得");
   html += '<section class="card"><div class="label">單字</div><div>' + w.words.map((x, i) =>
@@ -2806,7 +2823,7 @@ function renderWeek(){
     if (!arts.length){
       html += '<button class="day-row' + (open ? "" : " locked") + (d === di ? " today-row" : "") + '"' + (open ? ' data-act="gen" data-n="' + w.n + '" data-d="' + d + '" data-k="0"' : " disabled") + '><span class="d"><b>' + DAY_NAMES[d] + "</b><span>" + md(date) + '</span></span><span class="t"><div class="en">' + GENRE[genreFor(d, 0)] + '</div><div class="sub">' + DAY_PLAN[d].label + '</div></span><span class="status">' + (open ? (S.busy["gen-" + w.n + "-" + d] ? "產生中" : "點一下產生") : md(date) + " 開放") + "</span></button>";
     } else arts.forEach(a => {
-      html += '<button class="day-row' + (d === di ? " today-row" : "") + '" data-act="open-art" data-id="' + artId(a) + '"><span class="d"><b>' + DAY_NAMES[d] + "</b><span>" + md(date) + '</span></span><span class="t"><div class="en">' + esc(a.title) + '</div><div class="sub">' + GENRE[a.genre] + " · " + esc(a.title_zh) + '</div></span><span class="status' + (a.read ? " read" : "") + '">' + (a.read ? "讀完了" : "未讀完") + "</span></button>";
+      html += '<button class="day-row' + (d === di ? " today-row" : "") + '" data-act="open-art" data-id="' + artId(a) + '"><span class="d"><b>' + DAY_NAMES[d] + "</b><span>" + md(date) + '</span></span><span class="t"><div class="en">' + esc(a.title) + '</div><div class="sub">' + genreLabel(a) + " · " + esc(a.title_zh) + '</div></span><span class="status' + (a.read ? " read" : "") + '">' + (a.read ? "讀完了" : "未讀完") + "</span></button>";
     });
   }
   const conv = S.convs[w.n];
@@ -3094,9 +3111,9 @@ function drawReader(first){
   const a = r.art;
   const streaming = r.state === "stream";
   const parsed = streaming ? parseRaw(r.raw || "") : a;
-  $("#rd-ttl").textContent = (DAY_NAMES[r.day] || "") + " · " + GENRE[r.genre];
+  $("#rd-ttl").textContent = (DAY_NAMES[r.day] || "") + " · " + genreLabel(r);
   const L = LENGTHS[set().length] || LENGTHS.mid;
-  let html = '<div class="meta"><span class="chip">第 ' + w.n + " 週 · " + DAY_NAMES[r.day] + '</span><span class="chip">' + GENRE[r.genre] + '</span><span class="chip">約 ' + L.min + ' 分鐘</span><span class="chip" id="rd-voice" hidden></span></div>';
+  let html = '<div class="meta"><span class="chip">第 ' + w.n + " 週 · " + DAY_NAMES[r.day] + '</span><span class="chip">' + genreLabel(r) + '</span><span class="chip">約 ' + L.min + ' 分鐘</span><span class="chip" id="rd-voice" hidden></span></div>';
   if (parsed && parsed.title) html += '<div class="reader-title">' + esc(parsed.title) + "</div>" + (parsed.title_zh ? '<div class="reader-title-zh">' + esc(parsed.title_zh) + "</div>" : "");
   html += '<div class="legend"><span><i style="background:var(--yellow)"></i>本週單字</span><span><i style="background:var(--green)"></i>本週句型</span><span>點任何一個字看解釋</span></div>';
   if (streaming){
@@ -3206,6 +3223,7 @@ function drawSheet(){
   const o = S.sheet; if (!o) return;
   $("#sheet-card").setAttribute("aria-label", o.kind === "theme" ? "選主題" : "單字解釋");
   if (o.kind === "theme"){ $("#sheet-card").innerHTML = themeSheetHTML(); return; }
+  if (o.kind === "genpick"){ $("#sheet-card").setAttribute("aria-label", "再讀一篇"); $("#sheet-card").innerHTML = genPickHTML(o); return; }
   if (o.kind === "city"){ $("#sheet-card").setAttribute("aria-label", "我的城市"); $("#sheet-card").innerHTML = citySheetHTML(o); return; }
 
   const d = o.data;
@@ -3333,19 +3351,20 @@ async function startWeek(){
     if (S.sheet && S.sheet.kind === "theme") drawSheet(); else toast(S.err.week);
   }
 }
-async function generateArticle(n, d, k){
+async function generateArticle(n, d, k, pick, topic){
   const w = S.weeks[n]; if (!w) return;
   const key = "gen-" + n + "-" + d;
   if (S.busy[key]) return;
-  const genre = genreFor(d, k);
+  const genre = pick === "random" ? GENRE_PICK[Math.floor(Math.random() * GENRE_PICK.length)] : GENRE[pick] ? pick : genreFor(d, k);
+  topic = genre === "custom" ? String(topic || "").trim().slice(0, 80) : "";
   const ctl = new AbortController();
   S.busy[key] = true; S.err[key] = "";
   const extra = pickSaved();
-  openReader({week:n, day:d, k, genre, state:"stream", raw:"", ctl, extra});
+  openReader({week:n, day:d, k, genre, topic, state:"stream", raw:"", ctl, extra});
   render();
   let pending = false;
   try {
-    const res = await ai("write", articlePrompt(w, d, k, genre, extra), {
+    const res = await ai("write", articlePrompt(w, d, k, genre, extra, topic), {
       cache:false, signal:ctl.signal,
       onText: ({text}) => {
         if (!S.reader || S.reader.ctl !== ctl) return;
@@ -3356,7 +3375,7 @@ async function generateArticle(n, d, k){
     const p = parseRaw(res.text);
     if (!p.body) throw {code:"invalid_json"};
     const plan = DAY_PLAN[d];
-    const art = {kind:"art", week:n, day:d, k, genre, title:p.title || "Today", title_zh:p.title_zh || "", body:p.body, practice_zh:p.practice, practice_pattern:plan.focus, extraWords:extra, read:false, answer:"", feedback:null, createdAt:Date.now()};
+    const art = {kind:"art", week:n, day:d, k, genre, topic, title:p.title || "Today", title_zh:p.title_zh || "", body:p.body, practice_zh:p.practice, practice_pattern:plan.focus, extraWords:extra, read:false, answer:"", feedback:null, createdAt:Date.now()};
     S.arts[artId(art)] = art;
     S.busy[key] = false;
     Store.set(artId(art), art).catch(() => {});
@@ -3373,7 +3392,7 @@ async function generateArticle(n, d, k){
 }
 function openArticle(id){
   const a = S.arts[id]; if (!a) return;
-  openReader({week:a.week, day:a.day, k:a.k, genre:a.genre, state:"ready", art:a});
+  openReader({week:a.week, day:a.day, k:a.k, genre:a.genre, topic:a.topic, state:"ready", art:a});
   prepareArticleVoice(false);
 }
 async function checkPractice(){
@@ -3824,6 +3843,13 @@ const ACT = {
   "onb-finish": () => finishOnboarding(),
   "open-theme": () => { S.err.week = ""; openSheet({kind:"theme"}); },
   "start-week": () => startWeek(),
+  "gen-pick": el => { S.sheet = {kind:"genpick", n:Number(el.dataset.n), d:Number(el.dataset.d), k:Number(el.dataset.k)}; $("#sheet").hidden = false; drawSheet(); },
+  "gen-go": el => {
+    const o = S.sheet; if (!o || o.kind !== "genpick") return;
+    const g = el.dataset.g, topic = g === "custom" ? (($("#gen-topic") || {}).value || "").trim() : "";
+    if (g === "custom" && !topic){ toast("先寫下你想讀什麼"); const i = $("#gen-topic"); if (i) i.focus(); return; }
+    closeSheet(); generateArticle(o.n, o.d, o.k, g, topic);
+  },
   "gen": el => generateArticle(Number(el.dataset.n), Number(el.dataset.d), Number(el.dataset.k)),
   "open-art": el => { if (el.dataset.id && S.arts[el.dataset.id]) openArticle(el.dataset.id); else if (el.dataset.d) generateArticle(Number(el.dataset.n), Number(el.dataset.d), 0); },
   "close-reader": () => closeReader(),
