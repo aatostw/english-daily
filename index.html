@@ -181,6 +181,12 @@ label.btn{cursor:pointer}
 .dd-opt:hover{background:var(--field)}
 .dd-opt[aria-selected="true"]{background:var(--primary-soft);font-weight:600}
 .dd-opt .check{margin-left:auto;color:var(--primary-text);display:grid}
+.art-row{display:flex;align-items:center;gap:14px}
+.art-row .art-t{flex:1;min-width:0}
+.art-row .art-t h2{margin:0;overflow-wrap:anywhere}
+.art-go{flex:none;width:38%;min-width:112px;max-width:180px;min-height:44px;padding:8px 12px;font-size:15px}
+.art-more{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;border:0;background:transparent;color:var(--muted);font-family:inherit;font-weight:700;font-size:14px;padding:4px 0 0}
+.art-more:disabled{opacity:.6}
 .sec-title{font-size:20px;font-weight:900;margin:10px 4px 0}
 .menu-row{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;text-align:left;border:0;background:#F2F4FB;border-radius:14px;padding:14px 16px;font:inherit;color:inherit}
 .menu-row > span:first-child{display:flex;flex-direction:column;gap:2px}
@@ -1651,20 +1657,22 @@ function articleCardHTML(w, d){
   const arts = artsOf(w.n, d);
   const plan = DAY_PLAN[d];
   const busy = S.busy["gen-" + w.n + "-" + d];
-  let html = '<section class="card art-card"><div class="row between"><div class="label">' + DAY_NAMES[d] + "的文章 · " + plan.label + "</div></div>";
+  const plus = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>';
+  let html = '<section class="card art-card"><div class="label">' + DAY_NAMES[d] + "的文章 · " + plan.label + "</div>";
   if (!arts.length){
     const g = genreFor(d, 0);
-    html += '<p style="margin:0">今天是<b>' + GENRE[g] + "</b>，用句型 " + plan.use.filter(u => u !== "R").join("、") + " 和 " + plan.words.length + " 個本週單字寫成，大約 " + (LENGTHS[set().length] || LENGTHS.mid).min + " 分鐘。</p>" +
-      '<button class="btn block" data-act="gen" data-n="' + w.n + '" data-d="' + d + '" data-k="0"' + (busy ? " disabled" : "") + ">" + (busy ? '<span class="spinner"></span>正在寫…' : "產生今天的文章") + "</button>";
+    html += '<div class="row wrap"><span class="chip">' + GENRE[g] + "</span></div>" +
+      '<div class="art-row"><div class="art-t"><p class="muted" style="margin:0">用句型 ' + plan.use.filter(u => u !== "R").join("、") + " 和 " + plan.words.length + " 個本週單字寫成，大約 " + (LENGTHS[set().length] || LENGTHS.mid).min + " 分鐘。</p></div>" +
+      '<button class="btn art-go" data-act="gen" data-n="' + w.n + '" data-d="' + d + '" data-k="0"' + (busy ? " disabled" : "") + ">" + (busy ? '<span class="spinner"></span>正在寫' : "產生文章") + "</button></div>";
   } else {
     arts.forEach((a, i) => {
       if (i > 0) html += '<div class="divider"></div>';
       html += '<div class="row wrap"><span class="chip">' + GENRE[a.genre] + "</span>" + (a.read ? '<span class="chip done">讀完了</span>' : "") + "</div>" +
-        "<h2>" + esc(a.title) + '</h2><div class="zh">' + esc(a.title_zh) + "</div>" +
-        '<button class="btn ' + (a.read ? "soft" : "") + ' block" data-act="open-art" data-id="' + artId(a) + '">' + (a.read ? "再讀一次" : "開始閱讀") + "</button>";
+        '<div class="art-row"><div class="art-t"><h2>' + esc(a.title) + '</h2><div class="zh">' + esc(a.title_zh) + "</div></div>" +
+        '<button class="btn art-go' + (a.read ? " soft" : "") + '" data-act="open-art" data-id="' + artId(a) + '">' + (a.read ? "再讀一次" : "開始閱讀") + "</button></div>";
     });
     const k = arts.length;
-    html += '<button class="btn ghost" data-act="gen" data-n="' + w.n + '" data-d="' + d + '" data-k="' + k + '"' + (busy ? " disabled" : "") + ">" + (busy ? '<span class="spinner"></span>正在寫…' : "再讀一篇（" + GENRE[genreFor(d, k)] + "）") + "</button>";
+    html += '<button class="art-more" data-act="gen" data-n="' + w.n + '" data-d="' + d + '" data-k="' + k + '"' + (busy ? " disabled" : "") + ">" + (busy ? '<span class="spinner"></span>正在寫…' : plus + "再讀一篇（" + GENRE[genreFor(d, k)] + "）") + "</button>";
   }
   if (S.err["gen-" + w.n + "-" + d]) html += '<div class="err">' + esc(S.err["gen-" + w.n + "-" + d]) + "</div>";
   return html + "</section>";
