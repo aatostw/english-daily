@@ -192,6 +192,10 @@ label.btn{cursor:pointer}
 .art-go{flex:none;width:38%;min-width:112px;max-width:180px;min-height:44px;padding:8px 12px;font-size:15px}
 .art-more{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;border:0;background:transparent;color:var(--muted);font-family:inherit;font-weight:700;font-size:14px;padding:4px 0 0}
 .art-more:disabled{opacity:.6}
+.prog-row{display:flex;align-items:center;gap:12px}
+.prog-row .progress{flex:1}
+.prog-n{flex:none;font:600 15px var(--font-en);color:var(--muted);white-space:nowrap}
+.prog-n b{font-size:20px;font-weight:800;color:var(--green)}
 .sec-title{font-size:20px;font-weight:900;margin:10px 4px 0}
 .menu-row{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;text-align:left;border:0;background:#F2F4FB;border-radius:14px;padding:14px 16px;font:inherit;color:inherit}
 .menu-row > span:first-child{display:flex;flex-direction:column;gap:2px}
@@ -1652,7 +1656,6 @@ function heroHTML(w){
   }).join("");
   return '<section class="card hero"><div class="label">第 ' + w.n + " 週 · " + st.name + " · " + md(w.monday) + "–" + md(addDays(w.monday, 6)) + "</div>" +
     "<h1>" + esc(w.theme_zh) + '</h1><div class="theme-en">' + esc(w.theme_en) + "</div>" +
-    '<div class="pats"><div class="row"><span class="tag-a">A</span>' + esc(P.A.en) + '</div><div class="row"><span class="tag-b">B</span>' + esc(P.B.en) + "</div></div>" +
     '<div class="dots">' + dots + "</div></section>";
 }
 function wordChips(w){
@@ -1666,8 +1669,7 @@ function articleCardHTML(w, d){
   let html = '<section class="card art-card"><div class="label">' + DAY_NAMES[d] + "的文章 · " + plan.label + "</div>";
   if (!arts.length){
     const g = genreFor(d, 0);
-    html += '<div class="row wrap"><span class="chip">' + GENRE[g] + "</span></div>" +
-      '<div class="art-row"><div class="art-t"><p class="muted" style="margin:0">用句型 ' + plan.use.filter(u => u !== "R").join("、") + " 和 " + plan.words.length + " 個本週單字寫成，大約 " + (LENGTHS[set().length] || LENGTHS.mid).min + " 分鐘。</p></div>" +
+    html += '<div class="art-row"><div class="art-t"><span class="chip">' + GENRE[g] + "</span></div>" +
       '<button class="btn art-go" data-act="gen" data-n="' + w.n + '" data-d="' + d + '" data-k="0"' + (busy ? " disabled" : "") + ">" + (busy ? '<span class="spinner"></span>正在寫' : "產生文章") + "</button></div>";
   } else {
     arts.forEach((a, i) => {
@@ -1764,7 +1766,7 @@ function lisaCardHTML(w){
   const d = chatDayFor(w), conv = convFor(w, d), late = dayIdx(w) > 6;
   const sub = d >= 6 ? (late ? "第 " + w.n + " 週的總複習還沒做" : "今天是週日總複習") : DAY_NAMES[d] + "的聊天";
   const intro = d >= 6 ? "這週的單字和句型全部揭開了，聊完會有回饋和金幣。" : "用到今天為止揭開的單字和句型，跟 Lisa 聊聊。每天會再揭開新的，週日全部用上。";
-  return '<section class="card">' + lisaHead(sub) + '<p class="muted" style="margin:0">' + intro + "</p>" + chatChecklistHTML(w, conv, d) +
+  return '<section class="card">' + lisaHead(sub) + '<p class="muted" style="margin:0">' + intro + "</p>" +
     '<button class="btn green block" data-act="open-chat">' + (conv && conv.done ? "看回饋" : conv ? "繼續聊" : "開始聊天") + "</button></section>";
 }
 function cityCardHTML(){
@@ -1779,7 +1781,7 @@ function renderLearn(){
   const di = dayIdx(w), P = weekPats(w), ps = progressStats();
   const pos = Math.min((w.n - 1) + S.profile.startPair + 1, PAIRS);
   let html = secTitle("課程進度");
-  html += '<section class="card"><div class="row between"><div class="label">句型課程</div><span class="small muted">第 ' + pos + " / " + PAIRS + ' 組句型</span></div><div class="progress"><span style="width:' + Math.round(pos / PAIRS * 100) + '%"></span></div><div class="small muted">' + STAGES.map((st, i) => (i === stageOf(w.patterns[0]) ? "<b>" + st.name + "</b>" : st.name)).join(" → ") + "</div>" +
+  html += '<section class="card"><div class="label">句型課程</div><div class="prog-row"><div class="progress"><span style="width:' + Math.round(pos / PAIRS * 100) + '%"></span></div><span class="prog-n"><b>' + pos + "</b> / " + PAIRS + "</span></div>" + '<div class="small muted">' + STAGES.map((st, i) => (i === stageOf(w.patterns[0]) ? "<b>" + st.name + "</b>" : st.name)).join(" → ") + "</div>" +
     '<div class="stats"><div><b>' + ps.streak + '</b><span>連續天數</span></div><div><b>' + ps.weeksDone + '</b><span>完成週數</span></div><div><b>' + ps.articlesRead + '</b><span>讀完篇數</span></div><div><b>' + ps.savedWords + '</b><span>收藏單字</span></div></div></section>';
   html += secTitle("每日的文章");
   if (di <= 5) html += articleCardHTML(w, Math.max(0, di));
