@@ -1978,7 +1978,7 @@ function cityTopHTML(c){
     btn = S.busy.city ? '<button class="btn green sm" disabled><span class="spinner"></span></button>'
       : food >= n ? '<button class="btn green sm" data-act="city-feed">發放</button>' : '<button class="btn sm" data-act="city-sheet" data-s="shop">買糧食</button>';
   } else {
-    pct = total ? Math.round(done / total * 100) : 100;
+    pct = total ? Math.max(4, Math.round(done / total * 100)) : 0;
     title = total ? "完成 " + done + " / " + total + " 個" : "今天沒有請求";
     sub = total && done < total ? "答對會拿到隨機禮物" : "今天都處理完了，明天再來";
     btn = total ? '<button class="btn sm" data-act="city-sheet" data-s="reqs">' + (done < total ? "前往" : "查看") + "</button>" : "";
@@ -2685,7 +2685,7 @@ const City3D = {
     this.r.setSize(w, h); this.cam.aspect = w / h; this.cam.updateProjectionMatrix(); this.w = w; this.h = h;
   },
   place(){
-    const d = this.dist, el = this.el, az = this.az, f = this.focus || [0, 0, -.9];   /* aim a little behind the center so the island sits below the request card */
+    const asp = (this.w || 1) / (this.h || 1), d = this.dist * (!this.focus && asp < .95 ? Math.min(1.7, .95 / asp) : 1), el = this.el, az = this.az, f = this.focus || [0, 0, -.9];   /* a tall screen needs to stand further back to fit the island's width */   /* aim a little behind the center so the island sits below the request card */
     this.cam.position.set(f[0] + d * Math.cos(el) * Math.sin(az), f[1] + d * Math.sin(el), f[2] + d * Math.cos(el) * Math.cos(az));
     this.cam.lookAt(f[0], f[1], f[2]);
   },
