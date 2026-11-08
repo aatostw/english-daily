@@ -61,7 +61,7 @@ h1,h2,h3{margin:0;text-wrap:balance;line-height:1.25}
 .pill.warn::before{background:#C99A17}
 .pill.bad{background:color-mix(in srgb,var(--danger) 14%,transparent);color:var(--danger)}
 main{flex:1;overflow-y:auto;padding:16px 16px 28px;display:flex;flex-direction:column;gap:14px;-webkit-overflow-scrolling:touch}
-.tabs{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line);background:var(--surface);padding:6px 4px 8px}
+.tabs{display:grid;grid-template-columns:repeat(5,1fr);border-top:1px solid var(--line);background:var(--surface);padding:6px 4px 8px}
 .tab{display:flex;flex-direction:column;align-items:center;gap:2px;background:none;border:0;padding:6px 2px;border-radius:12px;color:var(--muted);font-size:12px;font-weight:500}
 .tab svg{width:24px;height:24px}
 .tab[aria-current="page"]{color:var(--primary-text);font-weight:700}
@@ -196,6 +196,21 @@ label.btn{cursor:pointer}
 .prog-row .progress{flex:1}
 .prog-n{flex:none;font:600 15px var(--font-en);color:var(--muted);white-space:nowrap}
 .prog-n b{font-size:20px;font-weight:800;color:var(--green)}
+.island{display:block;width:100%;height:auto;border-radius:16px;touch-action:manipulation}
+.island .tile{cursor:pointer}
+.island .tile:active{fill:#d6efbf}
+.island .req-bubble{cursor:pointer}
+.city-stat{display:inline-flex;align-items:center;gap:4px;padding:5px 11px;border-radius:999px;background:#e8f4e1;font-size:13px;color:#3d6b2f}
+.city-stat b{font:700 14px var(--font-en)}
+.city-actions{gap:8px}
+.city-actions .btn{flex:1;min-height:44px}
+.price{display:inline-flex;align-items:center;gap:4px;font:700 15px var(--font-en);color:#6B5310;white-space:nowrap}
+.menu-row:disabled{opacity:.5}
+.chip.pick{border:2px solid transparent}
+.chip.pick.on{border-color:var(--green);background:#e3f4ec}
+.chip.buy{display:inline-flex;align-items:center;gap:4px}
+.avatar-big{display:flex;justify-content:center;padding:4px 0}
+.gift{padding:12px;border-radius:12px;background:var(--yellow-soft);color:#6B5310}
 .sec-title{font-size:20px;font-weight:900;margin:10px 4px 0}
 .menu-row{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;text-align:left;border:0;background:#F2F4FB;border-radius:14px;padding:14px 16px;font:inherit;color:inherit}
 .menu-row > span:first-child{display:flex;flex-direction:column;gap:2px}
@@ -370,6 +385,7 @@ h1,h2{color:var(--primary-text)}
   <nav class="tabs" id="tabs" hidden>
     <button class="tab" data-act="tab" data-v="learn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>學習進度</button>
     <button class="tab" data-act="tab" data-v="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 9.5V20h13V9.5"/><path d="M10 20v-5h4v5"/></svg>首頁</button>
+    <button class="tab" data-act="tab" data-v="city"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18"/><path d="M5 20V9l5-3v14"/><path d="M10 20V11h9v9"/><path d="M13 14h3M13 17h3"/></svg>我的城市</button>
     <button class="tab" data-act="tab" data-v="words"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-6-4-6 4z"/></svg>收藏</button>
     <button class="tab" data-act="tab" data-v="prefs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>設定</button>
   </nav>
@@ -1565,7 +1581,7 @@ function render(){
   tabs.hidden = false;
   const tabView = S.view === "talk" ? "home" : S.view;
   tabs.querySelectorAll(".tab").forEach(t => t.setAttribute("aria-current", t.dataset.v === tabView ? "page" : "false"));
-  const fn = {learn:renderLearn, home:renderHome, talk:renderTalk, words:renderWords, prefs:renderPrefs}[S.view] || renderHome;
+  const fn = {learn:renderLearn, home:renderHome, city:renderCity, talk:renderTalk, words:renderWords, prefs:renderPrefs}[S.view] || renderHome;
   const keepScroll = render.lastView === S.view ? main.scrollTop : 0;
   main.innerHTML = fn();
   main.scrollTop = keepScroll;
@@ -1578,6 +1594,315 @@ function go(view){
   if (location.hash !== "#" + view){ try { history.replaceState(null, "", "#" + view); } catch (e) { location.hash = view; } }
   render.lastView = null;
   render();
+}
+
+/* =========================================================
+   我的城市 — a small island town paid for with coins earned by practising.
+   Buildings bring residents; feed them and they ask for help in English;
+   good answers give random gifts (outfit parts, decorations, double-coin cards).
+   ========================================================= */
+const CITY_BUILDINGS = {
+  house:{name:"小屋", price:80, residents:2, desc:"住 2 位居民"},
+  cafe:{name:"咖啡店", price:120, residents:1, desc:"老闆 1 位"},
+  bakery:{name:"麵包店", price:120, residents:1, desc:"老闆 1 位"},
+  books:{name:"書店", price:150, residents:1, desc:"老闆 1 位"},
+  clinic:{name:"診所", price:180, residents:1, desc:"醫生 1 位"},
+  park:{name:"小公園", price:60, residents:0, desc:"讓島上更漂亮"}
+};
+const CITY_DECOS = {statue:"公園雕像", fountain:"噴水池", sakura:"櫻花樹", lighthouse:"燈塔"};
+const CITY_PARTS = {
+  hat:{label:"帽子", items:{none:"不戴", cap:"棒球帽", beanie:"毛帽", straw:"草帽", crown:"皇冠"}},
+  glasses:{label:"眼鏡", items:{none:"不戴", round:"圓框眼鏡", sun:"墨鏡", star:"星星眼鏡"}},
+  outfit:{label:"服裝", items:{tee:"T 恤", hoodie:"帽 T", raincoat:"雨衣", suit:"西裝", astro:"太空裝"}}
+};
+const CITY_PART_PRICE = {cap:60, beanie:60, round:60, hoodie:80, raincoat:80};   /* the rest only come as gifts */
+const CITY_RARE = new Set(["crown", "star", "astro", "lighthouse"]);
+const CITY_FOOD = {n:10, price:20};
+const CITY_EXPAND = 400;
+const CITY_NAMES = ["Amy","Ben","Coco","Dan","Ella","Finn","Gina","Hugo","Ivy","Jack","Kiki","Leo","Mia","Noah","Olive","Pete","Rosa","Sam","Tina","Yuki","Zoe","Max","Lily","Owen"];
+const CITY_COLORS = ["#E57373","#64B5F6","#81C784","#FFB74D","#BA68C8","#4DB6AC","#F06292","#A1887F"];
+
+function newCity(){
+  return {kind:"city", level:1, food:10, tiles:{}, residents:[], avatar:{hat:"none", glasses:"none", outfit:"tee"},
+    owned:{hat:["none"], glasses:["none"], outfit:["tee"], deco:[]}, boosts:{double:0, active:0},
+    day:{date:"", fed:false, requests:[]}, giftsGot:0};
+}
+function city(){
+  if (!S.city) S.city = newCity();
+  const c = S.city, t = todayStr();
+  if (c.day.date !== t) c.day = {date:t, fed:false, requests:[]};
+  return c;
+}
+function saveCity(){ Store.set("city", S.city).catch(() => {}); }
+function cityTiles(c){
+  const R = c.level >= 2 ? 2 : 1, out = [];
+  for (let q = -R; q <= R; q++) for (let r = -R; r <= R; r++) if (Math.abs(-q - r) <= R) out.push([q, r]);
+  return out;
+}
+function cityPos(q, r){ const size = 34; return [size * Math.sqrt(3) * (q + r / 2), size * 1.5 * r * 0.62]; }
+
+/* ---------- drawing ---------- */
+function hexPoints(x, y, size, dy){
+  const pts = [];
+  for (let i = 0; i < 6; i++){ const a = Math.PI / 180 * (60 * i - 30); pts.push((x + size * Math.cos(a)).toFixed(1) + "," + (y + size * Math.sin(a) * 0.62 + (dy || 0)).toFixed(1)); }
+  return pts.join(" ");
+}
+function buildingSVG(type, x, y, dim){
+  const op = dim ? ' opacity="0.55"' : "";
+  const box = (w, h, fill, roof) => '<rect x="' + (x - w / 2) + '" y="' + (y - h) + '" width="' + w + '" height="' + h + '" rx="2" fill="' + fill + '" stroke="#5b4a3a" stroke-width="1"/>' +
+    (roof ? '<path d="M' + (x - w / 2 - 3) + " " + (y - h) + " L" + x + " " + (y - h - 13) + " L" + (x + w / 2 + 3) + " " + (y - h) + 'Z" fill="' + roof + '" stroke="#5b4a3a" stroke-width="1"/>' : "");
+  const door = (c) => '<rect x="' + (x - 3) + '" y="' + (y - 9) + '" width="6" height="9" rx="1" fill="' + (c || "#7a5a3a") + '"/>';
+  const win = (dx, dy) => '<rect x="' + (x + dx - 3) + '" y="' + (y + dy - 3) + '" width="6" height="6" rx="1" fill="#fff6c8" stroke="#5b4a3a" stroke-width=".6"/>';
+  let s = "";
+  if (type === "house") s = box(26, 18, "#fff3d6", "#E57373") + door() + win(-8, -11) + win(8, -11);
+  else if (type === "cafe") s = box(30, 18, "#f6e3cf", null) + '<path d="M' + (x - 17) + " " + (y - 18) + " h34 l-3 7 h-28z" + '" fill="#C98B5B"/>' + [0, 1, 2, 3].map(i => '<rect x="' + (x - 14 + i * 7) + '" y="' + (y - 18) + '" width="3.5" height="7" fill="#fff"/>').join("") + door("#5b4a3a") + win(9, -6);
+  else if (type === "bakery") s = box(28, 18, "#ffe3e3", "#F06292") + '<circle cx="' + x + '" cy="' + (y - 24) + '" r="4" fill="#fff" stroke="#c2185b" stroke-width="1"/>' + door() + win(-9, -10) + win(9, -10);
+  else if (type === "books") s = box(24, 30, "#dbe9f7", null) + '<rect x="' + (x - 13) + '" y="' + (y - 33) + '" width="26" height="4" rx="1" fill="#3f6fa8"/>' + win(-6, -22) + win(6, -22) + win(-6, -13) + win(6, -13) + door("#3f6fa8");
+  else if (type === "clinic") s = box(28, 22, "#ffffff", null) + '<rect x="' + (x - 15) + '" y="' + (y - 25) + '" width="30" height="4" rx="1" fill="#48A88B"/>' + '<path d="M' + (x - 2) + " " + (y - 19) + "h4v4h4v4h-4v4h-4v-4h-4v-4h4z" + '" fill="#48A88B"/>' + door("#48A88B");
+  else if (type === "park") s = '<ellipse cx="' + x + '" cy="' + (y - 2) + '" rx="18" ry="6" fill="#9ed49a"/>' + '<rect x="' + (x - 9) + '" y="' + (y - 14) + '" width="3" height="10" fill="#7a5a3a"/><circle cx="' + (x - 8) + '" cy="' + (y - 18) + '" r="8" fill="#5fae5a"/>' + '<rect x="' + (x + 2) + '" y="' + (y - 6) + '" width="12" height="3" rx="1" fill="#a0784f"/>';
+  else if (type === "statue") s = '<rect x="' + (x - 8) + '" y="' + (y - 8) + '" width="16" height="8" fill="#cfd6dc" stroke="#7d8790" stroke-width="1"/><circle cx="' + x + '" cy="' + (y - 22) + '" r="5" fill="#b0bac2"/><rect x="' + (x - 4) + '" y="' + (y - 18) + '" width="8" height="10" rx="2" fill="#b0bac2"/>';
+  else if (type === "fountain") s = '<ellipse cx="' + x + '" cy="' + (y - 3) + '" rx="15" ry="5" fill="#cfd6dc" stroke="#7d8790" stroke-width="1"/><ellipse cx="' + x + '" cy="' + (y - 4) + '" rx="11" ry="3" fill="#8ED1E6"/><path d="M' + x + " " + (y - 5) + " q-6 -14 0 -16 q6 2 0 16" + '" fill="#8ED1E6" opacity=".8"/>';
+  else if (type === "sakura") s = '<rect x="' + (x - 2) + '" y="' + (y - 14) + '" width="4" height="14" fill="#7a5a3a"/><circle cx="' + (x - 6) + '" cy="' + (y - 20) + '" r="8" fill="#f8bbd0"/><circle cx="' + (x + 6) + '" cy="' + (y - 20) + '" r="8" fill="#f48fb1"/><circle cx="' + x + '" cy="' + (y - 27) + '" r="8" fill="#f8bbd0"/>';
+  else if (type === "lighthouse") s = '<path d="M' + (x - 7) + " " + y + " L" + (x - 4) + " " + (y - 36) + " L" + (x + 4) + " " + (y - 36) + " L" + (x + 7) + " " + y + 'Z" fill="#fff" stroke="#5b4a3a" stroke-width="1"/>' + [0, 1, 2].map(i => '<rect x="' + (x - 6 + i * .9) + '" y="' + (y - 9 - i * 11) + '" width="' + (12 - i * 1.8) + '" height="4" fill="#E57373"/>').join("") + '<rect x="' + (x - 5) + '" y="' + (y - 42) + '" width="10" height="6" fill="#F3CC58" stroke="#5b4a3a" stroke-width="1"/><path d="M' + (x - 6) + " " + (y - 42) + " L" + x + " " + (y - 48) + " L" + (x + 6) + " " + (y - 42) + 'Z" fill="#E57373"/>';
+  return "<g" + op + ">" + s + "</g>";
+}
+function personSVG(x, y, color, s){
+  s = s || 1;
+  return '<g transform="translate(' + x + " " + y + ") scale(" + s + ')"><rect x="-4" y="-10" width="8" height="10" rx="3" fill="' + color + '"/><circle cx="0" cy="-14" r="5" fill="#f6d2b4" stroke="#5b4a3a" stroke-width=".6"/></g>';
+}
+function avatarSVG(av, size){
+  const outfit = {tee:"#64B5F6", hoodie:"#9575CD", raincoat:"#FFD54F", suit:"#37474F", astro:"#ECEFF1"}[av.outfit] || "#64B5F6";
+  let body = '<rect x="30" y="58" width="40" height="34" rx="12" fill="' + outfit + '" stroke="#5b4a3a" stroke-width="2"/>';
+  if (av.outfit === "suit") body += '<path d="M50 58 L44 70 L50 76 L56 70Z" fill="#fff"/><path d="M50 62 l-3 4 l3 12 l3-12z" fill="#E57373"/>';
+  if (av.outfit === "hoodie") body += '<path d="M38 60 q12 10 24 0" fill="none" stroke="#5b4a3a" stroke-width="2"/>';
+  if (av.outfit === "raincoat") body += '<circle cx="50" cy="70" r="2" fill="#5b4a3a"/><circle cx="50" cy="80" r="2" fill="#5b4a3a"/>';
+  if (av.outfit === "astro") body += '<rect x="42" y="66" width="16" height="10" rx="2" fill="#64B5F6"/>';
+  let head = '<circle cx="50" cy="38" r="22" fill="#f6d2b4" stroke="#5b4a3a" stroke-width="2"/><path d="M28 36 q4 -22 22 -22 q18 0 22 22 q-10 -10 -22 -10 q-12 0 -22 10z" fill="#5b4a3a"/>' +
+    '<circle cx="42" cy="40" r="2.5" fill="#333"/><circle cx="58" cy="40" r="2.5" fill="#333"/><path d="M45 48 q5 4 10 0" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round"/>' +
+    '<circle cx="37" cy="46" r="3" fill="#f4a6a6" opacity=".6"/><circle cx="63" cy="46" r="3" fill="#f4a6a6" opacity=".6"/>';
+  if (av.outfit === "astro") head = '<circle cx="50" cy="38" r="27" fill="#e3f2fd" stroke="#90a4ae" stroke-width="2" opacity=".9"/>' + head;
+  let g = "";
+  if (av.glasses === "round") g = '<circle cx="42" cy="40" r="6" fill="none" stroke="#333" stroke-width="2"/><circle cx="58" cy="40" r="6" fill="none" stroke="#333" stroke-width="2"/><path d="M48 40h4" stroke="#333" stroke-width="2"/>';
+  if (av.glasses === "sun") g = '<rect x="35" y="35" width="13" height="9" rx="3" fill="#222"/><rect x="52" y="35" width="13" height="9" rx="3" fill="#222"/><path d="M48 39h4" stroke="#222" stroke-width="2"/>';
+  if (av.glasses === "star") g = '<path d="M42 33l2 5 5 .4-4 3 1.5 5-4.5-3-4.5 3 1.5-5-4-3 5-.4z" fill="#F3CC58" stroke="#c99a17"/><path d="M58 33l2 5 5 .4-4 3 1.5 5-4.5-3-4.5 3 1.5-5-4-3 5-.4z" fill="#F3CC58" stroke="#c99a17"/>';
+  let h = "";
+  if (av.hat === "cap") h = '<path d="M28 30 q22 -26 44 0z" fill="#E57373" stroke="#5b4a3a" stroke-width="2"/><path d="M60 29 h20 q2 4 -4 4 h-16z" fill="#E57373" stroke="#5b4a3a" stroke-width="2"/>';
+  if (av.hat === "beanie") h = '<path d="M28 32 q22 -32 44 0z" fill="#4DB6AC" stroke="#5b4a3a" stroke-width="2"/><rect x="27" y="28" width="46" height="7" rx="3" fill="#80CBC4" stroke="#5b4a3a" stroke-width="2"/><circle cx="50" cy="8" r="5" fill="#80CBC4"/>';
+  if (av.hat === "straw") h = '<ellipse cx="50" cy="26" rx="34" ry="7" fill="#F3CC58" stroke="#c99a17" stroke-width="2"/><path d="M34 26 q16 -24 32 0z" fill="#F3CC58" stroke="#c99a17" stroke-width="2"/><rect x="34" y="21" width="32" height="4" fill="#E57373"/>';
+  if (av.hat === "crown") h = '<path d="M32 26 L36 8 L44 18 L50 4 L56 18 L64 8 L68 26Z" fill="#F3CC58" stroke="#c99a17" stroke-width="2"/><circle cx="50" cy="20" r="2.5" fill="#E57373"/>';
+  return '<svg viewBox="0 0 100 96" width="' + size + '" height="' + (size * .96) + '" aria-hidden="true">' + body + head + g + h + "</svg>";
+}
+function citySky(){
+  const hr = new Date().getHours();
+  if (hr >= 5 && hr < 8) return ["#FFD9B3", "#CFE8F7", false];
+  if (hr >= 8 && hr < 17) return ["#BEE3F8", "#EAF6FF", false];
+  if (hr >= 17 && hr < 19) return ["#FBC9A0", "#C9B6E4", false];
+  return ["#1E2A4A", "#3A4775", true];
+}
+function islandSVG(c){
+  const tiles = cityTiles(c).map(([q, r]) => { const [x, y] = cityPos(q, r); return {q, r, x, y, key:q + "," + r}; }).sort((a, b) => a.y - b.y);
+  const [sky1, sky2, night] = citySky();
+  const W = c.level >= 2 ? 340 : 270, H = c.level >= 2 ? 290 : 205, cx = W / 2, cy = H / 2 + 6;
+  const fed = c.day.fed;
+  let s = '<svg viewBox="0 0 ' + W + " " + H + '" class="island" role="img" aria-label="我的城市"><defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + sky1 + '"/><stop offset="1" stop-color="' + sky2 + '"/></linearGradient></defs>' +
+    '<rect width="' + W + '" height="' + H + '" fill="url(#sky)"/>';
+  if (night) for (let i = 0; i < 18; i++) s += '<circle cx="' + ((i * 53) % W) + '" cy="' + ((i * 29) % 70 + 6) + '" r="' + (i % 3 ? 1 : 1.6) + '" fill="#fff" opacity=".8"/>';
+  s += '<ellipse cx="' + cx + '" cy="' + (cy + 8) + '" rx="' + (c.level >= 2 ? 165 : 120) + '" ry="' + (c.level >= 2 ? 95 : 70) + '" fill="#8ED1E6" opacity=".9"/>';
+  tiles.forEach(t => {
+    const x = cx + t.x, y = cy + t.y, it = c.tiles[t.key];
+    s += '<polygon points="' + hexPoints(x, y, 33, 9) + '" fill="#b98b5e"/>';
+    s += '<polygon class="tile" data-act="city-tile" data-k="' + t.key + '" points="' + hexPoints(x, y, 33, 0) + '" fill="' + (it ? "#a8d88a" : "#c3e6a5") + '" stroke="#8cbf6e" stroke-width="1.2"/>';
+    if (!it) s += '<text x="' + x + '" y="' + (y + 4) + '" text-anchor="middle" font-size="14" fill="#7aa95f" pointer-events="none">+</text>';
+  });
+  tiles.forEach(t => {
+    const x = cx + t.x, y = cy + t.y + 6, it = c.tiles[t.key];
+    if (!it) return;
+    const kind = it.b || it.d;
+    s += '<g pointer-events="none">' + buildingSVG(kind, x, y, it.b && it.b !== "park" && !fed) + "</g>";
+  });
+  /* residents stand beside their home; the ones with a question show a bubble you can tap */
+  c.residents.forEach((p, i) => {
+    const t = tiles.find(z => z.key === p.home); if (!t) return;
+    const x = cx + t.x + (i % 2 ? 16 : -16), y = cy + t.y + 14;
+    s += '<g pointer-events="none">' + personSVG(x, y, p.color, .9) + "</g>";
+    const req = c.day.requests.find(q => q.who === i && q.status === "open");
+    if (req) s += '<g class="req-bubble" data-act="city-req" data-id="' + req.id + '"><circle cx="' + x + '" cy="' + (y - 30) + '" r="9" fill="#fff" stroke="#E57373" stroke-width="2"/><text x="' + x + '" y="' + (y - 26) + '" text-anchor="middle" font-size="12" font-weight="800" fill="#E57373">!</text></g>';
+  });
+  s += '<g transform="translate(' + (cx - 26) + " " + (cy + (c.level >= 2 ? 90 : 62)) + ')" pointer-events="none">' + avatarSVG(c.avatar, 52).replace("<svg ", '<svg x="0" y="-40" ') + "</g>";
+  return s + "</svg>";
+}
+
+/* ---------- screen ---------- */
+function renderCity(){
+  const c = city(), food = c.food, n = c.residents.length;
+  const open = c.day.requests.filter(q => q.status === "open").length;
+  let html = '<section class="card city-card"><div class="row between" style="align-items:center"><div><div class="label">我的城市</div><h2 style="margin:0">' + (n ? n + " 位居民" : "空空的小島") + "</h2></div>" +
+    '<div class="row" style="gap:6px"><span class="city-stat">糧食 <b>' + food + '</b></span><span class="coins"><img class="coin-icon" src="' + COIN_IMG + '" alt=""><b>' + wallet().balance.toLocaleString() + "</b></span></div></div>" +
+    islandSVG(c) +
+    '<div class="row city-actions"><button class="btn soft" data-act="city-sheet" data-s="shop">商店</button><button class="btn soft" data-act="city-sheet" data-s="avatar">裝扮</button><button class="btn soft" data-act="city-sheet" data-s="bag">背包</button></div></section>';
+  html += '<section class="card"><div class="label">今天的居民請求</div>';
+  if (!n) html += '<p class="muted" style="margin:0">點島上的空地蓋一間小屋，就會有居民搬進來。</p>';
+  else if (!c.day.fed){
+    html += '<p class="muted" style="margin:0">先發放糧食，居民吃飽了才會用英文來找你幫忙。今天需要 <b>' + n + "</b> 份糧食。</p>" +
+      (S.err.city ? '<div class="err">' + esc(S.err.city) + "</div>" : "") +
+      '<button class="btn green block" data-act="city-feed"' + (S.busy.city ? " disabled" : "") + ">" + (S.busy.city ? '<span class="spinner"></span>居民在想要問什麼…' : (food >= n ? "發放糧食（" + n + " 份）" : "糧食不夠，去商店買")) + "</button>";
+  } else {
+    html += c.day.requests.length ? '<div class="stack">' + c.day.requests.map(q => {
+      const p = c.residents[q.who] || {name:"居民", color:"#999"};
+      return '<button class="day-row" data-act="city-req" data-id="' + q.id + '"><span class="d"><b>' + esc(p.name) + '</b><span>' + (q.type === "choice" ? "選擇題" : "回答") + '</span></span><span class="t"><div class="en">' + esc(q.say) + '</div></span><span class="status' + (q.status === "done" ? " read" : "") + '">' + (q.status === "open" ? "去幫忙" : q.status === "done" ? "已幫忙" : "下次加油") + "</span></button>";
+    }).join("") + "</div>" : '<p class="muted" style="margin:0">今天沒有請求了。</p>';
+    html += '<p class="small muted" style="margin:0">' + (open ? "還有 " + open + " 個請求。答對會拿到隨機禮物！" : "今天的請求都處理完了，明天再來。") + "</p>";
+  }
+  return html + "</section>";
+}
+
+/* ---------- sheets ---------- */
+function cityOpen(o){ S.sheet = Object.assign({kind:"city"}, o); $("#sheet").hidden = false; drawSheet(); }
+function citySheetHTML(o){
+  const c = city(), bal = wallet().balance;
+  const head = t => '<div class="sh-head"><div class="sh-word phrase" style="flex:1;min-width:0">' + t + '</div><button class="icon-btn" data-act="close-sheet" aria-label="關閉">×</button></div>';
+  if (o.s === "build"){
+    return head("在這裡蓋什麼？") + '<div class="stack">' + Object.entries(CITY_BUILDINGS).map(([k, b]) =>
+      '<button class="menu-row" data-act="city-build" data-b="' + k + '"' + (bal < b.price ? " disabled" : "") + '><span><b>' + b.name + '</b><span class="small muted">' + b.desc + '</span></span><span class="price"><img class="coin-icon" src="' + COIN_IMG + '" alt="">' + b.price + "</span></button>").join("") +
+      (c.owned.deco.length ? '<div class="label" style="margin-top:6px">背包裡的裝飾（免費放）</div>' + [...new Set(c.owned.deco)].map(d => '<button class="menu-row" data-act="city-deco" data-d="' + d + '"><span><b>' + CITY_DECOS[d] + "</b></span><span>放這裡</span></button>").join("") : "") + "</div>";
+  }
+  if (o.s === "tile"){
+    const it = c.tiles[o.k] || {}, kind = it.b || it.d;
+    const who = c.residents.filter(p => p.home === o.k).map(p => p.name).join("、");
+    return head(it.b ? CITY_BUILDINGS[it.b].name : CITY_DECOS[it.d]) + '<p class="muted" style="margin:0">' + (who ? "住在這裡：" + esc(who) : "島上的裝飾") + "</p>" +
+      '<button class="btn ghost block" data-act="city-move" data-k="' + o.k + '">' + (it.d ? "收回背包" : "拆掉（不退金幣）") + "</button>";
+  }
+  if (o.s === "shop"){
+    return head("商店") + '<div class="stack">' +
+      '<div class="label">糧食</div><button class="menu-row" data-act="city-food"' + (bal < CITY_FOOD.price ? " disabled" : "") + '><span><b>一箱糧食 × ' + CITY_FOOD.n + '</b><span class="small muted">現在有 ' + c.food + ' 份・每位居民一天吃 1 份</span></span><span class="price"><img class="coin-icon" src="' + COIN_IMG + '" alt="">' + CITY_FOOD.price + "</span></button>" +
+      '<div class="label">建築</div><p class="small muted" style="margin:0">點島上的空地就能選建築來蓋。</p>' +
+      (c.level < 2 ? '<div class="label">擴建</div><button class="menu-row" data-act="city-expand"' + (bal < CITY_EXPAND ? " disabled" : "") + '><span><b>擴建小島</b><span class="small muted">從 7 塊地變成 19 塊</span></span><span class="price"><img class="coin-icon" src="' + COIN_IMG + '" alt="">' + CITY_EXPAND + "</span></button>" : "") +
+      "</div>";
+  }
+  if (o.s === "avatar"){
+    let html = head("裝扮") + '<div class="avatar-big">' + avatarSVG(c.avatar, 120) + "</div>";
+    Object.entries(CITY_PARTS).forEach(([slot, def]) => {
+      html += '<div class="label">' + def.label + '</div><div class="row wrap">' + Object.entries(def.items).map(([k, name]) => {
+        const own = c.owned[slot].includes(k), on = c.avatar[slot] === k, price = CITY_PART_PRICE[k];
+        if (own) return '<button class="chip pick' + (on ? " on" : "") + '" data-act="city-wear" data-slot="' + slot + '" data-k="' + k + '">' + name + "</button>";
+        if (price) return '<button class="chip buy" data-act="city-buypart" data-slot="' + slot + '" data-k="' + k + '"' + (bal < price ? " disabled" : "") + ">" + name + ' <img class="coin-icon" src="' + COIN_IMG + '" alt="">' + price + "</button>";
+        return '<span class="chip locked">' + name + (CITY_RARE.has(k) ? "・稀有" : "") + "・禮物限定</span>";
+      }).join("") + "</div>";
+    });
+    return html;
+  }
+  if (o.s === "bag"){
+    const decos = c.owned.deco.reduce((m, d) => (m[d] = (m[d] || 0) + 1, m), {});
+    return head("背包") + '<div class="stack">' +
+      '<div class="label">學習雙倍卡</div><div class="menu-row"><span><b>' + c.boosts.double + ' 張</b><span class="small muted">' + (c.boosts.active ? "使用中：接下來 " + c.boosts.active + " 次練習的金幣加倍" : "用了之後，接下來 3 次練習（讀文章、造句、聊天）拿到的金幣加倍") + "</span></span>" +
+        '<button class="btn sm" data-act="city-useboost"' + (!c.boosts.double ? " disabled" : "") + ">使用</button></div>" +
+      '<div class="label">裝飾</div>' + (Object.keys(decos).length ? Object.entries(decos).map(([d, n]) => '<div class="menu-row"><span><b>' + CITY_DECOS[d] + (CITY_RARE.has(d) ? "（稀有）" : "") + "</b><span class=\"small muted\">" + n + " 個・點島上的空地放上去</span></span></div>").join("") : '<p class="small muted" style="margin:0">幫居民解決請求，有機會拿到裝飾。</p>') +
+      "</div>";
+  }
+  if (o.s === "req"){
+    const q = c.day.requests.find(x => x.id === o.id); if (!q) return head("請求") + '<p class="muted">這個請求不見了。</p>';
+    const p = c.residents[q.who] || {name:"居民", color:"#999"};
+    let html = head(esc(p.name) + " 想請你幫忙") + '<div class="ex-box"><span class="en" data-ctx="creq-' + q.id + '">' + tapText(q.say, "creq-" + q.id) + ' <button class="btn ghost sm" style="padding:2px 6px;min-height:0;vertical-align:middle" data-act="say" data-text="' + esc(q.say) + '" aria-label="朗讀">' + ICON.speaker.replace("<svg", '<svg width="16" height="16"') + "</button></span>" + (q.question_zh ? '<span class="zh">' + esc(q.question_zh) + "</span>" : "") + "</div>";
+    if (q.status === "open"){
+      if (q.type === "choice") html += '<div class="stack">' + q.options.map((t, i) => '<button class="menu-row" data-act="city-answer" data-id="' + q.id + '" data-i="' + i + '"><span class="en">' + esc(t) + "</span></button>").join("") + "</div>";
+      else html += '<textarea class="input" id="city-ans" rows="2" placeholder="用英文回答（一個單字或一句話都可以）">' + esc(o.draft || "") + '</textarea>' +
+        (S.busy.cityAns ? '<button class="btn block" disabled><span class="spinner"></span>檢查中…</button>' : '<button class="btn green block" data-act="city-answer" data-id="' + q.id + '">送出</button>');
+      if (o.msg) html += '<div class="note warn">' + esc(o.msg) + "</div>";
+    } else {
+      html += '<div class="note ' + (q.status === "done" ? "ok" : "warn") + '">' + (q.status === "done" ? "答對了！" : "這次沒答對。") + (q.better ? " 參考答案：<b>" + esc(q.better) + "</b>" : "") + "</div>" +
+        (q.explain_zh ? '<p class="small" style="margin:0">' + esc(q.explain_zh) + "</p>" : "") +
+        (q.gift ? '<div class="gift">拿到禮物：<b>' + esc(q.gift) + "</b></div>" : "");
+    }
+    return html;
+  }
+  return head("我的城市");
+}
+
+/* ---------- requests ---------- */
+function cityReqPrompt(n){
+  const w = curWeek(), words = w ? w.words.map(x => x.en).join(", ") : "";
+  return [
+    "You write tiny English tasks for a cozy island town game. Residents ask the player for help in English.",
+    "The player is an adult learner in Taiwan at level " + levelText() + ". Match that level.",
+    words ? "When it fits naturally, use some of these words the player is studying: " + words + "." : "",
+    "Write " + n + " requests, mixing two kinds:",
+    '- "choice": the resident says one everyday line; the player picks the one grammatically correct sentence out of 3 (the other two have one typical learner mistake each, e.g. "I standardly need a cup of coffee." vs "I usually need a cup of coffee.").',
+    '- "free": the resident asks for something or asks a question (e.g. "I\'m looking for a tool to fix my bike."); the player answers with an English word or a short sentence.',
+    "Reply with only JSON. Chinese in Traditional Chinese (Taiwan). Keep every English line under 15 words.",
+    '{"requests":[{"type":"choice","say":"<what the resident says>","question_zh":"<the task in Chinese, e.g. 哪一句文法正確？>","options":["...","...","..."],"answer":1,"explain_zh":"<why, one short sentence>"},' +
+    '{"type":"free","say":"<the resident\'s request or question>","question_zh":"<what to answer, in Chinese>","answers":["<short correct answers, e.g. wrench>","<a full sentence, e.g. Here is a wrench.>"],"explain_zh":"<one short sentence>"}]}'
+  ].filter(Boolean).join("\n");
+}
+function cityJudgePrompt(q, answer){
+  return [
+    "A resident in an English-learning game said: \"" + q.say + "\" Task: " + (q.question_zh || "respond") + ".",
+    "Good answers include: " + (q.answers || []).join(" / "),
+    "The player (level " + levelText() + ") answered: \"" + answer + "\"",
+    "Accept any answer that fits and is understandable, even with small mistakes.",
+    'Reply with only JSON, Chinese in Traditional Chinese (Taiwan): {"ok":true,"better":"<a natural way to say it>","explain_zh":"<one short sentence>"}'
+  ].join("\n");
+}
+async function cityFeed(){
+  const c = city(), n = c.residents.length;
+  if (!n || c.day.fed || S.busy.city) return;
+  if (c.food < n){ cityOpen({s:"shop"}); toast("糧食不夠了，先買一箱吧。"); return; }
+  S.busy.city = true; S.err.city = ""; render();
+  try {
+    const want = Math.min(3, n);
+    const r = await aiJson("talk", cityReqPrompt(want), {cache:false});
+    const list = (r && Array.isArray(r.requests) ? r.requests : []).filter(q => q && q.say && (q.type === "choice" ? Array.isArray(q.options) && q.options.length >= 2 : true)).slice(0, want);
+    if (!list.length) throw {code:"invalid_json"};
+    const order = c.residents.map((_, i) => i).sort(() => Math.random() - .5);
+    c.food -= n; c.day.fed = true;
+    c.day.requests = list.map((q, i) => ({id:Date.now().toString(36) + i, who:order[i % order.length], type:q.type === "choice" ? "choice" : "free",
+      say:String(q.say), question_zh:String(q.question_zh || ""), options:(q.options || []).map(String), answer:Number(q.answer) || 0,
+      answers:(q.answers || []).map(String), explain_zh:String(q.explain_zh || ""), status:"open", tries:0}));
+    saveCity();
+  } catch (e) { S.err.city = aiErr(e); }
+  S.busy.city = false; render();
+}
+function cityGift(){
+  const c = city(), roll = Math.random();
+  const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+  const rarePick = (keys) => { const common = keys.filter(k => !CITY_RARE.has(k)), rare = keys.filter(k => CITY_RARE.has(k)); return rare.length && Math.random() < .15 ? pick(rare) : pick(common); };
+  c.giftsGot = (c.giftsGot || 0) + 1;
+  if (roll < .4){
+    const slot = pick(Object.keys(CITY_PARTS));
+    const k = rarePick(Object.keys(CITY_PARTS[slot].items).filter(x => x !== "none" && x !== "tee"));
+    const name = CITY_PARTS[slot].items[k];
+    if (c.owned[slot].includes(k)){ earn(20, "城市禮物（重複的" + name + "換成金幣）"); return name + "（已經有了，換成 20 金幣）"; }
+    c.owned[slot].push(k); return (CITY_RARE.has(k) ? "稀有裝扮：" : "裝扮：") + name;
+  }
+  if (roll < .7){ const d = rarePick(Object.keys(CITY_DECOS)); c.owned.deco.push(d); return (CITY_RARE.has(d) ? "稀有建築裝飾：" : "建築裝飾：") + CITY_DECOS[d]; }
+  c.boosts.double += 1; return "學習雙倍卡 × 1";
+}
+async function cityAnswer(el){
+  const c = city(), q = c.day.requests.find(x => x.id === el.dataset.id);
+  if (!q || q.status !== "open") return;
+  let ok = false;
+  if (q.type === "choice"){
+    ok = Number(el.dataset.i) === q.answer;
+    q.better = q.options[q.answer];
+  } else {
+    const box = $("#city-ans"), ans = (box ? box.value : "").trim();
+    if (!ans){ toast("先用英文寫一點再送出。"); return; }
+    const norm = t => t.toLowerCase().replace(/[^a-z' ]/g, " ").replace(/\s+/g, " ").trim();
+    if ((q.answers || []).some(a => norm(a) && (" " + norm(ans) + " ").includes(" " + norm(a) + " "))){ ok = true; q.better = q.answers[q.answers.length - 1] || ""; }
+    else {
+      S.busy.cityAns = true; S.sheet.draft = ans; drawSheet();
+      try {
+        const r = await aiJson("review", cityJudgePrompt(q, ans), {cache:false});
+        ok = !!(r && r.ok); q.better = String((r && r.better) || q.answers[0] || ""); if (r && r.explain_zh) q.explain_zh = String(r.explain_zh);
+      } catch (e) { S.busy.cityAns = false; S.sheet.msg = aiErr(e); drawSheet(); return; }
+      S.busy.cityAns = false;
+    }
+    q.tries = (q.tries || 0) + 1;
+    if (!ok && q.tries < 2){ S.sheet.msg = "差一點！再試一次。"; S.sheet.draft = ans; saveCity(); drawSheet(); return; }
+  }
+  q.status = ok ? "done" : "failed";
+  if (ok){ q.gift = cityGift(); logActivity("practice"); }
+  saveCity(); S.sheet.msg = ""; drawSheet(); render();
+  if (ok) toast("拿到禮物：" + q.gift);
 }
 
 /* ---------- onboarding ---------- */
@@ -1744,7 +2069,7 @@ function renderHome(){
     if (dayIdx(w) < 0) html += '<section class="card"><div class="label">準備好了</div><h2>' + md(w.monday) + "（週一）正式開始第 " + w.n + " 週</h2>" +
       '<p class="muted" style="margin:0">不用等，今天就可以到「學習進度」先讀第一篇。</p></section>';
   }
-  return html + lisaCardHTML(w) + cityCardHTML();
+  return html + lisaCardHTML(w);
 }
 function chatChecklistHTML(w, conv, d){
   const rev = revealedFor(w, d), P = weekPats(w);
@@ -2280,6 +2605,7 @@ function drawSheet(){
   const o = S.sheet; if (!o) return;
   $("#sheet-card").setAttribute("aria-label", o.kind === "theme" ? "選主題" : "單字解釋");
   if (o.kind === "theme"){ $("#sheet-card").innerHTML = themeSheetHTML(); return; }
+  if (o.kind === "city"){ $("#sheet-card").setAttribute("aria-label", "我的城市"); $("#sheet-card").innerHTML = citySheetHTML(o); return; }
 
   const d = o.data;
   const head = d.lemma || d.en || d.word;
@@ -2607,13 +2933,13 @@ function sayPara(btn){
 async function resetAll(){
   if (!(await confirmBox("全部重來？", "所有週次、文章、對話和收藏的單字都會刪除，無法復原。", "刪除並重來", true))) return;
   try {
-    for (const kind of ["art","conv","chat","week","word","log","wallet"]){
+    for (const kind of ["art","conv","chat","week","word","log","wallet","city"]){
       const docs = await Store.list(kind);
       for (const d of docs) await Store.del(d._id);
     }
     await Store.del("profile");
   } catch (e) { toast("刪除時出了問題，請再試一次。"); return; }
-  S.profile = null; S.weeks = {}; S.arts = {}; S.convs = {}; S.chats = {}; S.bank = {}; S.log = {kind:"log", days:{}}; S.wallet = newWallet(); S.onb = {step:0, stage:0}; S.pick = null;
+  S.profile = null; S.weeks = {}; S.arts = {}; S.convs = {}; S.chats = {}; S.bank = {}; S.city = null; S.log = {kind:"log", days:{}}; S.wallet = newWallet(); S.onb = {step:0, stage:0}; S.pick = null;
   render();
 }
 async function testProvider(p){
@@ -2635,6 +2961,9 @@ function newWallet(){ return {kind:"wallet", balance:0, earned:0, spent:0, ledge
 function wallet(){ if (!S.wallet) S.wallet = newWallet(); return S.wallet; }
 /* Adds coins (within today's cap), records why, saves, and shows a "+N" pop. Returns what was given. */
 function earn(amount, reason){
+  if (S.city && S.city.boosts && S.city.boosts.active > 0 && !/^城市/.test(reason) && amount > 0){
+    amount *= 2; reason += "（雙倍卡）"; S.city.boosts.active--; Store.set("city", S.city).catch(() => {});
+  }
   const W = wallet(), d = todayStr(), got = W.daily[d] || 0;
   const give = Math.max(0, Math.min(amount, DAILY_COIN_CAP - got));
   if (!give){ if (amount > 0) toast("今天的金幣已經拿滿 " + DAILY_COIN_CAP + " 了，明天再來！"); return 0; }
@@ -2735,6 +3064,7 @@ function buildProgressFile(){
     summary:progressStats(), profile, weeks, daily,
     log:clone(S.log || {kind:"log", days:{}}),
     wallet:clone(wallet()),
+    city:S.city ? clone(S.city) : null,
     savedWords:Object.keys(S.bank).map(id => Object.assign({id}, clone(S.bank[id])))
   };
 }
@@ -2782,7 +3112,7 @@ function readProgressFile(d){
     (d.weeks || []).forEach(w => { const c = w.conversation; const ww = Object.assign({}, w); delete ww.conversation; delete ww.chats; weeks.push(ww); if (c) convs.push(c); (w.chats || []).forEach(x => chats.push(x)); });
     (d.daily || []).forEach(g => (g.articles || []).forEach(a => arts.push(a)));
     const words = (d.savedWords || []).map(x => { const y = Object.assign({}, x); const id = y.id || slug(y.en || "w"); delete y.id; return [id, y]; });
-    return {profile:d.profile, weeks, convs, chats, arts, words, log:d.log, wallet:d.wallet, exportedAt:d.exportedAt};
+    return {profile:d.profile, weeks, convs, chats, arts, words, log:d.log, wallet:d.wallet, city:d.city, exportedAt:d.exportedAt};
   }
   if (d && d.profile && d.weeks && !d.format){
     return {profile:d.profile, weeks:Object.values(d.weeks), convs:Object.values(d.conversations || {}), arts:Object.values(d.articles || {}), words:Object.entries(d.savedWords || {}), log:null, exportedAt:d.exportedAt};
@@ -2804,7 +3134,7 @@ async function importProgress(file){
   ].join("・") + (when && !isNaN(when) ? "（" + (when.getMonth() + 1) + "/" + when.getDate() + " 匯出）" : "");
   if (!(await confirmBox("匯入這個進度檔？", sum + "。匯入後，這支手機目前的進度會被取代，無法復原。API Key 不在進度檔裡，會保留這支手機上的設定。", "匯入並取代", true))) return;
   try {
-    for (const kind of ["art","conv","chat","week","word","log","wallet"]) for (const x of await Store.list(kind)) await Store.del(x._id);
+    for (const kind of ["art","conv","chat","week","word","log","wallet","city"]) for (const x of await Store.list(kind)) await Store.del(x._id);
     const prof = Object.assign({}, p.profile, {kind:"profile"});
     if (when && !isNaN(when)) prof.lastExportAt = when.getTime();
     await Store.set("profile", prof);
@@ -2815,6 +3145,7 @@ async function importProgress(file){
     for (const [id, x] of p.words) await Store.set("word-" + slug(id), Object.assign({}, x, {kind:"word"}));
     await Store.set("log", Object.assign({days:{}}, p.log || {}, {kind:"log"}));
     await Store.set("wallet", Object.assign(newWallet(), p.wallet || {}, {kind:"wallet"}));
+    if (p.city) await Store.set("city", Object.assign(newCity(), p.city, {kind:"city"}));
   } catch (e) { toast("匯入時出了問題，請再試一次。"); return; }
   S.profile = null; await loadAll();
   toast("匯入完成，歡迎回來！"); go("home");
@@ -2902,6 +3233,47 @@ const ACT = {
   "week-word": el => { const w = S.weeks[Number(el.dataset.n)]; const info = w && w.words[Number(el.dataset.i)]; if (info) openSheet({state:"ready", sentence:"", pat:null, data:Object.assign({word:info.en, lemma:info.en}, info)}); },
   "bank-word": el => { const x = S.bank[el.dataset.id]; if (x) openSheet({state:"ready", sentence:x.sentence || "", pat:null, data:Object.assign({word:x.en, lemma:x.en}, x)}); },
   "close-sheet": () => closeSheet(),
+  "city-tile": el => { const c = city(), k = el.dataset.k; cityOpen(c.tiles[k] ? {s:"tile", k} : {s:"build", k}); },
+  "city-sheet": el => cityOpen({s:el.dataset.s}),
+  "city-req": el => cityOpen({s:"req", id:el.dataset.id}),
+  "city-feed": () => cityFeed(),
+  "city-answer": el => cityAnswer(el),
+  "city-build": el => {
+    const c = city(), o = S.sheet, b = CITY_BUILDINGS[el.dataset.b]; if (!o || !b || c.tiles[o.k]) return;
+    if (!spend(b.price, "城市：蓋" + b.name)){ toast("金幣不夠，多練習幾篇再來。"); return; }
+    c.tiles[o.k] = {b:el.dataset.b};
+    const used = new Set(c.residents.map(p => p.name));
+    for (let i = 0; i < b.residents; i++){
+      const free = CITY_NAMES.filter(n => !used.has(n)), name = free.length ? free[Math.floor(Math.random() * free.length)] : "Kai" + c.residents.length;
+      used.add(name); c.residents.push({name, color:CITY_COLORS[c.residents.length % CITY_COLORS.length], home:o.k});
+    }
+    saveCity(); closeSheet(); render(); toast(b.name + "蓋好了" + (b.residents ? "，" + b.residents + " 位居民搬進來！" : "！"));
+  },
+  "city-deco": el => {
+    const c = city(), o = S.sheet, d = el.dataset.d, i = c.owned.deco.indexOf(d); if (!o || i < 0 || c.tiles[o.k]) return;
+    c.owned.deco.splice(i, 1); c.tiles[o.k] = {d}; saveCity(); closeSheet(); render();
+  },
+  "city-move": el => {
+    const c = city(), k = el.dataset.k, it = c.tiles[k]; if (!it) return;
+    if (it.d) c.owned.deco.push(it.d);
+    else {
+      /* residents who lived here move out; requests pointing at them are dropped */
+      const gone = c.residents.map((p, i) => p.home === k ? i : -1).filter(i => i >= 0);
+      c.day.requests = c.day.requests.filter(q => !gone.includes(q.who)).map(q => Object.assign(q, {who:q.who - gone.filter(g => g < q.who).length}));
+      c.residents = c.residents.filter(p => p.home !== k);
+    }
+    delete c.tiles[k]; saveCity(); closeSheet(); render();
+  },
+  "city-food": () => { const c = city(); if (!spend(CITY_FOOD.price, "城市：買糧食")){ toast("金幣不夠。"); return; } c.food += CITY_FOOD.n; saveCity(); drawSheet(); render(); toast("買了 " + CITY_FOOD.n + " 份糧食"); },
+  "city-expand": () => { const c = city(); if (c.level >= 2) return; if (!spend(CITY_EXPAND, "城市：擴建小島")){ toast("金幣不夠。"); return; } c.level = 2; saveCity(); closeSheet(); render(); toast("小島變大了！"); },
+  "city-wear": el => { const c = city(); c.avatar[el.dataset.slot] = el.dataset.k; saveCity(); drawSheet(); render(); },
+  "city-buypart": el => {
+    const c = city(), slot = el.dataset.slot, k = el.dataset.k, price = CITY_PART_PRICE[k];
+    if (!price || c.owned[slot].includes(k)) return;
+    if (!spend(price, "城市：買" + CITY_PARTS[slot].items[k])){ toast("金幣不夠。"); return; }
+    c.owned[slot].push(k); c.avatar[slot] = k; saveCity(); drawSheet(); render();
+  },
+  "city-useboost": () => { const c = city(); if (!c.boosts.double) return; c.boosts.double--; c.boosts.active = (c.boosts.active || 0) + 3; saveCity(); drawSheet(); toast("雙倍卡啟用！接下來 3 次練習的金幣加倍。"); },
   "lookup-retry": () => { const o = S.sheet; if (o){ o.state = "loading"; drawSheet(); lookupWord(o); } },
   "star": () => toggleStar(),
   "tr-sent": () => translateSentence(),
@@ -2988,7 +3360,7 @@ document.addEventListener("keydown", e => {
 });
 window.addEventListener("hashchange", () => {
   const v = location.hash.slice(1);
-  if (S.profile && ["learn","home","talk","words","prefs"].includes(v) && v !== S.view){ if (S.reader) closeReader(); S.view = v; render(); }
+  if (S.profile && ["learn","home","city","talk","words","prefs"].includes(v) && v !== S.view){ if (S.reader) closeReader(); S.view = v; render(); }
 });
 
 /* =========================================================
@@ -3007,6 +3379,7 @@ async function loadAll(){
   S.convs = {}; convs.forEach(c => { delete c._id; S.convs[c.week] = c; });
   S.bank = {}; words.forEach(x => { const id = x._id.replace(/^word-/, ""); delete x._id; S.bank[id] = x; });
   S.log = (await Store.get("log")) || {kind:"log", days:{}};
+  S.city = Object.assign(newCity(), (await Store.get("city")) || {});
   S.wallet = Object.assign(newWallet(), (await Store.get("wallet")) || {});
   if (!S.log.days) S.log.days = {};
   if (!S.weeks[p.currentWeek]){ const ns = Object.keys(S.weeks).map(Number); p.currentWeek = ns.length ? Math.max.apply(null, ns) : 0; }
@@ -3014,7 +3387,7 @@ async function loadAll(){
 }
 async function boot(){
   const v = location.hash.slice(1);
-  if (["learn","home","talk","words","prefs"].includes(v)) S.view = v;
+  if (["learn","home","city","talk","words","prefs"].includes(v)) S.view = v;
   S.mode = lsOk() ? "local" : "memory";
   try { await loadAll(); } catch (e) {}
   render();
