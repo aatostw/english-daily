@@ -216,6 +216,7 @@ label.btn{cursor:pointer}
 .switch[aria-checked="true"]{background:var(--green)}
 .switch[aria-checked="true"] span{left:25px}
 .know{display:flex;flex-direction:column;gap:6px}
+.harvest{align-items:center;gap:8px;padding:8px 12px;border-radius:12px;background:#F4F8EC}
 .know-bar{height:8px}
 .know-bar span{background:#7E57C2 !important}
 .locked-row{opacity:.6}
@@ -1631,10 +1632,11 @@ function go(view){
    good answers give random gifts (outfit parts, decorations, double-coin cards).
    ========================================================= */
 const CITY_BUILDINGS = {
-  house:{name:"小屋", price:80, residents:2, desc:"住 2 位居民"},
-  cafe:{name:"咖啡店", price:120, residents:1, desc:"老闆 1 位"},
-  bakery:{name:"麵包店", price:120, residents:1, desc:"老闆 1 位", unlock:"bakery"},
-  books:{name:"書店", price:150, residents:1, desc:"老闆 1 位", unlock:"books"},
+  house:{name:"小屋", price:80, residents:2, desc:"住 2 位居民・可升到 Lv3", grow:[2, 3, 4]},
+  road:{name:"道路", price:10, residents:0, desc:"旁邊的店多產 1 份糧食，旁邊的房子每天多 1 個請求"},
+  cafe:{name:"咖啡店", price:120, residents:1, desc:"老闆 1 位・每天產 2 份糧食", make:[2, 4, 7]},
+  bakery:{name:"麵包店", price:120, residents:1, desc:"老闆 1 位・每天產 2 份糧食", unlock:"bakery", make:[2, 4, 7]},
+  books:{name:"書店", price:150, residents:1, desc:"老闆 1 位・每天產 2 份糧食", unlock:"books", make:[2, 4, 7]},
   clinic:{name:"診所", price:180, residents:1, desc:"醫生 1 位", unlock:"clinic"},
   park:{name:"小公園", price:60, residents:0, desc:"讓島上更漂亮"}
 };
@@ -1684,8 +1686,27 @@ function city(){
   if (!S.city) S.city = newCity();
   const c = S.city, t = todayStr();
   if (c.day.date !== t) c.day = {date:t, fed:false, requests:[]};
+  /* shops make food once a day; it waits in the shop (up to 2 days' worth) until you harvest */
+  if (!c.prod) c.prod = {date:t, store:0};
+  if (c.prod.date !== t){
+    const days = Math.max(0, Math.min(2, diffDays(c.prod.date, t))), daily = cityDaily(c);
+    c.prod = {date:t, store:Math.min(daily * 2, (c.prod.store || 0) + daily * days)};
+  }
   return c;
 }
+/* ---------- levels, roads and food from shops ---------- */
+const CITY_DIRS = [[1, 0], [1, -1], [0, -1], [-1, 0], [-1, 1], [0, 1]];
+function tileLv(it){ return (it && it.lv) || 1; }
+function cityNear(k){ const [q, r] = k.split(",").map(Number); return CITY_DIRS.map(([a, b]) => (q + a) + "," + (r + b)); }
+function onRoad(c, k){ return cityNear(k).some(n => c.tiles[n] && c.tiles[n].b === "road"); }
+function shopMake(c, k){
+  const it = c.tiles[k], b = it && it.b && CITY_BUILDINGS[it.b];
+  return b && b.make ? b.make[tileLv(it) - 1] + (onRoad(c, k) ? 1 : 0) : 0;
+}
+function cityDaily(c){ return Object.keys(c.tiles).reduce((n, k) => n + shopMake(c, k), 0); }
+function upgradeCost(it){ const b = CITY_BUILDINGS[it.b], lv = tileLv(it); return lv >= 3 || !(b.make || b.grow) ? 0 : Math.round(b.price * (lv === 1 ? 1.5 : 2.5)); }
+function cityName(it){ return it.b ? CITY_BUILDINGS[it.b].name + (CITY_BUILDINGS[it.b].make || CITY_BUILDINGS[it.b].grow ? " Lv" + tileLv(it) : "") : CITY_DECOS[it.d]; }
+function roadHouses(c){ return Object.keys(c.tiles).filter(k => c.tiles[k].b === "house" && onRoad(c, k)).length; }
 function saveCity(){ Store.set("city", S.city).catch(() => {}); if (typeof renderCoins === "function") renderCoins(); }
 function cityTiles(c){
   const R = c.level >= 2 ? 2 : 1, out = [];
@@ -1766,10 +1787,19 @@ function islandSVG(c){
     s += '<polygon points="' + hexPoints(x, y, 33, 9) + '" fill="#b98b5e"/>';
     s += '<polygon class="tile" data-act="city-tile" data-k="' + t.key + '" points="' + hexPoints(x, y, 33, 0) + '" fill="' + (it ? "#a8d88a" : "#c3e6a5") + '" stroke="#8cbf6e" stroke-width="1.2"/>';
     if (!it) s += '<text x="' + x + '" y="' + (y + 4) + '" text-anchor="middle" font-size="14" fill="#7aa95f" pointer-events="none">+</text>';
+    if (it && it.b === "road"){
+      let links = 0;
+      CITY_DIRS.forEach(([a, b]) => {
+        const n = c.tiles[(t.q + a) + "," + (t.r + b)]; if (!n || n.b !== "road") return;
+        links++; const [nx, ny] = cityPos(t.q + a, t.r + b);
+        s += '<line x1="' + x + '" y1="' + y + '" x2="' + (cx + (t.x + nx) / 2) + '" y2="' + (cy + (t.y + ny) / 2) + '" stroke="#b7aa96" stroke-width="11" stroke-linecap="round" pointer-events="none"/>';
+      });
+      s += '<ellipse cx="' + x + '" cy="' + y + '" rx="' + (links ? 7 : 16) + '" ry="' + (links ? 4.5 : 10) + '" fill="#b7aa96" pointer-events="none"/>';
+    }
   });
   tiles.forEach(t => {
     const x = cx + t.x, y = cy + t.y + 6, it = c.tiles[t.key];
-    if (!it) return;
+    if (!it || it.b === "road") return;
     const kind = it.b || it.d;
     s += '<g pointer-events="none">' + buildingSVG(kind, x, y, it.b && it.b !== "park" && !fed) + "</g>";
   });
@@ -1793,6 +1823,7 @@ function renderCity(){
     "</div>" +
     knowBarHTML() + '<div id="city3d" class="city3d">' + islandSVG(c) + "</div>" +
     '<div class="small muted" style="text-align:center">拖曳可以轉小島，雙指縮放，點空地蓋建築</div>' +
+    harvestHTML(c) +
     '<div class="row city-actions"><button class="btn soft" data-act="city-sheet" data-s="shop">商店</button><button class="btn soft" data-act="city-sheet" data-s="avatar">裝扮</button><button class="btn soft" data-act="city-sheet" data-s="bag">背包</button></div></section>';
   html += '<section class="card"><div class="label">今天的居民請求</div>';
   if (!n) html += '<p class="muted" style="margin:0">點島上的空地蓋一間小屋，就會有居民搬進來。</p>';
@@ -1808,6 +1839,13 @@ function renderCity(){
     html += '<p class="small muted" style="margin:0">' + (open ? "還有 " + open + " 個請求。答對會拿到隨機禮物！" : "今天的請求都處理完了，明天再來。") + "</p>";
   }
   return html + "</section>";
+}
+
+function harvestHTML(c){
+  const daily = cityDaily(c); if (!daily) return "";
+  const st = c.prod.store;
+  return '<div class="harvest row between"><span class="small">商店每天產 <b>' + daily + "</b> 份糧食" + (st ? "・等你收 <b>" + st + "</b> 份" : "・明天再來收") + "</span>" +
+    (st ? '<button class="btn green sm" data-act="city-harvest">收成</button>' : "") + "</div>";
 }
 
 /* ---------- sheets ---------- */
@@ -1827,8 +1865,15 @@ function citySheetHTML(o){
   }
   if (o.s === "tile"){
     const it = c.tiles[o.k] || {}, kind = it.b || it.d;
-    const who = c.residents.filter(p => p.home === o.k).map(p => p.name).join("、");
-    return head(it.b ? CITY_BUILDINGS[it.b].name : CITY_DECOS[it.d]) + '<p class="muted" style="margin:0">' + (who ? "住在這裡：" + esc(who) : "島上的裝飾") + "</p>" +
+    const who = c.residents.filter(p => p.home === o.k).map(p => p.name).join("、"), b = it.b && CITY_BUILDINGS[it.b];
+    let info = who ? "住在這裡：" + esc(who) : it.b === "road" ? "道路會自動和旁邊的路接起來。" : b ? b.desc : "島上的裝飾";
+    if (b && b.make) info = "老闆：" + esc(who || "—") + "<br>每天產 <b>" + shopMake(c, o.k) + "</b> 份糧食" + (onRoad(c, o.k) ? "（含道路 +1）" : "，旁邊蓋道路可以多 1 份");
+    if (it.b === "house") info += "<br>" + (onRoad(c, o.k) ? "靠著道路：每天多 1 個請求" : "旁邊蓋道路，每天就多 1 個請求");
+    const cost = it.b ? upgradeCost(it) : 0, lv = tileLv(it);
+    const up = cost ? '<button class="menu-row" data-act="city-upgrade" data-k="' + o.k + '"' + (bal < cost ? " disabled" : "") + '><span><b>升到 Lv' + (lv + 1) + '</b><span class="small muted">' +
+      (b.make ? "每天產 " + (b.make[lv] + (onRoad(c, o.k) ? 1 : 0)) + " 份糧食" : "多 1 位居民搬進來") + '</span></span><span class="price"><img class="coin-icon" src="' + COIN_IMG + '" alt="">' + cost + "</span></button>"
+      : (b && (b.make || b.grow) ? '<p class="small muted" style="margin:0">已經是最高等級 Lv3</p>' : "");
+    return head(cityName(it)) + '<p class="muted" style="margin:0">' + info + "</p>" + up +
       '<button class="btn ghost block" data-act="city-move" data-k="' + o.k + '">' + (it.d ? "收回背包" : "拆掉（不退金幣）") + "</button>";
   }
   if (o.s === "shop"){
@@ -1909,7 +1954,7 @@ async function cityFeed(){
   if (c.food < n){ cityOpen({s:"shop"}); toast("糧食不夠了，先買一箱吧。"); return; }
   S.busy.city = true; S.err.city = ""; render();
   try {
-    const want = Math.min(3, n);
+    const want = Math.min(n, 5, 3 + roadHouses(c));
     const r = await aiJson("talk", cityReqPrompt(want), {cache:false});
     const list = (r && Array.isArray(r.requests) ? r.requests : []).filter(q => q && q.say && (q.type === "choice" ? Array.isArray(q.options) && q.options.length >= 2 : true)).slice(0, want);
     if (!list.length) throw {code:"invalid_json"};
@@ -2074,8 +2119,9 @@ const City3D = {
     tiles.forEach(([q, r]) => {
       const key = q + "," + r, [x, z] = pos(q, r), it = c.tiles[key];
       const base = new T.Mesh(new T.CylinderGeometry(.95, 1, H, 6), this.mat(0xD7C09B)); base.position.set(x, -H / 2 - .02, z); base.castShadow = base.receiveShadow = true; g.add(base);
-      const top = new T.Mesh(new T.CylinderGeometry(.93, .95, .07, 6), this.mat(it && it.b === "park" ? 0xA8CF7C : 0xF2E6CE)); top.position.set(x, .015, z); top.receiveShadow = true;
+      const top = new T.Mesh(new T.CylinderGeometry(.93, .95, .07, 6), this.mat(it && it.b === "park" ? 0xA8CF7C : it && it.b === "road" ? 0xE4D8C2 : 0xF2E6CE)); top.position.set(x, .015, z); top.receiveShadow = true;
       top.userData.key = key; g.add(top); this.pick.push(top);
+      if (it && it.b === "road"){ this.road(g, c, q, r, x, z, pos); return; }
       if (!it){
         /* an empty plot: a soft plus sign and a little bush on the edge */
         [[.36, .05], [.05, .36]].forEach(([w, d]) => { const m = new T.Mesh(new T.BoxGeometry(w, .02, d), this.mat(0xDCCBA8)); m.position.set(x, .06, z); g.add(m); });
@@ -2083,18 +2129,19 @@ const City3D = {
         return;
       }
       const bg = new T.Group(); bg.position.set(x, .05, z); bg.userData.key = key;
-      this.building(bg, it.b || it.d, win, it.b && it.b !== "park" && !c.day.fed);
+      this.building(bg, it.b || it.d, win, it.b && it.b !== "park" && !c.day.fed, tileLv(it));
       bg.traverse(m => { if (m.isMesh){ m.castShadow = true; m.receiveShadow = true; m.userData.key = key; this.pick.push(m); } });
       if (!this.known.has(key) && this.known.size){ bg.scale.setScalar(.01); this.grow.push({g:bg, t0:performance.now()}); }
       g.add(bg);
-      const name = it.b ? CITY_BUILDINGS[it.b].name : CITY_DECOS[it.d];
-      this.label(new T.Vector3(x, (it.b === "books" ? 1.3 : it.d === "lighthouse" ? 1.7 : 1)+.05, z), '<span class="lbl">' + esc(name) + "</span>");
+      const lv = tileLv(it), tall = it.b === "house" ? .3 * (lv - 1) : it.b && CITY_BUILDINGS[it.b].make ? .15 * (lv - 1) * (it.b === "books" ? 2 : 1) : 0;
+      this.label(new T.Vector3(x, (it.b === "books" ? 1.3 : it.d === "lighthouse" ? 1.7 : 1) + .05 + tall, z), '<span class="lbl">' + esc(cityName(it)) + "</span>");
     });
     this.known = new Set(Object.keys(c.tiles)); if (!this.known.size) this.known.add("_");
     /* residents beside their homes; a "!" above the ones who need you */
     c.residents.forEach((p, i) => {
       const t = tiles.find(([q, r]) => q + "," + r === p.home); if (!t) return;
-      const [x, z] = pos(t[0], t[1]), ox = (i % 2 ? .58 : -.58), oz = .45;
+      const j = c.residents.slice(0, i).filter(o => o.home === p.home).length;
+      const [x, z] = pos(t[0], t[1]), ox = [-.58, .58, -.62, .62][j % 4], oz = [.45, .45, -.05, -.05][j % 4];
       this.person(g, x + ox, z + oz, p.color, .9);
       const req = c.day.requests.find(q => q.who === i && q.status === "open");
       if (req) this.label(new T.Vector3(x + ox, .62, z + oz), '<button class="req-pin" data-act="city-req" data-id="' + req.id + '" aria-label="' + esc(p.name) + ' 的請求">!</button>', true);
@@ -2118,13 +2165,17 @@ const City3D = {
     geo.translate(0, 0, -w / 2); geo.rotateY(Math.PI / 2);
     const m = new T.Mesh(geo, this.mat(col)); m.position.y = y; parent.add(m); return m;
   },
-  building(g, type, win, dim){
+  building(g, type, win, dim, lv){
     const T = this.T, w = (x, y, z) => this.box(g, .1, .1, .02, win, x, y, z);
     const shade = dim ? {color:0xbbbbbb} : null;
+    lv = lv || 1;
     if (type === "house"){
-      this.box(g, .62, .44, .5, 0xF8F3EA, 0, .22, 0); this.roof(g, .7, .3, .62, 0xDB6A41, .44);
-      this.box(g, .12, .2, .02, 0x8A6A4A, 0, .1, .26); w(-.18, .28, .26); w(.18, .28, .26);
-      this.box(g, .08, .18, .08, 0xC8B49A, .18, .62, -.08);
+      const hh = .44 + .3 * (lv - 1);
+      this.box(g, .62, hh, .5, 0xF8F3EA, 0, hh / 2, 0); this.roof(g, .7, .3, .62, 0xDB6A41, hh);
+      this.box(g, .12, .2, .02, 0x8A6A4A, 0, .1, .26);
+      for (let f = 0; f < lv; f++){ w(-.18, .28 + .3 * f, .26); w(.18, .28 + .3 * f, .26); if (f) this.box(g, .66, .03, .54, 0xE9DFCF, 0, .44 + .3 * (f - 1) - .02, 0); }
+      this.box(g, .08, .18, .08, 0xC8B49A, .18, hh + .18, -.08);
+      if (lv >= 3) this.box(g, .2, .14, .02, 0x8CC46E, -.18, .07, .27);
       this.tree(g, -.5, 0, -.35, .7);
     } else if (type === "cafe"){
       this.box(g, .7, .4, .5, 0xF3E3CB, 0, .2, -.05); this.box(g, .74, .05, .56, 0xE7D2B3, 0, .42, -.05);
@@ -2161,7 +2212,29 @@ const City3D = {
       [.25, .65].forEach(y => { const s = new T.Mesh(new T.CylinderGeometry(.18 - y * .04, .19 - y * .04, .16, 10), this.mat(0xDB6A41)); s.position.y = y; g.add(s); });
       this.box(g, .24, .16, .24, win, 0, 1.28, 0); const cap = new T.Mesh(new T.ConeGeometry(.2, .2, 8), this.mat(0xDB6A41)); cap.position.y = 1.46; g.add(cap);
     }
+    if (lv > 1 && CITY_BUILDINGS[type] && CITY_BUILDINGS[type].make){
+      /* bigger shop: grows a little and puts a flag on top */
+      g.scale.set(1 + .08 * (lv - 1), 1 + .15 * (lv - 1), 1 + .08 * (lv - 1));
+      const top = type === "books" ? 1.02 : .5;
+      this.box(g, .015, .3, .015, 0x6b5240, .26, top + .15, -.15);
+      this.box(g, .14, .09, .01, lv >= 3 ? 0xF3CC58 : 0xDB6A41, .33, top + .25, -.15);
+    }
     if (shade) g.traverse(m => { if (m.isMesh && m.material !== win){ m.material = m.material.clone(); m.material.color.lerp(new T.Color(0x9a9a9a), .35); } });
+  },
+  road(g, c, q, r, x, z, pos){
+    /* a stone path that joins up with every road next to it */
+    const T = this.T, col = this.mat(0xB7AA96), edge = this.mat(0xD8CCB6);
+    const hub = new T.Mesh(new T.CylinderGeometry(.3, .3, .03, 6), col); hub.position.set(x, .065, z); hub.receiveShadow = true; g.add(hub);
+    let links = 0;
+    CITY_DIRS.forEach(([a, b]) => {
+      const n = c.tiles[(q + a) + "," + (r + b)]; if (!n || n.b !== "road") return;
+      links++;
+      const [nx, nz] = pos(q + a, r + b), dx = (nx - x) / 2, dz = (nz - z) / 2;
+      const seg = new T.Mesh(new T.BoxGeometry(.9, .03, .5), col); seg.position.set(x + dx / 2, .065, z + dz / 2); seg.rotation.y = Math.atan2(-dz, dx); seg.receiveShadow = true; g.add(seg);
+      const line = new T.Mesh(new T.BoxGeometry(.5, .01, .05), edge); line.position.set(x + dx / 2, .085, z + dz / 2); line.rotation.y = seg.rotation.y; g.add(line);
+    });
+    if (!links){ const pl = new T.Mesh(new T.CylinderGeometry(.55, .55, .03, 6), col); pl.position.set(x, .06, z); g.add(pl); }
+    [[.62, .3], [-.6, -.34]].forEach(([ox, oz]) => { const s = new T.Mesh(new T.IcosahedronGeometry(.07, 0), this.mat(0xC9BBA3)); s.position.set(x + ox, .09, z + oz); g.add(s); });
   },
   person(g, x, z, color, s){
     const T = this.T;
@@ -3598,11 +3671,28 @@ const ACT = {
   "city-sheet": el => cityOpen({s:el.dataset.s}),
   "city-req": el => cityOpen({s:"req", id:el.dataset.id}),
   "city-feed": () => cityFeed(),
+  "city-harvest": () => { const c = city(), n = c.prod.store; if (!n) return; c.food += n; c.prod.store = 0; saveCity(); render(); toast("收成 " + n + " 份糧食！"); },
+  "city-upgrade": el => {
+    const c = city(), k = el.dataset.k, it = c.tiles[k]; if (!it || !it.b) return;
+    const cost = upgradeCost(it), b = CITY_BUILDINGS[it.b]; if (!cost) return;
+    if (!spend(cost, "城市：升級" + b.name)){ toast("金幣不夠。"); return; }
+    it.lv = tileLv(it) + 1;
+    let moved = "";
+    if (b.grow){
+      const used = new Set(c.residents.map(p => p.name)), add = b.grow[it.lv - 1] - b.grow[it.lv - 2];
+      for (let i = 0; i < add; i++){
+        const free = CITY_NAMES.filter(n => !used.has(n)), name = free.length ? free[Math.floor(Math.random() * free.length)] : "Kai" + c.residents.length;
+        used.add(name); c.residents.push({name, color:CITY_COLORS[c.residents.length % CITY_COLORS.length], home:k}); moved = name;
+      }
+    }
+    saveCity(); drawSheet(); render(); toast(b.name + "升到 Lv" + it.lv + (moved ? "，" + moved + " 搬進來了！" : "！"));
+  },
   "city-answer": el => cityAnswer(el),
   "city-build": el => {
     const c = city(), o = S.sheet, b = CITY_BUILDINGS[el.dataset.b]; if (!o || !b || c.tiles[o.k] || (b.unlock && !knowUnlocked(b.unlock))) return;
     if (!spend(b.price, "城市：蓋" + b.name)){ toast("金幣不夠，多練習幾篇再來。"); return; }
     c.tiles[o.k] = {b:el.dataset.b};
+    if (b.make) c.prod.store += shopMake(c, o.k);   /* the first day's batch is ready right away */
     const used = new Set(c.residents.map(p => p.name));
     for (let i = 0; i < b.residents; i++){
       const free = CITY_NAMES.filter(n => !used.has(n)), name = free.length ? free[Math.floor(Math.random() * free.length)] : "Kai" + c.residents.length;
