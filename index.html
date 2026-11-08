@@ -199,6 +199,7 @@ label.btn{cursor:pointer}
 .art-more{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;border:0;background:transparent;color:var(--muted);font-family:inherit;font-weight:700;font-size:14px;padding:4px 0 0}
 .art-more:disabled{opacity:.6}
 .warn-box{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;padding:6px 6px 6px 12px;border-radius:12px;background:#fff;border:1px solid #F3C4C4;color:#D93F3F;font-size:14px;font-weight:600}
+.btn.danger-soft{background:#FDECEC;color:#C93636;box-shadow:none}
 .warn-x{flex:none;width:30px;height:30px;border:0;border-radius:50%;background:transparent;color:#D93F3F;font-size:20px;line-height:1}
 .warn-x:active{background:#FDECEC}
 .talk-row{align-items:flex-end;gap:8px;flex-wrap:nowrap}
@@ -1993,7 +1994,7 @@ function citySheetHTML(o){
         '</span></span><span class="price"><img class="coin-icon" src="' + COIN_IMG + '" alt="">' + cost + "</span></button>")
       : (b && (b.make || b.grow) ? '<p class="small muted" style="margin:0">已經是最高等級 Lv3</p>' : "");
     return head(cityName(it)) + warn + '<p class="muted" style="margin:0">' + info + "</p>" + up + turn +
-      (it.b === "hall" ? "" : '<button class="btn ghost block" data-act="city-move" data-k="' + o.k + '">' + (it.d ? "收回背包" : it.b === "road" ? "移除道路（退回 " + CITY_BUILDINGS.road.price + " 金幣）" : "拆掉（不退金幣）") + "</button>");
+      (it.b === "hall" ? "" : '<button class="btn block ' + (it.d ? "soft" : "danger-soft") + '" data-act="city-move" data-k="' + o.k + '">' + (it.d ? "收回背包" : it.b === "road" ? "移除這段道路（退回 " + CITY_BUILDINGS.road.price + " 金幣）" : "拆掉（不退金幣）") + "</button>");
   }
   if (o.s === "shop"){
     return head("商店") + '<div class="stack">' +
