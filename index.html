@@ -863,7 +863,8 @@ const TTS = {
   /* Ask the computer for every paragraph, one at a time, so reading never waits. */
   batch:0, ready:0, total:0,
   prefetchAll(texts){
-    if (!this.pcOn() || !texts || !texts.length) return;
+    if (!texts || !texts.length) return;
+    if (!this.pcOn()){ this.pocketPrefetch(texts, false); return; }
     const id = ++this.batch; this.total = texts.length; this.ready = 0; this.showPrep();
     const next = i => {
       if (id !== this.batch || i >= texts.length) return;
@@ -997,41 +998,101 @@ const TTS = {
     this.pocketVoiceId = id; this.pocketVoiceKey = key;
     return id;
   },
+  /* ---- Pre-made audio: prepare in the background, play instantly ----
+     Only one generation can run in the voice engine at a time, so jobs go through a lock.
+     Background jobs (pocketPrefetch) are stopped when you press play on something not ready yet. */
+  pocketClips:new Map(), pfQueue:[], pfRunning:null, pocketLock:Promise.resolve(), pocketSpeaking:0,
+  pocketTag(){ const w = (set().pocketVoice || {}).wavData || ""; return w ? w.length + ":" + w.slice(-24) : "default"; },
+  pocketKey(text){ return this.pocketTag() + "\u0001" + String(text).trim(); },
+  pocketWithLock(fn){
+    const run = this.pocketLock.then(fn, fn);
+    this.pocketLock = run.catch(() => {});
+    return run;
+  },
+  async pocketGenerate(text, onChunk, quiet){
+    const {tts} = await this.pocketEngine(quiet);
+    const voice = await this.pocketVoice(tts);
+    const key = this.pocketKey(text), chunks = [];
+    const m = await tts.generate(text, {voice, onChunk:(a, meta) => { chunks.push(a); if (onChunk) onChunk(a, meta); }});
+    if (m && m.rtfx > 0 && m.audioDuration > 1) this.pocketLearn(m.rtfx);
+    if (!chunks.length || (m && m.stopped)) return null;
+    this.pocketClips.delete(key); this.pocketClips.set(key, chunks);
+    while (this.pocketClips.size > 60) this.pocketClips.delete(this.pocketClips.keys().next().value);
+    return chunks;
+  },
+  pocketPrefetch(texts, first){
+    if (!this.pocketOn()) return;
+    const list = (texts || []).map(t => String(t || "").trim()).filter(t => t && !(this.pcOn() && !this.isWord(t)));
+    const add = list.filter(t => !this.pocketClips.has(this.pocketKey(t)) && !(this.pfRunning && this.pfRunning.text === t));
+    this.pfQueue = this.pfQueue.filter(t => !add.includes(t));
+    this.pfQueue = first ? add.concat(this.pfQueue) : this.pfQueue.concat(add);
+    this.pocketPump();
+  },
+  async pocketPump(){
+    if (this.pfRunning || this.pocketSpeaking) return;
+    const text = this.pfQueue.shift(); if (!text) return;
+    if (this.pocketClips.has(this.pocketKey(text))) return this.pocketPump();
+    const promise = this.pocketWithLock(() => this.pocketGenerate(text, null, true));
+    this.pfRunning = {text, promise};
+    let got = null; try { got = await promise; } catch (e) {}
+    this.pfRunning = null;
+    if (!got && this.pocketSpeaking) this.pfQueue.unshift(text);
+    this.pocketPump();
+  },
+  pocketPlayClip(player, chunks, seq, onEnd){
+    try { player.reset(); } catch (e) {}
+    player._primeSeconds = 0;
+    chunks.forEach((c, i) => player.play(c, {isLast:i === chunks.length - 1}));
+    player.flush();
+    this.pocketAfter(player, seq, onEnd);
+  },
+  pocketAfter(player, seq, onEnd){
+    if (!onEnd) return;
+    /* audio is scheduled ahead: wait until it has actually played */
+    const ctx = player.audioContext, left = ctx ? Math.max(0, (player._nextStartTime || 0) - ctx.currentTime) : 0;
+    setTimeout(() => { if (seq === this.seq) onEnd(); }, left * 1000 + 120);
+  },
   async speakPocket(text, rate, onEnd){
     const seq = ++this.seq;
+    this.pocketSpeaking++;
     try {
-      const {tts, player} = await this.pocketEngine();
-      if (seq !== this.seq) return;
-      const voice = await this.pocketVoice(tts);
-      if (seq !== this.seq) return;
       try { speechSynthesis.cancel(); } catch (e) {}
       if (this.audio){ try { this.audio.pause(); } catch (e) {} }
-      try { await tts.stop(); } catch (e) {}
+      if (this.pocketPlayer){ try { this.pocketPlayer.reset(); } catch (e) {} }
+      const {tts, player} = await this.pocketEngine();
       if (seq !== this.seq) return;
-      try { player.reset(); } catch (e) {}
       try { await player.resume(); } catch (e) {}
-      /* Buffer enough audio before playing that a slower phone never runs dry mid-sentence.
-         speed = seconds of audio made per second of work, learned from earlier sentences. */
-      const est = Math.max(0.5, String(text).length / 14), sp = this.pocketSpeed();
-      player._primeSeconds = sp >= 1.5 ? 0.4 : Math.min(est + 1, 0.4 + est * Math.max(0.1, 1.15 - sp * 0.75));
-      const m = await tts.generate(text, {voice, onChunk:(audio, meta) => { if (seq === this.seq) player.play(audio, meta); }});
-      if (m && m.rtfx > 0 && m.audioDuration > 1) this.pocketLearn(m.rtfx);
+      const key = this.pocketKey(text);
+      let chunks = this.pocketClips.get(key);
+      /* already being prepared in the background: just wait for it */
+      if (!chunks && this.pfRunning && this.pfRunning.text === String(text).trim()) chunks = await this.pfRunning.promise.catch(() => null);
       if (seq !== this.seq) return;
-      player.flush();
-      if (onEnd){
-        /* generate() finishes before the audio does: wait until the scheduled audio has played. */
-        const ctx = player.audioContext, left = ctx ? Math.max(0, (player._nextStartTime || 0) - ctx.currentTime) : 0;
-        setTimeout(() => { if (seq === this.seq) onEnd(); }, left * 1000 + 120);
-      }
+      if (chunks){ this.pocketPlayClip(player, chunks, seq, onEnd); return; }
+      /* not ready: stop background work, then make it now and play while it's being made */
+      if (this.pfRunning){ try { await tts.stop(); } catch (e) {} }
+      await this.pocketWithLock(async () => {
+        if (seq !== this.seq) return;
+        try { player.reset(); } catch (e) {}
+        const est = Math.max(0.5, String(text).length / 14), sp = this.pocketSpeed();
+        player._primeSeconds = sp >= 1.5 ? 0.4 : Math.min(est + 1, 0.4 + est * Math.max(0.1, 1.15 - sp * 0.75));
+        const got = await this.pocketGenerate(text, (a, meta) => { if (seq === this.seq) player.play(a, meta); });
+        if (seq !== this.seq) return;
+        if (!got) throw new Error("沒有產生聲音");
+        player.flush();
+        this.pocketAfter(player, seq, onEnd);
+      });
     } catch (e) {
       try { console.error("Pocket TTS", e); } catch (x) {}
       if (seq !== this.seq) return;
       const msg = String((e && (e.message || e.name)) || e || "").slice(0, 120);
       toast("手機本地語音失敗，這次改用手機內建語音。" + (msg ? "（" + msg + "）" : ""));
       this.speakBuiltin(text, rate, onEnd);
+    } finally {
+      this.pocketSpeaking--;
+      this.pocketPump();
     }
   },
-  pocketReset(){ this.pocketVoiceId = null; this.pocketVoiceKey = ""; },
+  pocketReset(){ this.pocketVoiceId = null; this.pocketVoiceKey = ""; this.pfQueue = []; },
   /* Warm up on app start so the first word doesn't wait: load the model, clone the voice
      and run one tiny silent generation. Only when the model is already saved on the phone,
      so opening the app never starts a big download on mobile data by itself. */
@@ -1040,9 +1101,8 @@ const TTS = {
       if (!/^https?:$/.test(location.protocol) || typeof caches === "undefined") return;
       const c = await caches.open("pocket-tts-js-v1");
       if (!(await c.keys()).length) return;
-      const {tts} = await this.pocketEngine(true);
-      const voice = await this.pocketVoice(tts);
-      if (this.seq === this.warmSeq) await tts.generate("Hi.", {voice, onChunk:() => {}});
+      await this.pocketEngine(true);
+      if (this.seq === this.warmSeq && !this.pfRunning) this.pocketPrefetch(["Hi."], false);
     } catch (e) {}
   },
   warmSeq:0,
@@ -1071,7 +1131,7 @@ const TTS = {
       return true;
     } catch (e) { toast("朗讀失敗，可以點「Google 翻譯」聽發音。"); return false; }
   },
-  stop(){ this.seq++; try { speechSynthesis.cancel(); } catch (e) {} if (this.audio){ try { this.audio.pause(); } catch (e) {} } if (this.pocketPlayer){ try { this.pocketPlayer.stop(); } catch (e) {} } if (this.pocketInst){ try { this.pocketInst.stop(); } catch (e) {} } }
+  stop(){ this.seq++; try { speechSynthesis.cancel(); } catch (e) {} if (this.audio){ try { this.audio.pause(); } catch (e) {} } if (this.pocketPlayer){ try { this.pocketPlayer.stop(); } catch (e) {} } }
 };
 if (TTS.ok){ TTS.load(); try { speechSynthesis.onvoiceschanged = () => { TTS.load(); if (S.view === "prefs" && S.profile) render(); }; } catch (e) {} }
 
@@ -1917,6 +1977,9 @@ function drawSheet(){
   html += '<div class="links"><a class="btn soft sm" href="' + cambridge(head) + '" target="_blank" rel="noopener">劍橋字典 ↗</a><a class="btn soft sm" href="' + gtrans(head) + '" target="_blank" rel="noopener">Google 翻譯 ↗</a>' +
     '<button class="icon-btn ' + (starred ? "on" : "") + '" data-act="star" aria-pressed="' + starred + '" aria-label="' + (starred ? "取消收藏" : "收藏") + '"' + (o.state === "loading" ? " disabled" : "") + ">" + (starred ? ICON.starOn : ICON.star) + "</button></div>";
   $("#sheet-card").innerHTML = html;
+  /* Start making the audio now, so pressing play is instant: word first, then the sentences. */
+  const says = [...document.querySelectorAll("#sheet-card [data-act=say]")].map(b => b.dataset.text).filter(Boolean);
+  if (says.length) TTS.pocketPrefetch([...new Set(says)], true);
 }
 async function lookupWord(o){
   const key = o.data.word.toLowerCase() + "|" + (o.sentence || "");
