@@ -948,10 +948,10 @@ const TTS = {
     }
     return this.pocketLib;
   },
-  pocketEngine(){
+  pocketEngine(quiet){
     if (this.pocketInst) return Promise.resolve({tts:this.pocketInst, player:this.pocketPlayer});
     if (!this.pocketLoading){
-      toast("第一次用手機本地語音，正在下載語音模型（只有第一次，之後會存在手機裡）…");
+      if (!quiet) toast("正在準備手機語音（第一次要下載模型，之後會存在手機裡）…");
       this.pocketLoading = (async () => {
         const {PocketTTS, StreamingPlayer} = await this.pocketLoadLib();
         const tts = new PocketTTS({language:"english_2026-04", quantized:true, voiceCloning:true});
@@ -1032,6 +1032,20 @@ const TTS = {
     }
   },
   pocketReset(){ this.pocketVoiceId = null; this.pocketVoiceKey = ""; },
+  /* Warm up on app start so the first word doesn't wait: load the model, clone the voice
+     and run one tiny silent generation. Only when the model is already saved on the phone,
+     so opening the app never starts a big download on mobile data by itself. */
+  async pocketWarm(){
+    try {
+      if (!/^https?:$/.test(location.protocol) || typeof caches === "undefined") return;
+      const c = await caches.open("pocket-tts-js-v1");
+      if (!(await c.keys()).length) return;
+      const {tts} = await this.pocketEngine(true);
+      const voice = await this.pocketVoice(tts);
+      if (this.seq === this.warmSeq) await tts.generate("Hi.", {voice, onChunk:() => {}});
+    } catch (e) {}
+  },
+  warmSeq:0,
   pocketSpeed(){ try { return Number(localStorage.getItem(LS + "pocketSpeed")) || 0.8; } catch (e) { return 0.8; } },
   pocketLearn(r){
     const v = Math.round((this.pocketSpeed() * 0.6 + Math.min(r, 4) * 0.4) * 100) / 100;
@@ -2587,6 +2601,7 @@ async function boot(){
   render();
 }
 boot();
+setTimeout(() => { TTS.warmSeq = TTS.seq; TTS.pocketWarm(); }, 800);
 /* Offline cache: only works when the app is opened from an https:// address. */
 if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")){
   navigator.serviceWorker.register("sw.js").catch(() => {});
