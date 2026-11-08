@@ -2070,7 +2070,7 @@ const City3D = {
     const tiles = cityTiles(c), R = c.level >= 2 ? 2 : 1;
     const H = .55, pos = (q, r) => [Math.sqrt(3) * (q + r / 2), 1.5 * r];
     this.shallow.scale.setScalar(R * 1.9 + 2.2);
-    if (this.dist == null || this.lastR !== R){ this.dist = R >= 2 ? 19 : 12.5; this.lastR = R; }
+    if (this.dist == null || this.lastR !== R){ this.dist = R >= 2 ? 16 : 11; this.lastR = R; }
     tiles.forEach(([q, r]) => {
       const key = q + "," + r, [x, z] = pos(q, r), it = c.tiles[key];
       const base = new T.Mesh(new T.CylinderGeometry(.95, 1, H, 6), this.mat(0xD7C09B)); base.position.set(x, -H / 2 - .02, z); base.castShadow = base.receiveShadow = true; g.add(base);
