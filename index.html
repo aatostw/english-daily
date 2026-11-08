@@ -310,6 +310,8 @@ label.btn{cursor:pointer}
 .w{cursor:pointer;border-radius:4px;transition:background .12s}
 .w:hover{background:color-mix(in srgb,var(--paper-ink) 10%,transparent)}
 .w.picked{background:var(--primary);color:#fff}
+.bubble.me .w.picked{background:#fff;color:var(--primary)}
+.bubble.me .w:hover{background:rgba(255,255,255,.18)}
 .kw{background:linear-gradient(transparent 58%,color-mix(in srgb,var(--yellow) 75%,transparent) 58%);font-weight:700;cursor:pointer;padding:0 1px}
 .pt{border-bottom:2.5px solid var(--green);background:color-mix(in srgb,var(--green) 13%,transparent);border-radius:3px;padding:0 1px}
 .cursor::after{content:"▍";color:var(--primary-text);animation:blink 1s steps(2) infinite;margin-left:2px}
@@ -2899,8 +2901,8 @@ function renderTalk(){
     (d >= 6 ? '<p style="margin:0">' + esc(sc.situation_zh) + '</p><div class="small muted">你是：' + esc(sc.learner_role_zh) + "　Lisa：" + esc(sc.partner_role_zh) + "</div>" : "") +
     chatChecklistHTML(w, conv, d) + "</section>";
   html += '<div class="chat">' + conv.turns.map((t, i) => t.role === "assistant"
-    ? '<div class="bubble them"><div class="who"><span>Lisa</span><button data-act="say-turn" data-i="' + i + '" aria-label="朗讀">' + ICON.speaker + "</button></div>" + esc(t.content) + "</div>"
-    : '<div class="bubble me">' + esc(t.content) + "</div>").join("") +
+    ? '<div class="bubble them"><div class="who"><span>Lisa</span><button data-act="say-turn" data-i="' + i + '" aria-label="朗讀">' + ICON.speaker + "</button></div>" + tapText(t.content, "chat" + i) + "</div>"
+    : '<div class="bubble me">' + tapText(t.content, "chat" + i) + "</div>").join("") +
     (S.busy.reply ? '<div class="bubble them" id="live-bubble"><div class="who"><span>Lisa</span></div>' + '<span id="live-text">' + (S.talk.live ? esc(S.talk.live) : "…") + "</span></div>" : "") + "</div>";
   if (S.err.talk) html += '<div class="err">' + esc(S.err.talk) + "</div>";
   if (conv.done){
