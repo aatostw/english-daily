@@ -1950,7 +1950,7 @@ function harvestHTML(c){
 }
 
 /* ---------- sheets ---------- */
-function cityOpen(o){ S.sheet = Object.assign({kind:"city"}, o); $("#sheet").hidden = false; drawSheet(); }
+function cityOpen(o){ S.sheet = Object.assign({kind:"city"}, o); S.sheetAt = performance.now(); $("#sheet").hidden = false; drawSheet(); }
 function citySheetHTML(o){
   const c = city(), bal = wallet().balance;
   const head = t => '<div class="sh-head"><div class="sh-word phrase" style="flex:1;min-width:0">' + t + '</div><button class="icon-btn" data-act="close-sheet" aria-label="關閉">×</button></div>';
@@ -2522,6 +2522,8 @@ const City3D = {
       if (!pts.size && moved < 8 && performance.now() - t0 < 400) this.tap(e);
     };
     cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", e => { pts.delete(e.pointerId); });
+    /* on phones a tap is followed by a "click" that would land on the sheet's backdrop and close it right away */
+    cv.addEventListener("touchend", e => { if (e.cancelable) e.preventDefault(); }, {passive:false});
     cv.addEventListener("wheel", e => { e.preventDefault(); this.dist = Math.min(26, Math.max(5, this.dist * (e.deltaY > 0 ? 1.08 : .93))); this.draw(); }, {passive:false});
   },
   tap(e){
@@ -3191,7 +3193,7 @@ function saveLookup(){ try { localStorage.setItem(LS + "lookup", JSON.stringify(
 function cambridge(w){ return "https://dictionary.cambridge.org/dictionary/english-chinese-traditional/" + encodeURIComponent(String(w).toLowerCase().trim().replace(/\s+/g, "-")); }
 function gtrans(w){ return "https://translate.google.com/?sl=en&tl=zh-TW&op=translate&text=" + encodeURIComponent(w); }
 function openSheet(o){
-  S.sheet = o;
+  S.sheet = o; S.sheetAt = performance.now();
   $("#sheet").hidden = false;
   drawSheet();
   if (o.state === "loading") lookupWord(o);
@@ -3901,7 +3903,7 @@ const ACT = {
   "say-turn": el => { const c = curChat().conv; if (c) TTS.speak(c.turns[Number(el.dataset.i)].content, set().rate); },
   "week-word": el => { const w = S.weeks[Number(el.dataset.n)]; const info = w && w.words[Number(el.dataset.i)]; if (info) openSheet({state:"ready", sentence:"", pat:null, data:Object.assign({word:info.en, lemma:info.en}, info)}); },
   "bank-word": el => { const x = S.bank[el.dataset.id]; if (x) openSheet({state:"ready", sentence:x.sentence || "", pat:null, data:Object.assign({word:x.en, lemma:x.en}, x)}); },
-  "close-sheet": () => closeSheet(),
+  "close-sheet": el => { if (el && el.classList && el.classList.contains("sheet-bg") && performance.now() - (S.sheetAt || 0) < 500) return; closeSheet(); },
   "me": () => { if (S.reader) closeReader(); go("city"); cityOpen({s:"avatar"}); },
   "dev-know": () => {
     const v = Math.max(0, Math.floor(Number(($("#dev-know") || {}).value)));
