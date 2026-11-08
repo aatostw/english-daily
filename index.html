@@ -264,7 +264,10 @@ label.btn{cursor:pointer}
 .menu-row > span:first-child{display:flex;flex-direction:column;gap:2px}
 .menu-row .chev{font-size:22px;color:var(--muted)}
 .lisa-head{display:flex;align-items:center;gap:12px}
-.lisa-av{flex:none;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:var(--green);color:#fff;font:800 20px var(--font-en)}
+.lisa-av{flex:none;width:48px;height:48px;border-radius:50%;overflow:hidden;box-shadow:0 0 0 2px #fff,0 0 0 4px #CFE7DB}
+.lisa-av svg,.lisa-mini svg{display:block;width:100%;height:100%}
+.lisa-mini{display:inline-block;flex:none;width:22px;height:22px;border-radius:50%;overflow:hidden;vertical-align:middle;margin-right:6px}
+.lisa-pin .lisa-mini{width:20px;height:20px;margin:0 2px 0 -6px;box-shadow:0 0 0 1.5px #fff}
 .chip.locked{background:transparent;border:1px dashed var(--line);color:var(--muted)}
 .prep-ov{position:absolute;inset:0;background:rgba(20,32,44,.45);display:flex;align-items:center;justify-content:center;padding:24px;z-index:30}
 .prep-card{background:var(--surface);color:var(--ink);border-radius:18px;padding:20px;width:100%;max-width:360px;display:flex;flex-direction:column;gap:12px;box-shadow:0 10px 40px rgba(20,32,44,.25)}
@@ -1920,7 +1923,7 @@ function islandSVG(c){
     const req = c.day.requests.find(q => q.who === i && q.status === "open");
     if (req) s += '<g class="req-bubble" data-act="city-req" data-id="' + req.id + '"><circle cx="' + x + '" cy="' + (y - 30) + '" r="9" fill="#fff" stroke="#E57373" stroke-width="2"/><text x="' + x + '" y="' + (y - 26) + '" text-anchor="middle" font-size="12" font-weight="800" fill="#E57373">!</text></g>';
   });
-  if (curWeek()){ const lx = cx - 30, ly = cy + 30; s += '<g pointer-events="none">' + personSVG(lx, ly, "#48A88B", 1.1) + '</g><g class="req-bubble" data-act="open-chat"><rect x="' + (lx - 18) + '" y="' + (ly - 42) + '" width="36" height="16" rx="8" fill="#48A88B"/><text x="' + lx + '" y="' + (ly - 30.5) + '" text-anchor="middle" font-size="10" font-weight="800" fill="#fff">Lisa</text></g>'; }
+  if (curWeek()){ const lx = cx - 30, ly = cy + 30; s += '<g pointer-events="none">' + personSVG(lx, ly, "#F3F1EA", 1.1) + '</g><g class="req-bubble" data-act="open-chat"><rect x="' + (lx - 18) + '" y="' + (ly - 42) + '" width="36" height="16" rx="8" fill="#48A88B"/><text x="' + lx + '" y="' + (ly - 30.5) + '" text-anchor="middle" font-size="10" font-weight="800" fill="#fff">Lisa</text></g>'; }
   s += '<g transform="translate(' + (cx - 26) + " " + (cy + 32 * R + 30) + ')" pointer-events="none">' + avatarSVG(c.avatar, 52).replace("<svg ", '<svg x="0" y="-40" ') + "</g>";
   return s + "</svg>";
 }
@@ -2326,9 +2329,12 @@ const City3D = {
     });
     /* Lisa stands just in front of the city center; tap her to chat */
     if (curWeek()){
-      this.person(g, -.45, .86, "#48A88B", 1.6);
-      const hair = new T.Mesh(new T.SphereGeometry(.12, 10, 8, 0, Math.PI * 2, 0, Math.PI / 1.8), this.mat(0x6B4A33, {flatShading:false})); hair.position.set(-.45, .52, .85); g.add(hair);
-      this.label(new T.Vector3(-.45, .8, .86), '<button class="lisa-pin" data-act="open-chat" aria-label="找 Lisa 聊天">Lisa</button>', true);
+      this.person(g, -.45, .86, "#FAFAF7", 1.6);
+      const hm = this.mat(0x3B2720, {flatShading:false});
+      const hair = new T.Mesh(new T.SphereGeometry(.122, 12, 10, 0, Math.PI * 2, 0, Math.PI / 1.7), hm); hair.position.set(-.45, .52, .85); g.add(hair);
+      const back = new T.Mesh(new T.CylinderGeometry(.115, .15, .22, 14, 1, false, Math.PI * .3, Math.PI * 1.4), hm); back.position.set(-.45, .43, .85); g.add(back);
+      this.box(g, .07, .14, .02, 0xF3DCD3, -.45, .3, .965);   /* the floral top under her open white shirt */
+      this.label(new T.Vector3(-.45, .8, .86), '<button class="lisa-pin" data-act="open-chat" aria-label="找 Lisa 聊天"><span class="lisa-mini">' + LISA_SVG + '</span>Lisa</button>', true);
     }
     /* you, standing at the front of the island */
     const [fx, fz] = pos(0, R);
@@ -2857,8 +2863,10 @@ function chatChecklistHTML(w, conv, d){
     return '<button class="chip word' + (used ? " done" : "") + '" data-act="week-word" data-n="' + w.n + '" data-i="' + i + '">' + esc(w.words[i].en) + "</button>";
   }).join("") + (hidW + hidP ? '<span class="chip locked">還有 ' + (hidW ? hidW + " 個單字" : "") + (hidW && hidP ? "、" : "") + (hidP ? hidP + " 個句型" : "") + "之後揭開</span>" : "") + "</div></div>";
 }
+/* Lisa: drawn in the app's flat style — wavy shoulder-length hair, white shirt over a floral top */
+const LISA_SVG = '<svg viewBox="0 0 100 100"><defs><clipPath id="lisa-clip"><circle cx="50" cy="50" r="50"/></clipPath></defs><g clip-path="url(#lisa-clip)"><rect width="100" height="100" fill="#DDEFE6"/><circle cx="84" cy="16" r="16" fill="#C8E6D6"/><g transform="translate(50 46) scale(1.18) translate(-50 -46)"><path d="M27 44C24 26 36 15 50 15S77 25 74 44c4 6 1 11 5 16 3 4 0 7-2 8 2 3 0 7-4 7-3 0-5-2-6-4-2 2-5 2-6 0l-22 0c-1 2-4 2-6 0-1 2-3 4-6 4-4 0-6-4-4-7-2-1-5-4-2-8 4-5 1-10 5-16z" fill="#3B2720"/><path d="M43 62h14v10H43z" fill="#F1CDB4"/><path d="M12 100c2-16 13-24 25-27l13 9 13-9c12 3 23 11 25 27z" fill="#FAFAF7"/><path d="M38 74l12 8 12-8 2 26H36z" fill="#F3DCD3"/><g fill="#8FA9CF"><circle cx="43" cy="86" r="1.6"/><circle cx="52" cy="91" r="1.6"/><circle cx="58" cy="84" r="1.4"/><circle cx="46" cy="96" r="1.5"/><circle cx="57" cy="96" r="1.3"/></g><g fill="#E8A3A8"><circle cx="48" cy="85" r="1.4"/><circle cx="55" cy="89" r="1.2"/><circle cx="41" cy="92" r="1.2"/><circle cx="51" cy="97" r="1.3"/></g><path d="M37 73l13 9-6 6-10-11zM63 73l-13 9 6 6 10-11z" fill="#FFFFFF" stroke="#E3E2DC" stroke-width=".8"/><path d="M44 70q6 6 12 0" fill="none" stroke="#D8B56A" stroke-width=".7"/><ellipse cx="50" cy="47" rx="15.5" ry="18" fill="#F6D9C4"/><path d="M50 18c-11 0-19 8-19 20 0 6 1 10 3 14 2-8 3-15 8-21 3-4 6-6 8-8 2 2 5 4 8 8 5 6 6 13 8 21 2-4 3-8 3-14 0-12-8-20-19-20z" fill="#3B2720"/><path d="M33 44c-3 8 1 14-2 20 3 1 6-2 6-6 1-5-2-9-4-14zM67 44c3 8-1 14 2 20-3 1-6-2-6-6-1-5 2-9 4-14z" fill="#3B2720"/><path d="M30 56c-1 5 1 9-1 13M70 56c1 5-1 9 1 13M45 24c-4 3-7 8-8 14M55 24c4 3 7 8 8 14" fill="none" stroke="#5A3D31" stroke-width="1" stroke-linecap="round" opacity=".7"/><path d="M40 41.5q3-1.6 6 0M54 41.5q3-1.6 6 0" fill="none" stroke="#4A3328" stroke-width="1.1" stroke-linecap="round"/><ellipse cx="43" cy="47" rx="2" ry="2.3" fill="#3A2A24"/><ellipse cx="57" cy="47" rx="2" ry="2.3" fill="#3A2A24"/><circle cx="43.6" cy="46.2" r=".6" fill="#fff"/><circle cx="57.6" cy="46.2" r=".6" fill="#fff"/><ellipse cx="39.5" cy="53.5" rx="3.2" ry="1.8" fill="#F0A9A0" opacity=".55"/><ellipse cx="60.5" cy="53.5" rx="3.2" ry="1.8" fill="#F0A9A0" opacity=".55"/><path d="M49.4 50.5q.6 2.4-.6 3" fill="none" stroke="#D9AE93" stroke-width=".9" stroke-linecap="round"/><path d="M45 57q5 3.6 10 0" fill="none" stroke="#B85C5C" stroke-width="1.5" stroke-linecap="round"/></g></g></svg>';
 function lisaHead(sub){
-  return '<div class="lisa-head"><span class="lisa-av" aria-hidden="true">L</span><div><b>與 Lisa 對話</b><div class="small muted">' + sub + "</div></div></div>";
+  return '<div class="lisa-head"><span class="lisa-av" aria-hidden="true">' + LISA_SVG + '</span><div><b>與 Lisa 對話</b><div class="small muted">' + sub + "</div></div></div>";
 }
 function lisaCardHTML(w){
   if (!w) return '<section class="card">' + lisaHead("你的英文朋友") + '<p class="muted" style="margin:0">選好主題、開始第 1 週後，就能每天跟 Lisa 用英文聊天。</p></section>';
@@ -3054,9 +3062,9 @@ function renderTalk(){
     (d >= 6 ? '<p style="margin:0">' + esc(sc.situation_zh) + '</p><div class="small muted">你是：' + esc(sc.learner_role_zh) + "　Lisa：" + esc(sc.partner_role_zh) + "</div>" : "") +
     chatChecklistHTML(w, conv, d) + "</section>";
   html += '<div class="chat">' + conv.turns.map((t, i) => t.role === "assistant"
-    ? '<div class="bubble them"><div class="who"><span>Lisa</span><button data-act="say-turn" data-i="' + i + '" aria-label="朗讀">' + ICON.speaker + "</button></div>" + tapText(t.content, "chat" + i) + "</div>"
+    ? '<div class="bubble them"><div class="who"><span><span class="lisa-mini">' + LISA_SVG + '</span>Lisa</span><button data-act="say-turn" data-i="' + i + '" aria-label="朗讀">' + ICON.speaker + "</button></div>" + tapText(t.content, "chat" + i) + "</div>"
     : '<div class="bubble me">' + tapText(t.content, "chat" + i) + "</div>").join("") +
-    (S.busy.reply ? '<div class="bubble them" id="live-bubble"><div class="who"><span>Lisa</span></div>' + '<span id="live-text">' + (S.talk.live ? esc(S.talk.live) : "…") + "</span></div>" : "") + "</div>";
+    (S.busy.reply ? '<div class="bubble them" id="live-bubble"><div class="who"><span><span class="lisa-mini">' + LISA_SVG + '</span>Lisa</span></div>' + '<span id="live-text">' + (S.talk.live ? esc(S.talk.live) : "…") + "</span></div>" : "") + "</div>";
   if (S.err.talk) html += '<div class="err">' + esc(S.err.talk) + "</div>";
   if (conv.done){
     html += feedbackHTML(w, conv, d);
