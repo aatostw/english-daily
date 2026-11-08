@@ -215,6 +215,10 @@ label.btn{cursor:pointer}
 .switch span{position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:left .2s}
 .switch[aria-checked="true"]{background:var(--green)}
 .switch[aria-checked="true"] span{left:25px}
+.know{display:flex;flex-direction:column;gap:6px}
+.know-bar{height:8px}
+.know-bar span{background:#7E57C2 !important}
+.locked-row{opacity:.6}
 .sec-title{font-size:20px;font-weight:900;margin:10px 4px 0}
 .menu-row{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;text-align:left;border:0;background:#F2F4FB;border-radius:14px;padding:14px 16px;font:inherit;color:inherit}
 .menu-row > span:first-child{display:flex;flex-direction:column;gap:2px}
@@ -1608,9 +1612,9 @@ function go(view){
 const CITY_BUILDINGS = {
   house:{name:"小屋", price:80, residents:2, desc:"住 2 位居民"},
   cafe:{name:"咖啡店", price:120, residents:1, desc:"老闆 1 位"},
-  bakery:{name:"麵包店", price:120, residents:1, desc:"老闆 1 位"},
-  books:{name:"書店", price:150, residents:1, desc:"老闆 1 位"},
-  clinic:{name:"診所", price:180, residents:1, desc:"醫生 1 位"},
+  bakery:{name:"麵包店", price:120, residents:1, desc:"老闆 1 位", unlock:"bakery"},
+  books:{name:"書店", price:150, residents:1, desc:"老闆 1 位", unlock:"books"},
+  clinic:{name:"診所", price:180, residents:1, desc:"醫生 1 位", unlock:"clinic"},
   park:{name:"小公園", price:60, residents:0, desc:"讓島上更漂亮"}
 };
 const CITY_DECOS = {statue:"公園雕像", fountain:"噴水池", sakura:"櫻花樹", lighthouse:"燈塔"};
@@ -1626,6 +1630,30 @@ const CITY_EXPAND = 400;
 const CITY_NAMES = ["Amy","Ben","Coco","Dan","Ella","Finn","Gina","Hugo","Ivy","Jack","Kiki","Leo","Mia","Noah","Olive","Pete","Rosa","Sam","Tina","Yuki","Zoe","Max","Lily","Owen"];
 const CITY_COLORS = ["#E57373","#64B5F6","#81C784","#FFB74D","#BA68C8","#4DB6AC","#F06292","#A1887F"];
 
+/* 知識: only goes up, earned by actually learning. Reaching each amount unlocks more of the town. */
+const KNOW_UNLOCKS = [
+  {at:30, key:"bakery", name:"麵包店"},
+  {at:60, key:"books", name:"書店"},
+  {at:100, key:"clinic", name:"診所"},
+  {at:150, key:"rare", name:"禮物開始出現稀有寶物"},
+  {at:250, key:"expand", name:"擴建小島"},
+  {at:400, key:"rare2", name:"稀有寶物機率變兩倍"}
+];
+function knowledge(){ return (S.city && S.city.knowledge) || 0; }
+function knowUnlocked(key){ const u = KNOW_UNLOCKS.find(x => x.key === key); return !u || knowledge() >= u.at; }
+function knowNext(){ return KNOW_UNLOCKS.find(u => u.at > knowledge()) || null; }
+function gainKnow(n, reason){
+  if (!S.profile || !(n > 0)) return;
+  const c = city(), before = c.knowledge || 0;
+  c.knowledge = before + n; saveCity();
+  const got = KNOW_UNLOCKS.filter(u => u.at > before && u.at <= c.knowledge);
+  if (got.length) setTimeout(() => toast("知識 " + c.knowledge + "，解鎖了：" + got.map(u => u.name).join("、") + "！"), 1600);
+}
+function knowBarHTML(){
+  const k = knowledge(), nx = knowNext(), prev = [...KNOW_UNLOCKS].reverse().find(u => u.at <= k), from = prev ? prev.at : 0;
+  const pct = nx ? Math.round((k - from) / (nx.at - from) * 100) : 100;
+  return '<div class="know"><div class="row between small"><span><b>知識 ' + k + "</b></span><span class=\"muted\">" + (nx ? "再 " + (nx.at - k) + " 解鎖：" + nx.name : "全部解鎖了") + '</span></div><div class="progress know-bar"><span style="width:' + pct + '%"></span></div></div>';
+}
 function newCity(){
   return {kind:"city", level:1, food:10, tiles:{}, residents:[], avatar:{hat:"none", glasses:"none", outfit:"tee"},
     owned:{hat:["none"], glasses:["none"], outfit:["tee"], deco:[]}, boosts:{double:0, active:0},
@@ -1742,7 +1770,7 @@ function renderCity(){
   const open = c.day.requests.filter(q => q.status === "open").length;
   let html = '<section class="card city-card"><div class="row between" style="align-items:center"><div><div class="label">我的城市</div><h2 style="margin:0">' + (n ? n + " 位居民" : "空空的小島") + "</h2></div>" +
     '<div class="row" style="gap:6px"><span class="city-stat">糧食 <b>' + food + '</b></span><span class="coins"><img class="coin-icon" src="' + COIN_IMG + '" alt=""><b>' + wallet().balance.toLocaleString() + "</b></span></div></div>" +
-    islandSVG(c) +
+    knowBarHTML() + islandSVG(c) +
     '<div class="row city-actions"><button class="btn soft" data-act="city-sheet" data-s="shop">商店</button><button class="btn soft" data-act="city-sheet" data-s="avatar">裝扮</button><button class="btn soft" data-act="city-sheet" data-s="bag">背包</button></div></section>';
   html += '<section class="card"><div class="label">今天的居民請求</div>';
   if (!n) html += '<p class="muted" style="margin:0">點島上的空地蓋一間小屋，就會有居民搬進來。</p>';
@@ -1766,8 +1794,13 @@ function citySheetHTML(o){
   const c = city(), bal = wallet().balance;
   const head = t => '<div class="sh-head"><div class="sh-word phrase" style="flex:1;min-width:0">' + t + '</div><button class="icon-btn" data-act="close-sheet" aria-label="關閉">×</button></div>';
   if (o.s === "build"){
-    return head("在這裡蓋什麼？") + '<div class="stack">' + Object.entries(CITY_BUILDINGS).map(([k, b]) =>
-      '<button class="menu-row" data-act="city-build" data-b="' + k + '"' + (bal < b.price ? " disabled" : "") + '><span><b>' + b.name + '</b><span class="small muted">' + b.desc + '</span></span><span class="price"><img class="coin-icon" src="' + COIN_IMG + '" alt="">' + b.price + "</span></button>").join("") +
+    return head("在這裡蓋什麼？") + '<div class="stack">' + Object.entries(CITY_BUILDINGS).map(([k, b]) => {
+      if (b.unlock && !knowUnlocked(b.unlock)){
+        const u = KNOW_UNLOCKS.find(x => x.key === b.unlock);
+        return '<div class="menu-row locked-row"><span><b>' + b.name + '</b><span class="small muted">知識 ' + u.at + " 解鎖（現在 " + knowledge() + '）</span></span><span class="small muted">未解鎖</span></div>';
+      }
+      return '<button class="menu-row" data-act="city-build" data-b="' + k + '"' + (bal < b.price ? " disabled" : "") + '><span><b>' + b.name + '</b><span class="small muted">' + b.desc + '</span></span><span class="price"><img class="coin-icon" src="' + COIN_IMG + '" alt="">' + b.price + "</span></button>";
+    }).join("") +
       (c.owned.deco.length ? '<div class="label" style="margin-top:6px">背包裡的裝飾（免費放）</div>' + [...new Set(c.owned.deco)].map(d => '<button class="menu-row" data-act="city-deco" data-d="' + d + '"><span><b>' + CITY_DECOS[d] + "</b></span><span>放這裡</span></button>").join("") : "") + "</div>";
   }
   if (o.s === "tile"){
@@ -1780,7 +1813,9 @@ function citySheetHTML(o){
     return head("商店") + '<div class="stack">' +
       '<div class="label">糧食</div><button class="menu-row" data-act="city-food"' + (bal < CITY_FOOD.price ? " disabled" : "") + '><span><b>一箱糧食 × ' + CITY_FOOD.n + '</b><span class="small muted">現在有 ' + c.food + ' 份・每位居民一天吃 1 份</span></span><span class="price"><img class="coin-icon" src="' + COIN_IMG + '" alt="">' + CITY_FOOD.price + "</span></button>" +
       '<div class="label">建築</div><p class="small muted" style="margin:0">點島上的空地就能選建築來蓋。</p>' +
-      (c.level < 2 ? '<div class="label">擴建</div><button class="menu-row" data-act="city-expand"' + (bal < CITY_EXPAND ? " disabled" : "") + '><span><b>擴建小島</b><span class="small muted">從 7 塊地變成 19 塊</span></span><span class="price"><img class="coin-icon" src="' + COIN_IMG + '" alt="">' + CITY_EXPAND + "</span></button>" : "") +
+      (c.level < 2 ? '<div class="label">擴建</div>' + (knowUnlocked("expand")
+        ? '<button class="menu-row" data-act="city-expand"' + (bal < CITY_EXPAND ? " disabled" : "") + '><span><b>擴建小島</b><span class="small muted">從 7 塊地變成 19 塊</span></span><span class="price"><img class="coin-icon" src="' + COIN_IMG + '" alt="">' + CITY_EXPAND + "</span></button>"
+        : '<div class="menu-row locked-row"><span><b>擴建小島</b><span class="small muted">知識 250 解鎖（現在 ' + knowledge() + '）</span></span><span class="small muted">未解鎖</span></div>') : "") +
       "</div>";
   }
   if (o.s === "avatar"){
@@ -1868,7 +1903,8 @@ async function cityFeed(){
 function cityGift(){
   const c = city(), roll = Math.random();
   const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
-  const rarePick = (keys) => { const common = keys.filter(k => !CITY_RARE.has(k)), rare = keys.filter(k => CITY_RARE.has(k)); return rare.length && Math.random() < .15 ? pick(rare) : pick(common); };
+  const rareChance = knowUnlocked("rare2") ? .3 : knowUnlocked("rare") ? .15 : 0;
+  const rarePick = (keys) => { const common = keys.filter(k => !CITY_RARE.has(k)), rare = keys.filter(k => CITY_RARE.has(k)); return rare.length && Math.random() < rareChance ? pick(rare) : pick(common); };
   c.giftsGot = (c.giftsGot || 0) + 1;
   if (roll < .4){
     const slot = pick(Object.keys(CITY_PARTS));
@@ -1904,7 +1940,7 @@ async function cityAnswer(el){
     if (!ok && q.tries < 2){ S.sheet.msg = "差一點！再試一次。"; S.sheet.draft = ans; saveCity(); drawSheet(); return; }
   }
   q.status = ok ? "done" : "failed";
-  if (ok){ q.gift = cityGift(); logActivity("practice"); }
+  if (ok){ q.gift = cityGift(); logActivity("practice"); gainKnow(4, "幫居民解決請求"); }
   saveCity(); S.sheet.msg = ""; drawSheet(); render();
   if (ok) toast("拿到禮物：" + q.gift);
 }
@@ -2435,9 +2471,10 @@ function prefsParts(){
     '<div class="row wrap"><button class="btn" data-act="export-file">匯出進度檔</button>' + (canShareFile() ? '<button class="btn soft" data-act="share-file">分享進度檔</button>' : "") +
       '<label class="btn soft" for="import-file">匯入進度檔</label><input type="file" id="import-file" accept="application/json,.json,text/plain,.txt" hidden></div>' +
     '<p class="muted small" style="margin:0">進度檔包含每週主題、句型、單字、每天的文章和造句、週日對話回饋、收藏的單字和學習紀錄，不包含 API Key。匯入會取代這支手機目前的進度。</p>' +
-    '<div class="divider"></div><div class="row between" style="align-items:center"><div><b>開發人員</b><div class="small muted">測試用，可以直接改金幣數量</div></div>' +
+    '<div class="divider"></div><div class="row between" style="align-items:center"><div><b>開發人員</b><div class="small muted">測試用，可以直接改金幣和知識</div></div>' +
       '<button class="switch" role="switch" aria-checked="' + !!st.devMode + '" data-act="dev-toggle" aria-label="開發人員模式"><span></span></button></div>' +
-    (st.devMode ? '<div class="field"><label for="dev-coins">金幣數量</label><div class="row"><input class="input en" id="dev-coins" type="number" inputmode="numeric" min="0" step="1" value="' + wallet().balance + '"><button class="btn" data-act="dev-coins">套用</button></div></div>' : "") +
+    (st.devMode ? '<div class="field"><label for="dev-coins">金幣數量</label><div class="row"><input class="input en" id="dev-coins" type="number" inputmode="numeric" min="0" step="1" value="' + wallet().balance + '"><button class="btn" data-act="dev-coins">套用</button></div></div>' +
+      '<div class="field"><label for="dev-know">知識</label><div class="row"><input class="input en" id="dev-know" type="number" inputmode="numeric" min="0" step="1" value="' + knowledge() + '"><button class="btn" data-act="dev-know">套用</button></div></div>' : "") +
     '<div class="divider"></div><div class="row"><button class="btn danger" data-act="reset">全部重來</button></div></section>';
   return parts;
 }
@@ -2794,7 +2831,7 @@ async function checkPractice(){
     const firstTry = !a.practicedAt;
     a.practicedAt = Date.now(); logActivity("practice");
     if (firstTry) earn(5, "造句練習");
-    if (fb.ok && !a.coinOk){ a.coinOk = true; earn(5, "造句寫對了"); }
+    if (fb.ok && !a.coinOk){ a.coinOk = true; earn(5, "造句寫對了"); gainKnow(5, "造句寫對了"); }
     checkStreakBonus();
     a.feedback = {ok:!!fb.ok, corrected:String(fb.corrected || ""), notes_zh:Array.isArray(fb.notes_zh) ? fb.notes_zh.map(String).slice(0, 3) : [], natural:String(fb.natural || "")};
     Store.set(artId(a), a).catch(() => {});
@@ -2877,10 +2914,12 @@ async function endTalk(){
       w.completedAt = conv.doneAt; Store.set("week-" + w.n, w).catch(() => {});
       await Store.set(convKey(w, d), conv).catch(() => {});
       earn(Math.min(50, score * 10), "第 " + w.n + " 週總複習（" + conv.feedback.score + " 分）");
+      gainKnow(score * 5, "週日總複習");
       checkStreakBonus(); checkWeekBonus(w);
     } else {
       await Store.set(convKey(w, d), conv).catch(() => {});
       earn(score * 4, DAY_NAMES[d] + "跟 Lisa 聊天（" + conv.feedback.score + " 分）");
+      gainKnow(score * 2, "跟 Lisa 聊天");
       checkStreakBonus();
     }
   } catch (e) { S.err.talk = aiErr(e); }
@@ -3227,6 +3266,7 @@ const ACT = {
   "mark-read": () => { const a = S.reader && S.reader.art; if (!a) return; const pi = $("#pr-input"); if (pi && !a.feedback) a.answer = pi.value; const firstRead = !a.read; a.read = true; a.readAt = Date.now(); Store.set(artId(a), a).catch(() => {}); if (firstRead){
     logActivity("read");
     earn(10, "讀完《" + (a.title || "文章") + "》");
+    gainKnow(3, "讀完文章");
     const saved = (a.extraWords || []).filter(x => S.bank[slug(x.en)]).length;
     if (saved) earn(saved, "又讀到 " + saved + " 個收藏單字");
     checkStreakBonus(); checkWeekBonus(S.weeks[a.week]);
@@ -3240,6 +3280,11 @@ const ACT = {
   "week-word": el => { const w = S.weeks[Number(el.dataset.n)]; const info = w && w.words[Number(el.dataset.i)]; if (info) openSheet({state:"ready", sentence:"", pat:null, data:Object.assign({word:info.en, lemma:info.en}, info)}); },
   "bank-word": el => { const x = S.bank[el.dataset.id]; if (x) openSheet({state:"ready", sentence:x.sentence || "", pat:null, data:Object.assign({word:x.en, lemma:x.en}, x)}); },
   "close-sheet": () => closeSheet(),
+  "dev-know": () => {
+    const v = Math.max(0, Math.floor(Number(($("#dev-know") || {}).value)));
+    if (!isFinite(v)){ toast("請輸入數字"); return; }
+    city().knowledge = v; saveCity(); render(); toast("知識改成 " + v);
+  },
   "dev-toggle": () => { const st = set(); st.devMode = !st.devMode; saveProfile(); render(); },
   "dev-coins": () => {
     const v = Math.max(0, Math.floor(Number(($("#dev-coins") || {}).value)));
@@ -3254,7 +3299,7 @@ const ACT = {
   "city-feed": () => cityFeed(),
   "city-answer": el => cityAnswer(el),
   "city-build": el => {
-    const c = city(), o = S.sheet, b = CITY_BUILDINGS[el.dataset.b]; if (!o || !b || c.tiles[o.k]) return;
+    const c = city(), o = S.sheet, b = CITY_BUILDINGS[el.dataset.b]; if (!o || !b || c.tiles[o.k] || (b.unlock && !knowUnlocked(b.unlock))) return;
     if (!spend(b.price, "城市：蓋" + b.name)){ toast("金幣不夠，多練習幾篇再來。"); return; }
     c.tiles[o.k] = {b:el.dataset.b};
     const used = new Set(c.residents.map(p => p.name));
@@ -3280,7 +3325,7 @@ const ACT = {
     delete c.tiles[k]; saveCity(); closeSheet(); render();
   },
   "city-food": () => { const c = city(); if (!spend(CITY_FOOD.price, "城市：買糧食")){ toast("金幣不夠。"); return; } c.food += CITY_FOOD.n; saveCity(); drawSheet(); render(); toast("買了 " + CITY_FOOD.n + " 份糧食"); },
-  "city-expand": () => { const c = city(); if (c.level >= 2) return; if (!spend(CITY_EXPAND, "城市：擴建小島")){ toast("金幣不夠。"); return; } c.level = 2; saveCity(); closeSheet(); render(); toast("小島變大了！"); },
+  "city-expand": () => { const c = city(); if (c.level >= 2 || !knowUnlocked("expand")) return; if (!spend(CITY_EXPAND, "城市：擴建小島")){ toast("金幣不夠。"); return; } c.level = 2; saveCity(); closeSheet(); render(); toast("小島變大了！"); },
   "city-wear": el => { const c = city(); c.avatar[el.dataset.slot] = el.dataset.k; saveCity(); drawSheet(); render(); },
   "city-buypart": el => {
     const c = city(), slot = el.dataset.slot, k = el.dataset.k, price = CITY_PART_PRICE[k];
@@ -3395,6 +3440,11 @@ async function loadAll(){
   S.bank = {}; words.forEach(x => { const id = x._id.replace(/^word-/, ""); delete x._id; S.bank[id] = x; });
   S.log = (await Store.get("log")) || {kind:"log", days:{}};
   S.city = Object.assign(newCity(), (await Store.get("city")) || {});
+  if (S.city.knowledge == null){
+    const arts = Object.values(S.arts).filter(a => a.read).length, okPr = Object.values(S.arts).filter(a => a.coinOk).length;
+    const sun = Object.values(S.convs).filter(c => c.done && c.feedback), day = Object.values(S.chats).filter(c => c.done && c.feedback);
+    S.city.knowledge = arts * 3 + okPr * 5 + sun.reduce((t, c) => t + (c.feedback.score || 3) * 5, 0) + day.reduce((t, c) => t + (c.feedback.score || 3) * 2, 0);
+  }
   S.wallet = Object.assign(newWallet(), (await Store.get("wallet")) || {});
   if (!S.log.days) S.log.days = {};
   if (!S.weeks[p.currentWeek]){ const ns = Object.keys(S.weeks).map(Number); p.currentWeek = ns.length ? Math.max.apply(null, ns) : 0; }
