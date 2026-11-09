@@ -21,14 +21,18 @@ const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY, user_id INTEGER NOT NULL, created_at INTEGER NOT NULL, last_seen INTEGER NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS items (user_id INTEGER NOT NULL, id TEXT NOT NULL, json TEXT, at INTEGER NOT NULL, del INTEGER NOT NULL DEFAULT 0,
      PRIMARY KEY (user_id, id))`,
-  `CREATE INDEX IF NOT EXISTS items_at ON items (user_id, at)`
+  `CREATE INDEX IF NOT EXISTS items_at ON items (user_id, at)`,
+  `CREATE TABLE IF NOT EXISTS config (k TEXT PRIMARY KEY, v TEXT NOT NULL)`
 ];
+const VOICE_URL = "https://voice.natursai.com";
 let ready = false;
 async function ensure(db){
   if (ready) return;
   await db.batch(SCHEMA.map(s => db.prepare(s)));
   /* added later: when someone pressed "forgot password" (0 = no request) */
   try { await db.prepare("ALTER TABLE users ADD COLUMN reset_req INTEGER NOT NULL DEFAULT 0").run(); } catch (e) {}
+  /* added later: may this person use the computer voice (GPT-SoVITS + Whisper)? */
+  try { await db.prepare("ALTER TABLE users ADD COLUMN voice INTEGER NOT NULL DEFAULT 0").run(); } catch (e) {}
   ready = true;
 }
 
@@ -61,15 +65,16 @@ function json(req, status, obj){
 }
 async function body(req){ try { return await req.json(); } catch (e) { return {}; } }
 
-async function auth(req, env){
-  const m = (req.headers.get("Authorization") || "").match(/^Bearer ([a-f0-9]{64})$/);
+async function auth(req, env, fromQuery){
+  let m = (req.headers.get("Authorization") || "").match(/^Bearer ([a-f0-9]{64})$/);
+  if (!m && fromQuery) m = (new URL(req.url).searchParams.get("k") || "").match(/^([a-f0-9]{64})$/);
   if (!m) return null;
   const now = Date.now();
-  const row = await env.DB.prepare("SELECT s.user_id, s.last_seen, u.email, u.name FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token = ?").bind(m[1]).first();
+  const row = await env.DB.prepare("SELECT s.user_id, s.last_seen, u.email, u.name, u.voice FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token = ?").bind(m[1]).first();
   if (!row) return null;
   if (now - row.last_seen > SESSION_DAYS * 86400000){ await env.DB.prepare("DELETE FROM sessions WHERE token = ?").bind(m[1]).run(); return null; }
   if (now - row.last_seen > 3600000) await env.DB.prepare("UPDATE sessions SET last_seen = ? WHERE token = ?").bind(now, m[1]).run();
-  return {id:row.user_id, email:row.email, name:row.name, token:m[1]};
+  return {id:row.user_id, email:row.email, name:row.name, voice:!!row.voice, token:m[1]};
 }
 function admin(req, env){
   const k = req.headers.get("X-Admin-Key") || "";
@@ -97,7 +102,7 @@ async function login(req, env){
     env.DB.prepare("UPDATE users SET fails = 0, locked_until = 0 WHERE id = ?").bind(u.id),
     env.DB.prepare("INSERT INTO sessions (token, user_id, created_at, last_seen) VALUES (?, ?, ?, ?)").bind(token, u.id, now, now)
   ]);
-  return json(req, 200, {ok:true, token, user:{email:u.email, name:u.name}});
+  return json(req, 200, {ok:true, token, user:{email:u.email, name:u.name, voice:!!u.voice}});
 }
 
 /* "Forgot password": there's no email sending, so this asks the admin, who sets a new password.
@@ -149,6 +154,34 @@ async function changePw(req, env, me){
   return json(req, 200, {ok:true});
 }
 
+/* ---------- the computer voice, passed through for people the admin allowed ----------
+   The phone never learns the computer's address or password: it shows its login instead (?k=). */
+async function getConfig(env, k){ const r = await env.DB.prepare("SELECT v FROM config WHERE k = ?").bind(k).first(); return r ? r.v : ""; }
+async function voice(req, env, path){
+  const me = await auth(req, env, true);
+  if (!me) return json(req, 401, {ok:false, error:"請重新登入", relogin:true});
+  if (!me.voice) return json(req, 403, {ok:false, error:"管理員還沒幫你開通電腦語音", noVoice:true});
+  const key = await getConfig(env, "voiceKey");
+  if (!key) return json(req, 503, {ok:false, error:"管理員還沒設定電腦語音的密碼", noKey:true});
+  const base = (await getConfig(env, "voiceUrl")) || VOICE_URL;
+  const inUrl = new URL(req.url), q = new URLSearchParams(inUrl.search);
+  q.set("k", key);
+  const sub = path.slice("/voice".length) || "/ping";
+  if (!["/ping", "/tts", "/asr"].includes(sub)) return json(req, 404, {ok:false, error:"沒有這個功能"});
+  let r;
+  try {
+    r = await fetch(base + sub + "?" + q.toString(), {method:req.method === "POST" ? "POST" : "GET",
+      headers:req.method === "POST" ? {"Content-Type":req.headers.get("Content-Type") || "application/octet-stream"} : {},
+      body:req.method === "POST" ? await req.arrayBuffer() : undefined});
+  } catch (e) { return json(req, 502, {ok:false, error:"連不到電腦", offline:true}); }
+  if (r.status >= 520) return json(req, 502, {ok:false, error:"連不到電腦", offline:true});
+  const h = new Headers(cors(req));
+  ["Content-Type", "Content-Length"].forEach(n => { const v = r.headers.get(n); if (v) h.set(n, v); });
+  h.set("Cross-Origin-Resource-Policy", "cross-origin");
+  h.set("Cache-Control", sub === "/tts" ? "private, max-age=86400" : "no-store");
+  return new Response(r.body, {status:r.status, headers:h});
+}
+
 /* ---------- account management (X-Admin-Key) ---------- */
 async function adminRoute(req, env, path){
   if (!env.ADMIN_KEY) return json(req, 503, {ok:false, error:"Worker 還沒設定 ADMIN_KEY"});
@@ -156,9 +189,16 @@ async function adminRoute(req, env, path){
   const b = req.method === "POST" ? await body(req) : {};
   if (path === "/admin/users" && req.method === "GET"){
     const r = await env.DB.prepare(
-      "SELECT u.email, u.name, u.created_at, u.reset_req, (SELECT COUNT(*) FROM items i WHERE i.user_id = u.id AND i.del = 0) AS items, " +
+      "SELECT u.email, u.name, u.created_at, u.reset_req, u.voice, (SELECT COUNT(*) FROM items i WHERE i.user_id = u.id AND i.del = 0) AS items, " +
       "(SELECT MAX(last_seen) FROM sessions s WHERE s.user_id = u.id) AS last_seen FROM users u ORDER BY u.created_at").all();
     return json(req, 200, {ok:true, users:r.results || []});
+  }
+  if (path === "/admin/config"){
+    if (req.method === "POST"){
+      if (typeof b.voiceKey === "string" && b.voiceKey.trim()) await env.DB.prepare("INSERT INTO config (k, v) VALUES ('voiceKey', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v").bind(b.voiceKey.trim()).run();
+      if (typeof b.voiceUrl === "string") await env.DB.prepare("INSERT INTO config (k, v) VALUES ('voiceUrl', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v").bind(b.voiceUrl.trim().replace(/\/+$/, "")).run();
+    }
+    return json(req, 200, {ok:true, voiceKeySet:!!(await getConfig(env, "voiceKey")), voiceUrl:(await getConfig(env, "voiceUrl")) || VOICE_URL});
   }
   const email = cleanEmail(b.email);
   if (!okEmail(email)) return json(req, 400, {ok:false, error:"Email 格式不對"});
@@ -167,8 +207,8 @@ async function adminRoute(req, env, path){
     if (pw.length < 6) return json(req, 400, {ok:false, error:"密碼至少 6 個字"});
     const salt = randHex(16);
     try {
-      await env.DB.prepare("INSERT INTO users (email, name, pw_hash, pw_salt, created_at) VALUES (?, ?, ?, ?, ?)")
-        .bind(email, String(b.name || "").slice(0, 40), await hashPw(pw, salt), salt, Date.now()).run();
+      await env.DB.prepare("INSERT INTO users (email, name, pw_hash, pw_salt, created_at, voice) VALUES (?, ?, ?, ?, ?, ?)")
+        .bind(email, String(b.name || "").slice(0, 40), await hashPw(pw, salt), salt, Date.now(), b.voice ? 1 : 0).run();
     } catch (e) { return json(req, 409, {ok:false, error:"這個 Email 已經有帳號了"}); }
     return json(req, 200, {ok:true});
   }
@@ -182,6 +222,10 @@ async function adminRoute(req, env, path){
       env.DB.prepare("UPDATE users SET pw_hash = ?, pw_salt = ?, fails = 0, locked_until = 0, reset_req = 0 WHERE id = ?").bind(await hashPw(pw, salt), salt, u.id),
       env.DB.prepare("DELETE FROM sessions WHERE user_id = ?").bind(u.id)
     ]);
+    return json(req, 200, {ok:true});
+  }
+  if (path === "/admin/users/voice"){
+    await env.DB.prepare("UPDATE users SET voice = ? WHERE id = ?").bind(b.on ? 1 : 0, u.id).run();
     return json(req, 200, {ok:true});
   }
   if (path === "/admin/users/delete"){
@@ -204,11 +248,12 @@ export default {
       const path = new URL(req.url).pathname.replace(/\/+$/, "") || "/";
       if (path === "/" || path === "/ping") return json(req, 200, {ok:true, app:"everyday-english-api", version:1, admin:!!env.ADMIN_KEY});
       if (path.startsWith("/admin/")) return adminRoute(req, env, path);
+      if (path === "/voice" || path.startsWith("/voice/")) return voice(req, env, path);
       if (path === "/login" && req.method === "POST") return login(req, env);
       if (path === "/forgot" && req.method === "POST") return forgot(req, env);
       const me = await auth(req, env);
       if (!me) return json(req, 401, {ok:false, error:"請重新登入", relogin:true});
-      if (path === "/me") return json(req, 200, {ok:true, user:{email:me.email, name:me.name}});
+      if (path === "/me") return json(req, 200, {ok:true, user:{email:me.email, name:me.name, voice:me.voice}});
       if (path === "/logout" && req.method === "POST"){ await env.DB.prepare("DELETE FROM sessions WHERE token = ?").bind(me.token).run(); return json(req, 200, {ok:true}); }
       if (path === "/password" && req.method === "POST") return changePw(req, env, me);
       if (path === "/sync" && req.method === "GET") return pull(req, env, me);

@@ -890,6 +890,12 @@ const Cloud = {
   busy:false, msg:"", err:"", pushing:false, again:false, lastPull:0, timer:0,
   url(){ return String((this.cfg && this.cfg.url) || CLOUD_URL).replace(/\/+$/, ""); },
   on(){ return !!(this.cfg && this.cfg.token) && S.mode === "local"; },
+  voiceOk(){ return this.on() && !!this.cfg.voice; },
+  /* the admin can switch the computer voice on or off at any time; check again now and then */
+  async refreshMe(){
+    if (!this.on()) return;
+    try { const j = await this.api("/me"); const v = !!j.user.voice; if (v !== !!this.cfg.voice || j.user.name !== this.cfg.name){ this.cfg.voice = v; this.cfg.name = j.user.name || ""; this.save(); render(); } } catch (e) {}
+  },
   now(){ return Date.now() - (window.__timeOffset || 0); },
   save(){ try { this.cfg ? localStorage.setItem("eel-cloud", JSON.stringify(this.cfg)) : localStorage.removeItem("eel-cloud"); } catch (e) {} },
   queue(){ try { return JSON.parse(localStorage.getItem("eel-cloud-q") || "{}") || {}; } catch (e) { return {}; } },
@@ -1000,7 +1006,7 @@ const Cloud = {
   async login(email, password){
     const url = this.url();
     const j = await this.api("/login", {body:{email, password}});
-    this.cfg = {url, token:j.token, email:j.user.email, name:j.user.name || "", since:0};
+    this.cfg = {url, token:j.token, email:j.user.email, name:j.user.name || "", voice:!!j.user.voice, since:0};
     try {
       const r = await this.fetchAll(0);
       const serverHas = r.items.some(x => !x.del);
@@ -1379,15 +1385,11 @@ const TTS = {
     return this.voices.find(v => v.voiceURI === want) || this.voices.find(v => /en[-_]US/i.test(v.lang)) || this.voices[0] || null;
   },
   /* Your own voice: GPT-SoVITS on your computer, reached through the tunnel URL. */
-  pcOn(){ const v = set().pcVoice || {}; return set().voiceSource === "pc" && !!(v.url || "").trim(); },
+  /* only for accounts the admin allowed; the address and password stay on the server */
+  pcOn(){ return set().voiceSource === "pc" && Cloud.voiceOk(); },
   pcUrl(text){
-    const v = set().pcVoice || {}, base = String(v.url).trim().replace(/\/+$/, "");
-    const q = new URLSearchParams({text, text_lang:"en", media_type:"wav"});
-    if (v.key) q.set("k", v.key);
-    if (v.ref) q.set("ref_audio_path", v.ref);
-    if (v.refText) q.set("prompt_text", v.refText);
-    if (v.ref || v.refText) q.set("prompt_lang", v.refLang || "zh");
-    return base + "/tts?" + q.toString();
+    const q = new URLSearchParams({text, text_lang:"en", media_type:"wav", k:Cloud.cfg.token});
+    return voiceBase() + "/tts?" + q.toString();
   },
   cache:new Map(), audio:null,
   pcAudio(text){
@@ -1434,7 +1436,7 @@ const TTS = {
       this.cache.delete(text);
       if (seq !== this.seq) return;
       toast("連不上電腦的語音，這次改用手機語音。");
-      this.speakBuiltin(text, rate, onEnd);
+      this.speakPocket(text, rate, onEnd);
     };
     try { a.currentTime = 0; } catch (e) {}
     a.playbackRate = (rate || set().rate || 0.9) / 0.9;
@@ -1575,7 +1577,7 @@ const TTS = {
   },
   pocketPrefetch(texts, first){
     if (!this.pocketOn()) return;
-    const list = [...new Set((texts || []).map(t => this.pocketNorm(t)).filter(t => t && !(this.pcOn() && !this.isWord(t))))];
+    const list = [...new Set((texts || []).map(t => this.pocketNorm(t)).filter(t => t && !this.pcOn()))];
     const add = list.filter(t => !this.pocketClips.has(this.pocketKey(t)) && !(this.pfRunning && this.pfRunning.text === t));
     this.pfQueue = this.pfQueue.filter(t => !add.includes(t));
     this.pfQueue = first ? add.concat(this.pfQueue) : this.pfQueue.concat(add);
@@ -1719,9 +1721,9 @@ const TTS = {
     try { localStorage.setItem(LS + "pocketSpeed", String(v)); } catch (e) {}
   },
   speak(text, rate, onEnd){
-    /* Sentences go to the computer when that's switched on; everything else uses the phone's Pocket TTS voice. */
+    /* GPT-SoVITS on: words and sentences both go to the computer. Otherwise the phone's Pocket TTS voice. */
     if (!this.pocketOn()) return this.speakBuiltin(text, rate, onEnd);
-    if (this.pcOn() && !this.isWord(text)) return this.speakPc(text, rate, onEnd);
+    if (this.pcOn()) return this.speakPc(text, rate, onEnd);
     this.speakPocket(text, rate, onEnd); return true;
   },
   speakBuiltin(text, rate, onEnd){
@@ -3645,7 +3647,8 @@ function adminHTML(){
   let list = "";
   if (users) list = users.length ? '<div class="stack">' + users.map(u =>
       '<div class="adm-u"><div class="row between" style="align-items:center"><div style="min-width:0"><b>' + esc(u.name || "（沒有名字）") + '</b><div class="small muted en" style="overflow-wrap:anywhere">' + esc(u.email) + "</div>" + (u.reset_req ? '<div><span class="pill bad" style="margin-top:4px">要求重設密碼</span></div>' : "") + '<div class="small muted">' + u.items + " 項進度・" + (u.last_seen ? "最近登入 " + new Date(u.last_seen).toLocaleDateString() : "還沒登入過") + "</div></div>" +
-        '<div class="row" style="gap:6px;flex:none"><button class="btn soft sm" data-act="adm-reset" data-email="' + esc(u.email) + '">重設密碼</button><button class="btn danger sm" data-act="adm-del" data-email="' + esc(u.email) + '">刪除</button></div></div>' +
+        '<div class="row" style="gap:6px;flex:none;flex-wrap:wrap;justify-content:flex-end"><button class="btn soft sm" data-act="adm-reset" data-email="' + esc(u.email) + '">重設密碼</button><button class="btn danger sm" data-act="adm-del" data-email="' + esc(u.email) + '">刪除</button></div></div>' +
+        '<div class="row between" style="align-items:center;margin-top:8px"><span class="small"><b>電腦語音</b><span class="muted">（GPT-SoVITS、跟讀評分）</span></span><button class="switch" role="switch" aria-checked="' + !!u.voice + '" data-act="adm-voice" data-email="' + esc(u.email) + '" data-on="' + (u.voice ? 0 : 1) + '" aria-label="電腦語音"><span></span></button></div>' +
         (a.reset === u.email ? '<div class="row" style="margin-top:8px"><input class="input" id="adm-rp" type="text" autocomplete="off" placeholder="新密碼（至少 6 個字）" aria-label="新密碼"><button class="btn sm" data-act="adm-reset-go" data-email="' + esc(u.email) + '">確定</button></div>' : "") +
       "</div>").join("") + "</div>" : '<p class="muted small" style="margin:0">還沒有帳號。</p>';
   return '<div class="divider"></div><div><b>帳號管理</b><div class="small muted">幫家人、朋友建立帳號。管理密碼是 Cloudflare 上 ADMIN_KEY 的值，只存在這個分頁。</div></div>' +
@@ -3656,14 +3659,18 @@ function adminHTML(){
       '<input class="input" id="adm-name" autocomplete="off" placeholder="名字（例如：媽媽）" aria-label="名字">' +
       '<input class="input en" id="adm-email" type="email" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Email" aria-label="Email">' +
       '<input class="input" id="adm-pw" type="text" autocomplete="off" placeholder="密碼（至少 6 個字）" aria-label="密碼">' +
-      '<button class="btn" data-act="adm-add">建立帳號</button></div></details>' : "");
+      '<label class="row" style="align-items:center;gap:8px;font-size:14px"><input type="checkbox" id="adm-voice" checked> 開通電腦語音（GPT-SoVITS、跟讀評分）</label>' +
+      '<button class="btn" data-act="adm-add">建立帳號</button></div></details>' +
+    '<details class="ledger"><summary>電腦語音設定</summary><div class="stack" style="margin-top:10px">' +
+      '<div class="small muted">開通的人會透過伺服器用你的電腦唸英文、評分，不用知道網址和密碼。' + (a.voiceKeySet ? "密碼<b>已設定</b>。" : '<b style="color:var(--danger)">還沒設定密碼</b>。') + "</div>" +
+      '<div class="row"><input class="input" id="adm-vkey" type="password" autocomplete="off" placeholder="電腦語音伺服器視窗上的密碼" aria-label="電腦語音密碼"><button class="btn" style="flex:none;white-space:nowrap" data-act="adm-vkey">儲存</button></div></div></details>' : "");
 }
 function admKey(){ try { return sessionStorage.getItem("eel-admin") || ""; } catch (e) { return ""; } }
 function renderPrefs(){
   const items = [
     ["account", "帳號", Cloud.on() ? (Cloud.cfg.name || Cloud.cfg.email) + "・" + (Cloud.err ? "同步失敗" : cloudAgo(Cloud.cfg.lastSync)) : "登入後可以在其他裝置接著學"],
     ["ai", "AI 模型", PROVIDERS[aiState().provider].name + " · " + (aiState().model || "未選模型")],
-    ["voice", "朗讀", set().voiceSource === "system" ? "系統聲音" : set().voiceSource === "pc" ? "GPT-SoVITS" : "Pocket TTS" + ((set().pocketVoice || {}).wavName ? "・你上傳的聲音" : "")],
+    ["voice", "朗讀", set().voiceSource === "system" ? "系統聲音" : set().voiceSource === "pc" && Cloud.voiceOk() ? "GPT-SoVITS" : "Pocket TTS" + ((set().pocketVoice || {}).wavName ? "・你上傳的聲音" : "")],
     ["read", "閱讀", (LENGTHS[set().length] || LENGTHS.mid).label + "篇幅・" + TIERS[tierIdx()].name],
     ["data", "資料", "匯出、匯入進度和金幣紀錄"]
   ];
@@ -3682,8 +3689,9 @@ function prefsParts(){
   const pv = st.pcVoice || {}, pc = st.voiceSource === "pc";
   const pkv = st.pocketVoice || {};
   const spk = ICON.speaker.replace("<svg", '<svg width="18" height="18"');
-  const src = st.voiceSource === "system" ? "system" : pc ? "pc" : "builtin";
-  const srcBtn = (v, label) => '<button data-act="setting" data-key="voiceSource" data-val="' + v + '" aria-pressed="' + (src === v) + '">' + label + "</button>";
+  const vOk = Cloud.voiceOk();
+  const src = st.voiceSource === "system" ? "system" : pc && vOk ? "pc" : "builtin";
+  const srcBtn = (v, label) => '<button data-act="setting" data-key="voiceSource" data-val="' + v + '" aria-pressed="' + (src === v) + '"' + (v === "pc" && !vOk ? " disabled" : "") + ">" + label + "</button>";
   const sysVoices = '<select class="input" id="voice" data-act-change="voice" aria-label="系統聲音"><option value="">自動（美式英文）</option>' +
     voices.map(v => '<option value="' + esc(v.voiceURI) + '"' + (st.voice === v.voiceURI ? " selected" : "") + ">" + esc(v.name) + "（" + esc(v.lang) + "）</option>").join("") + "</select>" +
     (TTS.ok ? "" : '<div class="err">這個瀏覽器不支援系統聲音。</div>');
@@ -3698,26 +3706,18 @@ function prefsParts(){
       ? '<button class="btn ghost block" data-act="pocket-prefetch"' + (S.busy.pocketPrefetch ? " disabled" : "") + ">" + (S.busy.pocketPrefetch ? '<span class="spinner"></span>下載中，請稍等…' : "先下載好，之後關網路也能唸") + "</button>"
       : '<div class="small muted">現在是從檔案直接打開的，語音模型存不住，關網路就不能用。從 https 網址打開才能離線使用。</div>') +
     '<div class="row between" style="align-items:center"><span class="small muted" id="audio-usage">已存的聲音：計算中…</span><button class="btn ghost sm" data-act="audio-clear">清除</button></div>';
-  const pcBox = '<div class="field"><label for="pc-url">伺服器網址</label><input class="input en" id="pc-url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://voice.natursai.com" value="' + esc(pv.url || "") + '" data-act-change="pc-url"><div class="small muted">電腦上語音伺服器視窗裡顯示的網址。設定過固定網址的話，填一次就好。</div></div>' +
-      '<div class="field"><label for="pc-key">密碼</label><input class="input en" id="pc-key" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="電腦視窗上顯示的密碼" value="' + esc(pv.key || "") + '" data-act-change="pc-key"></div>' +
-      '<details class="ledger"><summary>進階：電腦的參考音檔（通常不用填）</summary><div class="stack" style="margin-top:10px">' +
-        '<input class="input en" placeholder="參考音檔在電腦上的路徑" value="' + esc(pv.ref || "") + '" data-act-change="pc-ref" aria-label="參考音檔路徑">' +
-        '<input class="input" placeholder="參考音檔說的話" value="' + esc(pv.refText || "") + '" data-act-change="pc-reftext" aria-label="參考音檔說的話">' +
-        '<select class="input" data-act-change="pc-reflang" aria-label="參考音檔語言"><option value="zh"' + ((pv.refLang || "zh") === "zh" ? " selected" : "") + '>參考音檔是中文</option><option value="en"' + (pv.refLang === "en" ? " selected" : "") + ">參考音檔是英文</option></select></div></details>";
   parts.voice = '<section class="card"><h2 style="font-size:20px">朗讀</h2>' +
     '<div class="field"><label>朗讀聲音</label><div class="seg" role="group">' + srcBtn("system", "系統聲音") + srcBtn("builtin", "Pocket TTS") + srcBtn("pc", "GPT-SoVITS") + "</div>" +
       '<div class="small muted">' + (src === "system" ? "單字和句子都用手機或電腦內建的語音，不用下載，最省電。"
-        : src === "pc" ? "文章段落和例句用你電腦上的 GPT-SoVITS，單字還是用手機的 Pocket TTS。電腦沒開或連不上時，會自動改回 Pocket TTS。"
-        : "單字和句子都在手機上用 Pocket TTS 唸，聲音比較自然。聲音檔載入失敗時，才改用系統聲音。") + "</div></div>" +
+        : src === "pc" ? "單字、文章和例句都用電腦上的 GPT-SoVITS 唸。電腦沒開或連不上時，會自動改回手機的 Pocket TTS。"
+        : "單字和句子都在手機上用 Pocket TTS 唸，聲音比較自然。聲音檔載入失敗時，才改用系統聲音。") +
+      (vOk ? "" : "GPT-SoVITS 要管理員幫你的帳號開通才能用。") + "</div></div>" +
     (src === "system" ? '<div class="field"><label for="voice">系統聲音</label>' + sysVoices + "</div>" : "") +
     (src === "builtin" ? pocketBox : "") +
-    (src === "pc" ? pcBox + '<details class="ledger"><summary>單字用的 Pocket TTS 聲音</summary><div class="stack" style="margin-top:10px">' + pocketBox + "</div></details>" : "") +
-    '<div class="field asr-box"><label for="' + (src === "pc" ? "pc-url" : "asr-url") + '">跟讀評分（電腦的 Whisper）</label>' +
-      (src === "pc" ? "" : '<input class="input en" id="asr-url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://voice.natursai.com" value="' + esc(pv.url || "") + '" data-act-change="pc-url">' +
-        '<input class="input en" id="asr-key" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="密碼（電腦視窗上顯示的）" value="' + esc(pv.key || "") + '" data-act-change="pc-key" aria-label="密碼">') +
-      '<div class="small muted">按句子旁邊的麥克風唸一遍，電腦會聽寫並評分：說對了沒、流暢度、清楚度，還會指出哪個音可能沒發好。' + (src === "pc" ? "用上面同一個伺服器網址和密碼。" : "填電腦語音伺服器視窗裡的網址和密碼。") + "</div>" +
-      '<div class="row between" style="align-items:center"><button class="btn soft sm" data-act="asr-ping"' + (S.asrPing === "checking" ? " disabled" : "") + ">" + (S.asrPing === "checking" ? '<span class="spinner"></span>測試中' : "測試連線") + "</button>" +
-      (S.asrPing && S.asrPing !== "checking" ? '<span class="small" style="color:' + (/^ok:/.test(S.asrPing) ? "#3E9C7A" : "#C97A00") + '">' + esc(S.asrPing.replace(/^ok:/, "")) + "</span>" : "") + "</div></div>" +
+    '<div class="field asr-box"><label>跟讀評分（電腦的 Whisper）</label>' +
+      '<div class="small muted">按段落旁邊的麥克風唸一遍，電腦會聽寫並評分：說對了沒、流暢度、清楚度，還會指出哪個音可能沒發好。' + (vOk ? "" : "要管理員幫你的帳號開通電腦語音才能用。") + "</div>" +
+      (!vOk ? "" : '<div class="row between" style="align-items:center"><button class="btn soft sm" data-act="asr-ping"' + (S.asrPing === "checking" ? " disabled" : "") + ">" + (S.asrPing === "checking" ? '<span class="spinner"></span>測試中' : "測試連線") + "</button>" +
+      (S.asrPing && S.asrPing !== "checking" ? '<span class="small" style="color:' + (/^ok:/.test(S.asrPing) ? "#3E9C7A" : "#C97A00") + '">' + esc(S.asrPing.replace(/^ok:/, "")) + "</span>" : "") + "</div>") + "</div>" +
     '<div class="row" style="gap:8px"><button class="btn soft" style="flex:1" data-act="say" data-text="magic">' + spk + '試聽單字</button>' +
       '<button class="btn soft" style="flex:1" data-act="say" data-text="Small steps. Every day. That is how you get better.">' + spk + "試聽句子</button></div>" +
     '<div class="field"><label for="rate">速度：<span id="rate-v">' + st.rate.toFixed(1) + '×</span></label><input type="range" id="rate" min="0.5" max="1.2" step="0.1" value="' + st.rate + '" data-act-change="rate"></div>' +
@@ -3905,8 +3905,17 @@ function checkSelection(){
 /* ---------- 跟讀評分：錄你唸的句子，送到電腦的 Whisper 聽寫並評分 ---------- */
 const MIC_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor"/><path d="M6 11a6 6 0 0 0 12 0M12 17v3.5M8.5 20.5h7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
 const REC = {mr:null, stream:null, chunks:[], timer:null, url:""};
-function asrBase(){ return String((set().pcVoice || {}).url || "").trim().replace(/\/+$/, ""); }
-function asrKey(){ return encodeURIComponent(String((set().pcVoice || {}).key || "").trim()); }
+function voiceBase(){ return Cloud.voiceOk() ? Cloud.url() + "/voice" : ""; }
+function asrBase(){ return voiceBase(); }
+function asrKey(){ return encodeURIComponent((Cloud.cfg && Cloud.cfg.token) || ""); }
+/* what the voice route said, in words */
+function voiceProblem(j){
+  if (j.noVoice) return "管理員還沒幫你開通電腦語音。";
+  if (j.noKey) return "管理員還沒設定電腦語音的密碼。";
+  if (j.offline) return "連不到電腦，確認電腦開著、語音伺服器視窗也開著。";
+  if (j.key === false) return "管理員設定的電腦語音密碼不對，請管理員到帳號管理更新。";
+  return "";
+}
 /* the last score for each paragraph you read, kept on this phone */
 function shadowKey(t){ return String(t || "").trim().toLowerCase().replace(/\s+/g, " ").slice(0, 300); }
 function shadowAll(){ try { return JSON.parse(localStorage.getItem(LS + "shadow") || "{}"); } catch (e) { return {}; } }
@@ -3959,8 +3968,7 @@ function shadowHTML(o){
   }
   let html = head + '<div class="shadow-target' + (o.text.length > 90 ? " long" : "") + '"><div class="en">' + target + "</div>" + say + "</div>";
   if (o.state === "nourl")
-    return html + '<p class="muted" style="margin:0">跟讀評分用你電腦上的 Whisper 聽寫。先在電腦開「啟動語音伺服器.bat」，再到「設定 → 朗讀」貼上伺服器網址。</p>' +
-      '<button class="btn block" data-act="shadow-setup">去設定</button>';
+    return html + '<p class="muted" style="margin:0">跟讀評分要用電腦語音（Whisper 聽寫）。請管理員在帳號管理幫你開通。</p>';
   if (o.state === "rec")
     return html + '<button class="rec-btn on" data-act="shadow-stop" aria-label="停止錄音"><span class="rec-dot"></span></button><div class="rec-hint"><b id="rec-time">0.0</b> 秒・唸完按一下停止</div>';
   if (o.state === "up")
@@ -4037,12 +4045,12 @@ async function shadowSend(o){
 async function asrDiagnose(){
   try {
     const r = await fetch(asrBase() + "/ping?k=" + asrKey(), {cache:"no-store"}), j = await r.json();
-    if (j.key === false) return "電腦連得到，但密碼不對。到「設定 → 朗讀」填電腦視窗上顯示的密碼。";
+    if (voiceProblem(j)) return voiceProblem(j);
     if (!j.asr) return "電腦連得到，但電腦上的語音伺服器是舊版，還不能評分。請關掉電腦上的語音伺服器視窗，重新雙擊「啟動語音伺服器.bat」，再把新網址貼過來。";
     if (j.asr === "loading") return "電腦的 Whisper 還在準備（第一次要下載模型，可能要幾分鐘），等一下再唸一次。";
     if (j.asr !== "ready") return "電腦的跟讀評分沒開啟（" + j.asr + "），看一下電腦上語音伺服器視窗的訊息。";
     return "錄音傳到電腦時斷掉了，再唸一次試試。";
-  } catch (e) { return "連不到電腦。確認電腦上的語音伺服器開著，網址也是最新的（每次重開都會換）。"; }
+  } catch (e) { return "連不到伺服器，確認網路正常。"; }
 }
 /* a little reward: 2 coins for every sentence read well (80+), up to 20 coins a day */
 function earnShadow(text){
@@ -4686,12 +4694,12 @@ const ACT = {
   "shadow-mine": () => { if (REC.url){ TTS.stop && TTS.stop(); const a = new Audio(REC.url); a.play().catch(() => {}); } },
   "shadow-setup": () => { closeSheet(); go("prefs"); S.prefPage = "voice"; render(); },
   "asr-ping": async () => {
-    const base = asrBase(); if (!base){ toast("先貼上伺服器網址"); return; }
+    const base = asrBase(); if (!base){ toast("管理員還沒幫你開通電腦語音"); return; }
     S.asrPing = "checking"; render();
     try {
       const r = await fetch(base + "/ping?k=" + asrKey(), {cache:"no-store"}); const j = await r.json();
-      S.asrPing = j.key === false ? "連得到電腦，但密碼不對（看電腦視窗上的「密碼」）" : !j.ok ? "連得到，但回應怪怪的" : j.asr === "ready" ? "ok:連線成功，跟讀評分可以用（" + (j.asr_model || "Whisper") + "）" : j.asr === "loading" ? "連線成功，Whisper 還在載入（第一次會下載模型，請等幾分鐘）" : j.asr ? "連線成功，但跟讀評分沒開啟：" + j.asr : "連線成功，但電腦上的 voice_server.py 是舊版，還沒有跟讀評分";
-    } catch (e) { S.asrPing = "連不到電腦，確認語音伺服器視窗開著、網址是最新的"; }
+      S.asrPing = voiceProblem(j) ? voiceProblem(j) : !j.ok ? "連得到，但回應怪怪的" : j.asr === "ready" ? "ok:連線成功，跟讀評分可以用（" + (j.asr_model || "Whisper") + "）" : j.asr === "loading" ? "連線成功，Whisper 還在載入（第一次會下載模型，請等幾分鐘）" : j.asr ? "連線成功，但跟讀評分沒開啟：" + j.asr : "連線成功，但電腦上的 voice_server.py 是舊版，還沒有跟讀評分";
+    } catch (e) { S.asrPing = "連不到伺服器，確認網路正常"; }
     render();
   },
   "city-chat-close": () => { S.cityChat = false; City3D.focusLisa(false); render(); },
@@ -4949,15 +4957,29 @@ const ACT = {
     const k = (($("#adm-key") || {}).value || "").trim();
     try { sessionStorage.setItem("eel-admin", k); } catch (e) {}
     S.adm = Object.assign(S.adm || {}, {busy:true}, keep ? {} : {err:"", ok:""}); render();
-    try { const j = await Cloud.api("/admin/users", {admin:k}); S.adm.users = j.users; }
+    try { const j = await Cloud.api("/admin/users", {admin:k}); S.adm.users = j.users; const c = await Cloud.api("/admin/config", {admin:k}); S.adm.voiceKeySet = c.voiceKeySet; S.adm.voiceUrl = String(c.voiceUrl || "").replace(/^https?:\/\//, ""); }
     catch (e) { S.adm.err = e.message; S.adm.users = null; }
     S.adm.busy = false; render();
   },
   "adm-add": async () => {
-    const body = {name:(($("#adm-name") || {}).value || "").trim(), email:(($("#adm-email") || {}).value || "").trim(), password:($("#adm-pw") || {}).value || ""};
+    const body = {name:(($("#adm-name") || {}).value || "").trim(), email:(($("#adm-email") || {}).value || "").trim(), password:($("#adm-pw") || {}).value || "", voice:!!($("#adm-voice") || {}).checked};
     S.adm.err = ""; S.adm.ok = "";
     try { await Cloud.api("/admin/users", {admin:admKey(), body}); S.adm.ok = "已建立 " + body.email + "。把 Email 和密碼告訴對方，請他打開 App 登入。"; S.adm.addOpen = false; }
     catch (e) { S.adm.err = e.message; S.adm.addOpen = true; render(); return; }
+    ACT["adm-load"](null, true);
+  },
+  "adm-voice": async el => {
+    const email = el.dataset.email, on = el.dataset.on === "1";
+    try { await Cloud.api("/admin/users/voice", {admin:admKey(), body:{email, on}}); S.adm.ok = (on ? "已開通 " : "已關閉 ") + email + " 的電腦語音。"; S.adm.err = ""; }
+    catch (e) { S.adm.err = e.message; render(); return; }
+    ACT["adm-load"](null, true);
+    if (Cloud.cfg && Cloud.cfg.email === email) Cloud.refreshMe();
+  },
+  "adm-vkey": async () => {
+    const v = (($("#adm-vkey") || {}).value || "").trim();
+    if (!v){ S.adm.err = "請輸入電腦語音伺服器視窗上顯示的密碼。"; render(); return; }
+    try { await Cloud.api("/admin/config", {admin:admKey(), body:{voiceKey:v}}); S.adm.ok = "電腦語音密碼已儲存。"; S.adm.err = ""; }
+    catch (e) { S.adm.err = e.message; render(); return; }
     ACT["adm-load"](null, true);
   },
   "adm-reset": el => { S.adm.reset = S.adm.reset === el.dataset.email ? "" : el.dataset.email; S.adm.err = ""; S.adm.ok = ""; render(); },
@@ -5094,6 +5116,7 @@ async function boot(){
   }
   try { await loadAll(); } catch (e) {}
   render();
+  Cloud.refreshMe();
 }
 boot();
 setTimeout(() => { TTS.warmSeq = TTS.seq; TTS.pocketWarm(); }, 800);
@@ -5104,7 +5127,7 @@ document.addEventListener("visibilitychange", () => {
   /* leaving: upload now. Coming back: download what other devices saved, unless something is open */
   if (document.hidden){ clearTimeout(Cloud.timer); Cloud.push(); return; }
   const busy = S.reader || !$("#sheet").hidden || !$("#dialog").hidden || S.busy && Object.values(S.busy).some(Boolean);
-  if (!busy && Date.now() - Cloud.lastPull > 30000) Cloud.pull().then(ch => { if (ch) reloadFromStore(); });
+  if (!busy && Date.now() - Cloud.lastPull > 30000){ Cloud.pull().then(ch => { if (ch) reloadFromStore(); }); Cloud.refreshMe(); }
 });
 /* Offline cache: only works when the app is opened from an https:// address. */
 if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")){
