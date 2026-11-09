@@ -3577,13 +3577,16 @@ function drawGate(){
   const el = $("#gate");
   const need = S.mode === "local" && !Cloud.on();
   if (!need){ if (!el.hidden){ el.hidden = true; el.innerHTML = ""; } return; }
-  const G = S.gate || (S.gate = {page:"login"});
+  const G = S.gate || (S.gate = {page:location.hash === "#admin" ? "admin" : "login"});
   const keep = {}; el.querySelectorAll("input[id]").forEach(i => keep[i.id] = i.value);
   const focus = document.activeElement && el.contains(document.activeElement) ? document.activeElement.id : "";
   const deco = '<i class="g-deco g-blob1"></i><i class="g-deco g-dots"></i><i class="g-deco g-blob4"></i><i class="g-deco g-blob2"></i><i class="g-deco g-blob3"></i>';
   const email = keep["g-email"] != null ? keep["g-email"] : ((Cloud.cfg && Cloud.cfg.email) || (() => { try { return localStorage.getItem("eel-last-email") || ""; } catch (e) { return ""; } })());
   let html;
-  if (G.page === "forgot"){
+  if (G.page === "admin"){
+    html = deco + '<button class="g-back" data-act="gate-page" data-p="login" aria-label="回到登入">' + GATE_ICON.back + "</button>" +
+      '<div class="g-in" style="padding-top:80px"><section class="card">' + adminHTML() + "</section></div>";
+  } else if (G.page === "forgot"){
     html = deco + '<button class="g-back" data-act="gate-page" data-p="login" aria-label="回到登入">' + GATE_ICON.back + "</button>" +
       '<div class="g-in" style="padding-top:max(190px,24vh)"><h1 class="g-h">忘記密碼了嗎？</h1>' +
       '<p class="g-p">別擔心，探險家！輸入你的帳號 Email，<br>我們會通知管理者幫你重設密碼。</p>' +
@@ -3596,7 +3599,7 @@ function drawGate(){
         '<button class="g-btn" data-act="gate-page" data-p="login">我知道了</button></div></div>' : "");
   } else {
     const show = !!G.showPw;
-    html = deco + '<div class="g-in"><div class="g-brand">english daily</div><h1 class="g-title">冒險登入</h1>' +
+    html = deco + '<div class="g-in"><div class="g-brand" data-act="gate-brand">english daily</div><h1 class="g-title">冒險登入</h1>' +
       '<label class="g-field">' + GATE_ICON.mail + '<input id="g-email" type="email" autocomplete="username" autocapitalize="off" spellcheck="false" placeholder="Email" aria-label="Email" value="' + esc(email) + '"></label>' +
       '<div class="g-field"><label for="g-pw" style="display:contents">' + GATE_ICON.lock + '</label><input id="g-pw" type="' + (show ? "text" : "password") + '" autocomplete="current-password" placeholder="密碼" aria-label="密碼" value="' + esc(keep["g-pw"] || "") + '">' +
         '<button class="g-eye" data-act="gate-eye" aria-label="' + (show ? "隱藏密碼" : "顯示密碼") + '">' + (show ? GATE_ICON.eye : GATE_ICON.eyeOff) + "</button></div>" +
@@ -4890,6 +4893,8 @@ const ACT = {
   "export-file": () => exportProgress(),
   "share-file": () => shareProgress(),
   "backup-later": () => { S.backupSnooze = true; render(); },
+  /* hidden way in for the admin before anyone has an account: tap the name 5 times, or open the app with #admin */
+  "gate-brand": () => { const G = S.gate; G.taps = (G.taps || 0) + 1; clearTimeout(G.tapT); G.tapT = setTimeout(() => G.taps = 0, 1500); if (G.taps >= 5){ S.gate = {page:"admin"}; drawGate(); } },
   "gate-page": el => { S.gate = {page:el.dataset.p}; Cloud.err = ""; drawGate(); },
   "gate-eye": () => { S.gate.showPw = !S.gate.showPw; drawGate(); const i = $("#g-pw"); if (i) i.focus(); },
   "gate-login": async () => {
@@ -4951,7 +4956,7 @@ const ACT = {
   "adm-add": async () => {
     const body = {name:(($("#adm-name") || {}).value || "").trim(), email:(($("#adm-email") || {}).value || "").trim(), password:($("#adm-pw") || {}).value || ""};
     S.adm.err = ""; S.adm.ok = "";
-    try { await Cloud.api("/admin/users", {admin:admKey(), body}); S.adm.ok = "已建立 " + body.email + "。把 Email 和密碼告訴對方，請他到「設定 › 帳號」登入。"; S.adm.addOpen = false; }
+    try { await Cloud.api("/admin/users", {admin:admKey(), body}); S.adm.ok = "已建立 " + body.email + "。把 Email 和密碼告訴對方，請他打開 App 登入。"; S.adm.addOpen = false; }
     catch (e) { S.adm.err = e.message; S.adm.addOpen = true; render(); return; }
     ACT["adm-load"](null, true);
   },
