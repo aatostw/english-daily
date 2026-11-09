@@ -37,7 +37,8 @@
 | `js/actions.js` | `ACT`：所有 `data-act` 按鈕的動作，和事件監聽 |
 | `js/boot.js` | 啟動：同步 → 載入資料 → 畫面 |
 | `css/app.css` | 全部樣式 |
-| `sw.js` | 離線快取、跨來源隔離標頭（Pocket TTS 需要）；改版時把 `SHELL` 版本號加一 |
+| `sw.js` | 離線快取、跨來源隔離標頭（Pocket TTS 需要） |
+| `tools/release.py` | 每次上線前執行：版本號加一，並加到所有 css/js 網址上，避免手機混用新舊檔案 |
 
 ### 慣例
 - 畫面都是字串組 HTML，再由 `render()` 放進 `#main`；按鈕用 `data-act="名稱"`，動作寫在 `ACT`。
