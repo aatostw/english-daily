@@ -66,6 +66,8 @@ function city(){
   /* every building takes one plot (older towns had big buildings spread over 2-3); each one has a front door */
   Object.keys(c.tiles).forEach(k => { const it = c.tiles[k]; if (it.part) delete c.tiles[k]; else if (it.cells) delete it.cells; });
   const hall = c.tiles["0,0"]; if (!(hall.face >= 0 && hall.face < 6)) hall.face = autoFace(c, "0,0");
+  /* plots are bought one by one; in an older town every plot already in use counts as bought */
+  if (!Array.isArray(c.land)) c.land = Object.keys(c.tiles);
   Object.keys(c.tiles).forEach(k => { const it = c.tiles[k]; if (hasDoor(it) && !(it.face >= 0 && it.face < 6)) it.face = autoFace(c, k); });
   /* shops make food once a day; it waits in the shop (up to 2 days' worth) until you harvest */
   if (!c.prod) c.prod = {date:t, store:0};
@@ -140,6 +142,13 @@ function reqCap(c){ return HALL.reqs[hallLv(c) - 1] + parkFun(c); }
 function roadOk(c, k){ return cityNear(k).some(n => c.tiles[n] && c.tiles[n].b); }
 /* nothing built here (a tile may still have a ground laid on it) */
 function tileEmpty(it){ return !it || (!it.b && !it.d); }
+const LAND_PRICE = 10;
+function landOwned(c, k){ return k === "0,0" || (c.land || []).includes(k); }
+function cityBuyLand(c, k){
+  if (landOwned(c, k)) return "";
+  if (!spend(LAND_PRICE, "城市：買土地")) return "金幣不夠。";
+  c.land.push(k); saveCity(); return "";
+}
 function saveCity(){ Store.set("city", S.city).catch(() => {}); if (typeof renderCoins === "function") renderCoins(); }
 function cityTiles(c){
   const R = hallLv(c) + 1, out = [];
@@ -186,7 +195,7 @@ function cityTopHTML(c){
   const done = c.day.requests.filter(q => q.status !== "open").length, total = c.day.requests.length;
   const card = (inner, btn) => '<div class="city-top"><div class="ct-body">' + inner + "</div>" + (btn || "") + (S.err.city ? '<div class="err ct-err">' + esc(S.err.city) + "</div>" : "") + "</div>";
   const go = (act, label, extra) => '<button class="ct-go" data-act="' + act + '"' + (extra || "") + ">" + label + "</button>";
-  if (!n) return card('<div class="ct-l1">' + (away ? "居民還出不了門" : "還沒有居民") + '</div><div class="ct-sub">' + (away ? "房子的門口要對著接上市中心的道路" : "點空地蓋一間小屋，就會有人搬進來") + "</div>");
+  if (!n) return card('<div class="ct-l1">' + (away ? "居民還出不了門" : "還沒有居民") + '</div><div class="ct-sub">' + (away ? "房子的門口要對著接上市中心的道路" : "點一塊地買下來，再按「編輯」蓋小屋，就會有人搬進來") + "</div>");
   if (!c.day.fed)
     return card('<div class="ct-l1">居民肚子餓了，需要「<em>糧食</em>」</div><div class="ct-l2">發放 <big>' + n + "</big> 份</div>",
       S.busy.city ? '<button class="ct-go" disabled><span class="spinner"></span></button>' : food >= n ? go("city-feed", "發放") : go("city-sheet", "買糧食", ' data-s="shop"'));
@@ -352,6 +361,8 @@ function cityEditApply(k){
   const E = S.cityEdit, c = city(); if (!E || !E.sel || !k) return;
   const [t, v] = E.sel.split(":"), it = c.tiles[k];
   let err = "";
+  const needLand = t === "b" || t === "d" || t === "g" || (t === "t" && v === "move" && E.moveFrom);
+  if (needLand && !landOwned(c, k)){ toast("這塊地還沒買，先結束編輯、點它買下來（" + LAND_PRICE + " 金幣）。"); return; }
   if (t === "b") err = !tileEmpty(it) ? "這格已經有東西了" : cityBuildAt(c, k, v);
   else if (t === "d") err = !tileEmpty(it) ? "這格已經有東西了" : cityDecoAt(c, k, v);
   else if (t === "g") err = cityGroundAt(c, k, v);
@@ -398,6 +409,13 @@ function citySheetHTML(o){
       return '<button class="menu-row" data-act="city-build" data-b="' + k + '"' + (bal < b.price ? " disabled" : "") + '><span><b>' + b.name + '</b><span class="small muted">' + b.desc + '</span></span><span class="price"><img class="coin-icon" src="' + COIN_IMG + '" alt="">' + b.price + "</span></button>";
     }).join("") +
       (c.owned.deco.length ? '<div class="label" style="margin-top:6px">背包裡的裝飾（免費放）</div>' + [...new Set(c.owned.deco)].map(d => '<button class="menu-row" data-act="city-deco" data-d="' + d + '"><span><b>' + CITY_DECOS[d] + "</b></span><span>放這裡</span></button>").join("") : "") + "</div>";
+  }
+  if (o.s === "land"){
+    const own = landOwned(c, o.k), who = (Cloud.cfg && (Cloud.cfg.name || Cloud.cfg.email)) || "你";
+    return head("土地") + '<div class="land-card"><span class="land-ic">' + CITY_ICONS.lib_ground + '</span><div><div class="small muted">土地所有人</div><b>' + (own ? esc(who) : "還沒有人") + "</b></div>" +
+      '<span class="pill' + (own ? " ok" : "") + '">' + (own ? "已購買" : "未擁有") + "</span></div>" +
+      (own ? '<p class="small muted" style="margin:0">按左上的「編輯」就能在這裡蓋東西或鋪地面。</p>'
+        : '<button class="btn block" data-act="city-buy-land" data-k="' + o.k + '"' + (bal < LAND_PRICE ? " disabled" : "") + '>買下這塊地 <img class="coin-icon" src="' + COIN_IMG + '" alt="">' + LAND_PRICE + "</button>");
   }
   if (o.s === "reqs"){
     const open = c.day.requests.filter(q => q.status === "open").length;

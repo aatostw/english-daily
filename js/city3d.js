@@ -117,6 +117,7 @@ const City3D = {
       if (it && it.b === "road"){ this.road(g, c, q, r, x, z, pos); return; }
       if (it && it.part) return;
       if (it && !it.b && !it.d) return;   /* only a ground laid on it */
+      if (!it && landOwned(c, key)) return;   /* a bought plot: plain sand */
       if (!it){
         /* an empty plot: a soft plus sign and a little bush on the edge */
         [[.36, .05], [.05, .36]].forEach(([w, d]) => { const m = new T.Mesh(new T.BoxGeometry(w, .02, d), this.mat(0xDCCBA8)); m.position.set(x, .06, z); g.add(m); });

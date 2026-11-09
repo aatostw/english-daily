@@ -126,7 +126,7 @@ const ACT = {
   },
   "city-tile": el => {
     const c = city(), k = anchorOf(c, el.dataset.k), it = c.tiles[k];
-    if (tileEmpty(it)){ cityOpen({s:"build", k}); return; }
+    if (tileEmpty(it)){ cityOpen({s:"land", k}); return; }
     /* roads and decorations have nothing to upgrade: change them in 編輯 */
     const b = it.b && CITY_BUILDINGS[it.b];
     if (!b || !(b.make || b.grow || b.fun || b.fixed)){ toast("要移動、轉向或移除，請按左上的「編輯」"); return; }
@@ -181,6 +181,7 @@ const ACT = {
   },
   "city-deco": el => { const o = S.sheet; if (!o) return; const err = cityDecoAt(city(), o.k, el.dataset.d); if (err){ toast(err); return; } closeSheet(); render(); },
   "city-move": el => { cityRemoveAt(city(), el.dataset.k); closeSheet(); render(); },
+  "city-buy-land": el => { const err = cityBuyLand(city(), el.dataset.k); if (err){ toast(err); return; } toast("買下這塊地了！"); drawSheet(); render(); },
   "city-edit": () => { S.cityEdit = {tab:null, sel:null}; render(); },
   "city-edit-done": () => { S.cityEdit = null; render(); },
   /* 返回 also puts down whatever was chosen */
