@@ -1161,6 +1161,7 @@ const TTS = {
   pcUrl(text){
     const v = set().pcVoice || {}, base = String(v.url).trim().replace(/\/+$/, "");
     const q = new URLSearchParams({text, text_lang:"en", media_type:"wav"});
+    if (v.key) q.set("k", v.key);
     if (v.ref) q.set("ref_audio_path", v.ref);
     if (v.refText) q.set("prompt_text", v.refText);
     if (v.ref || v.refText) q.set("prompt_lang", v.refLang || "zh");
@@ -3377,7 +3378,8 @@ function prefsParts(){
       ? '<button class="btn ghost block" data-act="pocket-prefetch"' + (S.busy.pocketPrefetch ? " disabled" : "") + ">" + (S.busy.pocketPrefetch ? '<span class="spinner"></span>下載中，請稍等…' : "先下載好，之後關網路也能唸") + "</button>"
       : '<div class="small muted">現在是從檔案直接打開的，語音模型存不住，關網路就不能用。從 https 網址打開才能離線使用。</div>') +
     '<div class="row between" style="align-items:center"><span class="small muted" id="audio-usage">已存的聲音：計算中…</span><button class="btn ghost sm" data-act="audio-clear">清除</button></div>';
-  const pcBox = '<div class="field"><label for="pc-url">伺服器網址</label><input class="input en" id="pc-url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://xxxx.trycloudflare.com" value="' + esc(pv.url || "") + '" data-act-change="pc-url"><div class="small muted">電腦上語音伺服器視窗裡顯示的網址。網址換了就貼新的。</div></div>' +
+  const pcBox = '<div class="field"><label for="pc-url">伺服器網址</label><input class="input en" id="pc-url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://voice.natursai.com" value="' + esc(pv.url || "") + '" data-act-change="pc-url"><div class="small muted">電腦上語音伺服器視窗裡顯示的網址。設定過固定網址的話，填一次就好。</div></div>' +
+      '<div class="field"><label for="pc-key">密碼</label><input class="input en" id="pc-key" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="電腦視窗上顯示的密碼" value="' + esc(pv.key || "") + '" data-act-change="pc-key"></div>' +
       '<details class="ledger"><summary>進階：電腦的參考音檔（通常不用填）</summary><div class="stack" style="margin-top:10px">' +
         '<input class="input en" placeholder="參考音檔在電腦上的路徑" value="' + esc(pv.ref || "") + '" data-act-change="pc-ref" aria-label="參考音檔路徑">' +
         '<input class="input" placeholder="參考音檔說的話" value="' + esc(pv.refText || "") + '" data-act-change="pc-reftext" aria-label="參考音檔說的話">' +
@@ -3391,8 +3393,9 @@ function prefsParts(){
     (src === "builtin" ? pocketBox : "") +
     (src === "pc" ? pcBox + '<details class="ledger"><summary>單字用的 Pocket TTS 聲音</summary><div class="stack" style="margin-top:10px">' + pocketBox + "</div></details>" : "") +
     '<div class="field asr-box"><label for="' + (src === "pc" ? "pc-url" : "asr-url") + '">跟讀評分（電腦的 Whisper）</label>' +
-      (src === "pc" ? "" : '<input class="input en" id="asr-url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://xxxx.trycloudflare.com" value="' + esc(pv.url || "") + '" data-act-change="pc-url">') +
-      '<div class="small muted">按句子旁邊的麥克風唸一遍，電腦會聽寫並評分：說對了沒、流暢度、清楚度，還會指出哪個音可能沒發好。' + (src === "pc" ? "用上面同一個伺服器網址。" : "填電腦語音伺服器視窗裡的網址。") + "</div>" +
+      (src === "pc" ? "" : '<input class="input en" id="asr-url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://voice.natursai.com" value="' + esc(pv.url || "") + '" data-act-change="pc-url">' +
+        '<input class="input en" id="asr-key" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="密碼（電腦視窗上顯示的）" value="' + esc(pv.key || "") + '" data-act-change="pc-key" aria-label="密碼">') +
+      '<div class="small muted">按句子旁邊的麥克風唸一遍，電腦會聽寫並評分：說對了沒、流暢度、清楚度，還會指出哪個音可能沒發好。' + (src === "pc" ? "用上面同一個伺服器網址和密碼。" : "填電腦語音伺服器視窗裡的網址和密碼。") + "</div>" +
       '<div class="row between" style="align-items:center"><button class="btn soft sm" data-act="asr-ping"' + (S.asrPing === "checking" ? " disabled" : "") + ">" + (S.asrPing === "checking" ? '<span class="spinner"></span>測試中' : "測試連線") + "</button>" +
       (S.asrPing && S.asrPing !== "checking" ? '<span class="small" style="color:' + (/^ok:/.test(S.asrPing) ? "#3E9C7A" : "#C97A00") + '">' + esc(S.asrPing.replace(/^ok:/, "")) + "</span>" : "") + "</div></div>" +
     '<div class="row" style="gap:8px"><button class="btn soft" style="flex:1" data-act="say" data-text="magic">' + spk + '試聽單字</button>' +
@@ -3583,6 +3586,7 @@ function checkSelection(){
 const MIC_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor"/><path d="M6 11a6 6 0 0 0 12 0M12 17v3.5M8.5 20.5h7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
 const REC = {mr:null, stream:null, chunks:[], timer:null, url:""};
 function asrBase(){ return String((set().pcVoice || {}).url || "").trim().replace(/\/+$/, ""); }
+function asrKey(){ return encodeURIComponent(String((set().pcVoice || {}).key || "").trim()); }
 /* the last score for each paragraph you read, kept on this phone */
 function shadowKey(t){ return String(t || "").trim().toLowerCase().replace(/\s+/g, " ").slice(0, 300); }
 function shadowAll(){ try { return JSON.parse(localStorage.getItem(LS + "shadow") || "{}"); } catch (e) { return {}; } }
@@ -3695,7 +3699,7 @@ async function shadowSend(o){
   o.state = "up"; drawSheet();
   const ctl = new AbortController(), timeout = setTimeout(() => ctl.abort(), 60000);
   try {
-    const r = await fetch(asrBase() + "/asr?target=" + encodeURIComponent(o.text), {method:"POST", body:blob, headers:{"Content-Type":type.split(";")[0]}, signal:ctl.signal});
+    const r = await fetch(asrBase() + "/asr?k=" + asrKey() + "&target=" + encodeURIComponent(o.text), {method:"POST", body:blob, headers:{"Content-Type":type.split(";")[0]}, signal:ctl.signal});
     const j = await r.json().catch(() => ({}));
     if (!r.ok || !j.ok) throw new Error(j.error || ("電腦回應錯誤（" + r.status + "）"));
     o.res = j; o.state = "done";
@@ -3712,7 +3716,8 @@ async function shadowSend(o){
 /* when sending the recording fails, ask the computer what's wrong so the message says what to do */
 async function asrDiagnose(){
   try {
-    const r = await fetch(asrBase() + "/ping", {cache:"no-store"}), j = await r.json();
+    const r = await fetch(asrBase() + "/ping?k=" + asrKey(), {cache:"no-store"}), j = await r.json();
+    if (j.key === false) return "電腦連得到，但密碼不對。到「設定 → 朗讀」填電腦視窗上顯示的密碼。";
     if (!j.asr) return "電腦連得到，但電腦上的語音伺服器是舊版，還不能評分。請關掉電腦上的語音伺服器視窗，重新雙擊「啟動語音伺服器.bat」，再把新網址貼過來。";
     if (j.asr === "loading") return "電腦的 Whisper 還在準備（第一次要下載模型，可能要幾分鐘），等一下再唸一次。";
     if (j.asr !== "ready") return "電腦的跟讀評分沒開啟（" + j.asr + "），看一下電腦上語音伺服器視窗的訊息。";
@@ -4364,8 +4369,8 @@ const ACT = {
     const base = asrBase(); if (!base){ toast("先貼上伺服器網址"); return; }
     S.asrPing = "checking"; render();
     try {
-      const r = await fetch(base + "/ping", {cache:"no-store"}); const j = await r.json();
-      S.asrPing = !j.ok ? "連得到，但回應怪怪的" : j.asr === "ready" ? "ok:連線成功，跟讀評分可以用（" + (j.asr_model || "Whisper") + "）" : j.asr === "loading" ? "連線成功，Whisper 還在載入（第一次會下載模型，請等幾分鐘）" : j.asr ? "連線成功，但跟讀評分沒開啟：" + j.asr : "連線成功，但電腦上的 voice_server.py 是舊版，還沒有跟讀評分";
+      const r = await fetch(base + "/ping?k=" + asrKey(), {cache:"no-store"}); const j = await r.json();
+      S.asrPing = j.key === false ? "連得到電腦，但密碼不對（看電腦視窗上的「密碼」）" : !j.ok ? "連得到，但回應怪怪的" : j.asr === "ready" ? "ok:連線成功，跟讀評分可以用（" + (j.asr_model || "Whisper") + "）" : j.asr === "loading" ? "連線成功，Whisper 還在載入（第一次會下載模型，請等幾分鐘）" : j.asr ? "連線成功，但跟讀評分沒開啟：" + j.asr : "連線成功，但電腦上的 voice_server.py 是舊版，還沒有跟讀評分";
     } catch (e) { S.asrPing = "連不到電腦，確認語音伺服器視窗開著、網址是最新的"; }
     render();
   },
@@ -4608,8 +4613,8 @@ document.addEventListener("change", e => {
   if (!S.profile) return;
   const st = set();
   if (act === "voice"){ st.voice = el.value; saveProfile(); }
-  if (act === "pc-url" || act === "pc-ref" || act === "pc-reftext" || act === "pc-reflang"){
-    const k = {"pc-url":"url", "pc-ref":"ref", "pc-reftext":"refText", "pc-reflang":"refLang"}[act];
+  if (act === "pc-url" || act === "pc-key" || act === "pc-ref" || act === "pc-reftext" || act === "pc-reflang"){
+    const k = {"pc-url":"url", "pc-key":"key", "pc-ref":"ref", "pc-reftext":"refText", "pc-reflang":"refLang"}[act];
     st.pcVoice = Object.assign({}, st.pcVoice, {[k]:el.value.trim()}); TTS.cache.clear(); saveProfile();
   }
   if (act === "pocket-voice"){
