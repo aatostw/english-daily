@@ -246,5 +246,6 @@ function aiErr(e){
 }
 function aiMissing(){
   const need = [...new Set(TASKS.map(t => taskCfg(t.key).provider))];
-  return need.filter(p => !provReady(p));
+  /* the server's AI only needs the login, which the login screen already asks for */
+  return need.filter(p => p !== "server" && !provReady(p));
 }
