@@ -632,3 +632,11 @@ h1,h2{color:var(--primary-text)}
 .land-card b{font-size:17px}
 .land-ic{width:40px;height:40px;flex:none}.land-ic svg{width:100%;height:100%}
 .pill.ok{background:#E3F5EC;color:#2E8B62}
+/* building names: hidden unless the switch in the bottom-left is on */
+.city3d:not(.names) .bname{display:none}
+.city3d .pin:has(> .bname){pointer-events:none}
+.name-toggle{position:absolute;left:10px;bottom:10px;z-index:4;display:flex;align-items:center;gap:8px;padding:6px 8px 6px 12px;border:0;border-radius:999px;background:rgba(255,255,255,.92);box-shadow:0 3px 10px rgba(30,50,60,.16);font:inherit;font-size:13px;font-weight:800;color:#3B4656}
+.nt-sw{position:relative;width:34px;height:20px;border-radius:999px;background:#E57373;transition:background .15s}
+.nt-sw b{position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .15s}
+.name-toggle[aria-checked="true"] .nt-sw{background:#4DB892}
+.name-toggle[aria-checked="true"] .nt-sw b{transform:translateX(14px)}

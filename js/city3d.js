@@ -7,7 +7,7 @@
 const THREE_URL = "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js";
 const City3D = {
   T:null, loading:null, failed:false, r:null, scene:null, cam:null, group:null, overlay:null, host:null,
-  sig:"", az:Math.PI / 5, el:1.0, dist:null, pick:[], labels:[], known:new Set(), grow:[], frame:0, mats:{},
+  sig:"", bgs:{}, ring:null, selShown:null, az:Math.PI / 5, el:1.0, dist:null, pick:[], labels:[], known:new Set(), grow:[], frame:0, mats:{},
   load(){
     if (!this.loading) this.loading = import(THREE_URL).then(m => (this.T = m)).catch(e => { this.loading = null; throw e; });
     return this.loading;
@@ -97,7 +97,7 @@ const City3D = {
     const win = this.light();
     const g = this.group;
     while (g.children.length) g.remove(g.children[0]);
-    this.pick = []; this.labels = []; this.overlay.innerHTML = "";
+    this.pick = []; this.labels = []; this.overlay.innerHTML = ""; this.bgs = {}; this.ring = null; this.selShown = null;
     const tiles = cityTiles(c), R = hallLv(c) + 1, L = cityLinked(c);
     const H = .55, pos = (q, r) => [Math.sqrt(3) * (q + r / 2), 1.5 * r], posK = k => pos(...k.split(",").map(Number));
     this.shallow.scale.setScalar(R * 1.9 + 2.2);
@@ -140,9 +140,9 @@ const City3D = {
       bg.traverse(m => { if (m.isMesh){ m.castShadow = true; m.receiveShadow = true; m.userData.key = key; this.pick.push(m); } });
       const top3 = new T.Box3().setFromObject(bg).max.y;
       if (!this.known.has(key + ":" + lv) && this.known.size){ bg.scale.setScalar(.01); this.grow.push({g:bg, t0:performance.now()}); }
-      g.add(bg);
+      g.add(bg); this.bgs[key] = bg;
       const off = b && !b.fixed && (b.make || b.residents) && !linked;
-      this.label(new T.Vector3(gx, top3 + .08, gz), '<span class="lbl' + (off ? " off" : "") + '">' + esc(cityName(it)) + (off ? "・未接市中心" : "") + "</span>");
+      this.label(new T.Vector3(gx, top3 + .08, gz), '<span class="lbl bname' + (off ? " off" : "") + '">' + esc(cityName(it)) + (off ? "・未接市中心" : "") + "</span>");
     });
     this.known = new Set(Object.keys(c.tiles).filter(k => !c.tiles[k].part).map(k => k + ":" + tileLv(c.tiles[k]))); if (!this.known.size) this.known.add("_");
     /* residents beside their homes; a "!" above the ones who need you */
@@ -184,6 +184,33 @@ const City3D = {
     const [fx, fz] = pos(0, R);
     this.avatar(g, fx - .5, fz + .5, c.avatar);
     this.walkLoop();
+  },
+  /* the chosen building lifts up and bobs, with a glowing ring on its plot */
+  selKey(){
+    if (S.view !== "city") return null;
+    if (S.cityEdit && S.cityEdit.moveFrom) return S.cityEdit.moveFrom;
+    const o = S.sheet; return o && o.kind === "city" && (o.s === "tile" || o.s === "land") ? o.k : null;
+  },
+  animSel(now){
+    if (!this.group || !this.T) return false;
+    const T = this.T, k = this.selKey();
+    if (k !== this.selShown){
+      if (this.selShown && this.bgs[this.selShown]) this.bgs[this.selShown].position.y = .05;
+      if (this.ring){ this.group.remove(this.ring); this.ring = null; }
+      this.selShown = k;
+      if (k){
+        const [q, r] = k.split(",").map(Number);
+        this.ring = new T.Mesh(new T.RingGeometry(.74, .9, 6), new T.MeshBasicMaterial({color:0x4DB892, transparent:true, opacity:.9, side:T.DoubleSide, depthWrite:false}));
+        this.ring.rotation.x = -Math.PI / 2; this.ring.rotation.z = Math.PI / 6;
+        this.ring.position.set(Math.sqrt(3) * (q + r / 2), .075, 1.5 * r);
+        this.group.add(this.ring);
+      }
+    }
+    if (!k) return false;
+    const bg = this.bgs[k], t = now / 1000;
+    if (bg) bg.position.y = .05 + .32 + Math.sin(t * 3.2) * .05;
+    if (this.ring) this.ring.material.opacity = .55 + Math.sin(t * 4) * .35;
+    return true;
   },
   label(v, html, live){
     const el = document.createElement("div"); el.className = "pin" + (live ? " live" : ""); el.innerHTML = html;
@@ -491,6 +518,7 @@ const City3D = {
       if (!this.r || !this.host || !document.body.contains(this.host)) return;
       let more = false;
       this.grow = this.grow.filter(a => { const k = Math.min(1, (now - a.t0) / 450), e = 1 - Math.pow(1 - k, 3) * (1 - 1.7 * k * (1 - k)); a.g.scale.setScalar(Math.max(.01, e)); if (k < 1) more = true; return k < 1; });
+      if (this.animSel(now)) more = true;
       this.place(); this.r.render(this.scene, this.cam);
       const v = new this.T.Vector3();
       this.labels.forEach(l => {

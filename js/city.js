@@ -184,10 +184,11 @@ function avatarSVG(av, size){
 function renderCity(){
   const c = city();
   /* the 3D town draws into #city3d; until it's loaded (or if this device can't show 3D) a short note shows */
-  const stage = '<div id="city3d" class="city3d"><div class="city-wait">' + (City3D.failed ? "這台裝置不能顯示 3D 城市。" : '<span class="spinner"></span>正在載入城市…') + "</div></div>";
+  const stage = '<div id="city3d" class="city3d' + (c.showNames ? " names" : "") + '"><div class="city-wait">' + (City3D.failed ? "這台裝置不能顯示 3D 城市。" : '<span class="spinner"></span>正在載入城市…') + "</div></div>";
   if (S.cityChat && curWeek()) return '<div class="city-stage chat">' + stage + cityChatHTML() + "</div>";
   return '<div class="city-stage' + (S.cityEdit ? " editing" : "") + '">' + stage + '<div class="city-hud">' + cityTopHTML(c) +
-    '<div class="hud-row">' + cityEditBtnHTML() + (S.cityEdit ? cityEditHTML(c) : citySideHTML(c)) + "</div>" + "</div></div>";
+    '<div class="hud-row">' + cityEditBtnHTML() + (S.cityEdit ? cityEditHTML(c) : citySideHTML(c)) + "</div>" + "</div>" +
+    '<button class="name-toggle" data-act="city-names" role="switch" aria-checked="' + !!c.showNames + '"><span>名稱與等級</span><i class="nt-sw"><b></b></i></button></div>';
 }
 /* the floating card at the top: today's resident requests */
 function cityTopHTML(c){
@@ -388,7 +389,7 @@ function cityEditApply(k){
 }
 
 /* ---------- sheets ---------- */
-function cityOpen(o){ S.sheet = Object.assign({kind:"city"}, o); S.sheetAt = performance.now(); $("#sheet").hidden = false; drawSheet(); }
+function cityOpen(o){ S.sheet = Object.assign({kind:"city"}, o); S.sheetAt = performance.now(); $("#sheet").hidden = false; drawSheet(); if (typeof City3D !== "undefined") City3D.draw(); }
 function citySheetHTML(o){
   const c = city(), bal = wallet().balance;
   const head = t => '<div class="sh-head"><div class="sh-word phrase" style="flex:1;min-width:0">' + t + '</div><button class="icon-btn" data-act="close-sheet" aria-label="關閉">×</button></div>';

@@ -182,6 +182,7 @@ const ACT = {
   "city-deco": el => { const o = S.sheet; if (!o) return; const err = cityDecoAt(city(), o.k, el.dataset.d); if (err){ toast(err); return; } closeSheet(); render(); },
   "city-move": el => { cityRemoveAt(city(), el.dataset.k); closeSheet(); render(); },
   "city-buy-land": el => { const err = cityBuyLand(city(), el.dataset.k); if (err){ toast(err); return; } toast("買下這塊地了！"); drawSheet(); render(); },
+  "city-names": () => { const c = city(); c.showNames = !c.showNames; saveCity(); const h = $("#city3d"); if (h) h.classList.toggle("names", c.showNames); const b = $(".name-toggle"); if (b) b.setAttribute("aria-checked", c.showNames); },
   "city-edit": () => { S.cityEdit = {tab:null, sel:null}; render(); },
   "city-edit-done": () => { S.cityEdit = null; render(); },
   /* 返回 also puts down whatever was chosen */

@@ -321,6 +321,7 @@ function closeSheet(){
   try { if (S.sheet && S.sheet.selText) window.getSelection().removeAllRanges(); } catch (e) {}
   S.sheet = null; $("#sheet").hidden = true; $("#sheet-card").innerHTML = "";
   document.querySelectorAll(".w.picked").forEach(x => x.classList.remove("picked"));
+  if (S.view === "city" && typeof City3D !== "undefined") City3D.draw();
 }
 function themeSheetHTML(){
   const need = themeNeed();
