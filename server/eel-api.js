@@ -58,7 +58,7 @@ function cors(req){
   const o = req.headers.get("Origin") || "";
   const allow = ORIGINS.includes(o) || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(o) || o === "null" ? o : ORIGINS[0];
   return {"Access-Control-Allow-Origin":allow, "Access-Control-Allow-Methods":"GET, POST, OPTIONS",
-          "Access-Control-Allow-Headers":"Content-Type, Authorization, X-Admin-Key", "Access-Control-Max-Age":"86400", "Vary":"Origin"};
+          "Access-Control-Allow-Headers":"Content-Type, Authorization, X-Admin-Key, X-Admin-User", "Access-Control-Max-Age":"86400", "Vary":"Origin"};
 }
 function json(req, status, obj){
   return new Response(JSON.stringify(obj), {status, headers:Object.assign({"Content-Type":"application/json; charset=utf-8", "Cache-Control":"no-store"}, cors(req))});
@@ -76,9 +76,12 @@ async function auth(req, env, fromQuery){
   if (now - row.last_seen > 3600000) await env.DB.prepare("UPDATE sessions SET last_seen = ? WHERE token = ?").bind(now, m[1]).run();
   return {id:row.user_id, email:row.email, name:row.name, voice:!!row.voice, token:m[1]};
 }
+/* the admin = ADMIN_USER (an account name, set in Cloudflare) + ADMIN_KEY (its password, a secret) */
 function admin(req, env){
   const k = req.headers.get("X-Admin-Key") || "";
-  return !!env.ADMIN_KEY && k.length > 0 && same(k, env.ADMIN_KEY);
+  const u = (req.headers.get("X-Admin-User") || "").trim().toLowerCase();
+  const userOk = !env.ADMIN_USER || same(u, String(env.ADMIN_USER).trim().toLowerCase());
+  return !!env.ADMIN_KEY && k.length > 0 && same(k, env.ADMIN_KEY) && userOk;
 }
 
 /* ---------- routes ---------- */
@@ -185,7 +188,11 @@ async function voice(req, env, path){
 /* ---------- account management (X-Admin-Key) ---------- */
 async function adminRoute(req, env, path){
   if (!env.ADMIN_KEY) return json(req, 503, {ok:false, error:"Worker 還沒設定 ADMIN_KEY"});
-  if (!admin(req, env)) return json(req, 401, {ok:false, error:"管理密碼不對"});
+  if (!admin(req, env)){
+    await new Promise(r => setTimeout(r, 400));   /* slows down guessing */
+    return json(req, 401, {ok:false, error:"管理員帳號或密碼不對"});
+  }
+  if (path === "/admin/check") return json(req, 200, {ok:true});
   const b = req.method === "POST" ? await body(req) : {};
   if (path === "/admin/users" && req.method === "GET"){
     const r = await env.DB.prepare(

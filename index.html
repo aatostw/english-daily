@@ -923,7 +923,7 @@ const Cloud = {
     opts = opts || {};
     const h = {"Content-Type":"application/json"};
     if (this.cfg && this.cfg.token) h.Authorization = "Bearer " + this.cfg.token;
-    if (opts.admin) h["X-Admin-Key"] = opts.admin;
+    if (opts.admin){ h["X-Admin-Key"] = opts.admin; h["X-Admin-User"] = opts.adminUser != null ? opts.adminUser : admUser(); }
     let r;
     try { r = await fetch(this.url() + path, {method:opts.method || (opts.body ? "POST" : "GET"), headers:h, body:opts.body ? JSON.stringify(opts.body) : undefined}); }
     catch (e) { throw new Error("連不上伺服器，請確認網路。"); }
@@ -1041,6 +1041,7 @@ const Cloud = {
     await this.push().catch(() => {});
     if (this.cfg && this.cfg.token) await this.api("/logout", {body:{}}).catch(() => {});
     try { if (this.cfg && this.cfg.email) localStorage.setItem("eel-last-email", this.cfg.email); } catch (e) {}
+    admForget();
     this.cfg = null; this.save(); this.setQueue({}); this.err = "";
     if (wipe){
       this.localIds().forEach(id => { Store.mem.delete(id); try { localStorage.removeItem(LS + id); } catch (e) {} });
@@ -3587,7 +3588,10 @@ function drawGate(){
   let html;
   if (G.page === "admin"){
     html = deco + '<button class="g-back" data-act="gate-page" data-p="login" aria-label="回到登入">' + GATE_ICON.back + "</button>" +
-      '<div class="g-in" style="padding-top:80px"><section class="card">' + adminHTML() + "</section></div>";
+      '<div class="g-in" style="padding-top:80px"><section class="card">' + (admCreds() ? adminHTML()
+        : '<h2 style="font-size:20px">管理員登入</h2><p class="muted small" style="margin:0">輸入 Cloudflare 上設定的管理員帳號（ADMIN_USER）和管理密碼（ADMIN_KEY）。</p>' + admLoginHTML("ga") +
+          (G.err ? '<div class="err">' + esc(G.err) + "</div>" : "") +
+          '<button class="btn block" data-act="gate-admin"' + (G.busy ? " disabled" : "") + ">" + (G.busy ? '<span class="spinner"></span>確認中' : "確認") + "</button>") + "</section></div>";
   } else if (G.page === "forgot"){
     html = deco + '<button class="g-back" data-act="gate-page" data-p="login" aria-label="回到登入">' + GATE_ICON.back + "</button>" +
       '<div class="g-in" style="padding-top:max(190px,24vh)"><h1 class="g-h">忘記密碼了嗎？</h1>' +
@@ -3643,7 +3647,8 @@ function accountCardHTML(){
       '<button class="btn" data-act="cloud-pw">更新密碼</button></div></details></section>';
 }
 function adminHTML(){
-  const a = S.adm || {}, users = a.users;
+  const a = S.adm || (S.adm = {}), users = a.users;
+  if (!users && !a.busy && !a.tried && admKey()){ a.tried = true; setTimeout(() => ACT["adm-load"](null, true), 0); }
   let list = "";
   if (users) list = users.length ? '<div class="stack">' + users.map(u =>
       '<div class="adm-u"><div class="row between" style="align-items:center"><div style="min-width:0"><b>' + esc(u.name || "（沒有名字）") + '</b><div class="small muted en" style="overflow-wrap:anywhere">' + esc(u.email) + "</div>" + (u.reset_req ? '<div><span class="pill bad" style="margin-top:4px">要求重設密碼</span></div>' : "") + '<div class="small muted">' + u.items + " 項進度・" + (u.last_seen ? "最近登入 " + new Date(u.last_seen).toLocaleDateString() : "還沒登入過") + "</div></div>" +
@@ -3651,9 +3656,9 @@ function adminHTML(){
         '<div class="row between" style="align-items:center;margin-top:8px"><span class="small"><b>電腦語音</b><span class="muted">（GPT-SoVITS、跟讀評分）</span></span><button class="switch" role="switch" aria-checked="' + !!u.voice + '" data-act="adm-voice" data-email="' + esc(u.email) + '" data-on="' + (u.voice ? 0 : 1) + '" aria-label="電腦語音"><span></span></button></div>' +
         (a.reset === u.email ? '<div class="row" style="margin-top:8px"><input class="input" id="adm-rp" type="text" autocomplete="off" placeholder="新密碼（至少 6 個字）" aria-label="新密碼"><button class="btn sm" data-act="adm-reset-go" data-email="' + esc(u.email) + '">確定</button></div>' : "") +
       "</div>").join("") + "</div>" : '<p class="muted small" style="margin:0">還沒有帳號。</p>';
-  return '<div class="divider"></div><div><b>帳號管理</b><div class="small muted">幫家人、朋友建立帳號。管理密碼是 Cloudflare 上 ADMIN_KEY 的值，只存在這個分頁。</div></div>' +
-    '<div class="field"><label for="cloud-url">伺服器網址</label><input class="input en" id="cloud-url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="' + CLOUD_URL + '" value="' + esc((Cloud.cfg && Cloud.cfg.url !== CLOUD_URL && Cloud.cfg.url) || S.cloudUrl || "") + '" data-act-change="cloud-url"' + (Cloud.on() ? " disabled" : "") + "></div>" +
-    '<div class="field"><label for="adm-key">管理密碼</label><div class="row"><input class="input" id="adm-key" type="password" autocomplete="off" value="' + esc(admKey()) + '"><button class="btn" data-act="adm-load"' + (a.busy ? " disabled" : "") + ">" + (users ? "重新整理" : "載入") + "</button></div></div>" +
+  return '<div class="divider"></div><div><b>帳號管理</b><div class="small muted">幫家人、朋友建立帳號、開通電腦語音。</div></div>' +
+    '<!--cloud-url--><div hidden><label for="cloud-url">伺服器網址</label><input class="input en" id="cloud-url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="' + CLOUD_URL + '" value="' + esc((Cloud.cfg && Cloud.cfg.url !== CLOUD_URL && Cloud.cfg.url) || S.cloudUrl || "") + '" data-act-change="cloud-url"' + (Cloud.on() ? " disabled" : "") + "></div>" +
+    '<div class="row between" style="align-items:center"><span class="small muted">管理員：<b class="en">' + esc(admUser()) + '</b></span><button class="btn soft sm" data-act="adm-load"' + (a.busy ? " disabled" : "") + ">" + (a.busy ? '<span class="spinner"></span>' : "") + "重新整理</button></div>" +
     (a.err ? '<div class="err">' + esc(a.err) + "</div>" : "") + (a.ok ? '<div class="note ok">' + esc(a.ok) + "</div>" : "") + list +
     (users ? '<details class="ledger"' + (a.addOpen ? " open" : "") + '><summary>新增帳號</summary><div class="stack" style="margin-top:10px">' +
       '<input class="input" id="adm-name" autocomplete="off" placeholder="名字（例如：媽媽）" aria-label="名字">' +
@@ -3665,7 +3670,46 @@ function adminHTML(){
       '<div class="small muted">開通的人會透過伺服器用你的電腦唸英文、評分，不用知道網址和密碼。' + (a.voiceKeySet ? "密碼<b>已設定</b>。" : '<b style="color:var(--danger)">還沒設定密碼</b>。') + "</div>" +
       '<div class="row"><input class="input" id="adm-vkey" type="password" autocomplete="off" placeholder="電腦語音伺服器視窗上的密碼" aria-label="電腦語音密碼"><button class="btn" style="flex:none;white-space:nowrap" data-act="adm-vkey">儲存</button></div></div></details>' : "");
 }
-function admKey(){ try { return sessionStorage.getItem("eel-admin") || ""; } catch (e) { return ""; } }
+/* the admin's name and password (Cloudflare: ADMIN_USER / ADMIN_KEY), kept only on this device after they were checked */
+function admCreds(){ try { const c = JSON.parse(localStorage.getItem("eel-admin") || "null"); return c && c.key ? c : null; } catch (e) { return null; } }
+function admKey(){ return (admCreds() || {}).key || ""; }
+function admUser(){ return (admCreds() || {}).user || ""; }
+function admForget(){ try { localStorage.removeItem("eel-admin"); sessionStorage.removeItem("eel-admin"); } catch (e) {} S.adm = null; }
+function devOn(){ return !!set().devMode && !!admCreds(); }
+async function admCheck(user, key){
+  await Cloud.api("/admin/check", {admin:key, adminUser:user, body:{}});
+  try { localStorage.setItem("eel-admin", JSON.stringify({user, key})); } catch (e) {}
+}
+function admLoginHTML(prefix){
+  return '<div class="field"><label for="' + prefix + '-au">管理員帳號</label><input class="input en" id="' + prefix + '-au" autocomplete="username" autocapitalize="off" spellcheck="false" value="' + esc(admUser() || (S.admLast || "")) + '"></div>' +
+    '<div class="field"><label for="' + prefix + '-ak">管理密碼</label><input class="input" id="' + prefix + '-ak" type="password" autocomplete="current-password"></div>';
+}
+/* turning on developer mode asks for the admin; the answer is checked by the server */
+function admLoginBox(){
+  return new Promise(resolve => {
+    const d = $("#dialog");
+    const draw = (err, busy) => {
+      const au = ($("#dl-au") || {}).value, ak = ($("#dl-ak") || {}).value;
+      d.innerHTML = '<div class="card" role="alertdialog" aria-modal="true"><h3>開發人員模式</h3><p class="muted small" style="margin:0">請輸入 Cloudflare 上設定的管理員帳號（ADMIN_USER）和管理密碼（ADMIN_KEY）。</p>' +
+        admLoginHTML("dl") + (err ? '<div class="err">' + esc(err) + "</div>" : "") +
+        '<div class="row" style="justify-content:flex-end"><button class="btn soft" id="dlg-no">取消</button><button class="btn" id="dlg-ok"' + (busy ? " disabled" : "") + ">" + (busy ? '<span class="spinner"></span>確認中' : "確認") + "</button></div></div>";
+      if (au != null) $("#dl-au").value = au;
+      if (ak != null) $("#dl-ak").value = ak;
+      $("#dlg-no").onclick = () => { d.hidden = true; d.innerHTML = ""; resolve(false); };
+      $("#dlg-ok").onclick = go;
+      d.querySelectorAll("input").forEach(i => i.onkeydown = e => { if (e.key === "Enter") go(); });
+    };
+    const go = async () => {
+      const user = ($("#dl-au").value || "").trim(), key = $("#dl-ak").value || "";
+      if (!user || !key){ draw("請輸入管理員帳號和管理密碼。"); return; }
+      S.admLast = user; draw("", true);
+      try { await admCheck(user, key); d.hidden = true; d.innerHTML = ""; resolve(true); }
+      catch (e) { draw(e.message); }
+    };
+    d.hidden = false; draw("");
+    setTimeout(() => { const i = $("#dl-au"); if (i) (i.value ? $("#dl-ak") : i).focus(); }, 30);
+  });
+}
 function renderPrefs(){
   const items = [
     ["account", "帳號", Cloud.on() ? (Cloud.cfg.name || Cloud.cfg.email) + "・" + (Cloud.err ? "同步失敗" : cloudAgo(Cloud.cfg.lastSync)) : "登入後可以在其他裝置接著學"],
@@ -3739,8 +3783,8 @@ function prefsParts(){
       '<label class="btn soft" for="import-file">匯入進度檔</label><input type="file" id="import-file" accept="application/json,.json,text/plain,.txt" hidden></div>' +
     '<p class="muted small" style="margin:0">進度檔包含每週主題、句型、單字、每天的文章和造句、週日對話回饋、收藏的單字和學習紀錄，不包含 API Key。匯入會取代這支手機目前的進度。</p>' +
     '<div class="divider"></div><div class="row between" style="align-items:center"><div><b>開發人員</b><div class="small muted">測試用，可以直接改金幣、糧食、知識和時間</div></div>' +
-      '<button class="switch" role="switch" aria-checked="' + !!st.devMode + '" data-act="dev-toggle" aria-label="開發人員模式"><span></span></button></div>' +
-    (st.devMode ? '<div class="field"><label for="dev-coins">金幣數量</label><div class="row"><input class="input en" id="dev-coins" type="number" inputmode="numeric" min="0" step="1" value="' + wallet().balance + '"><button class="btn" data-act="dev-coins">套用</button></div></div>' +
+      '<button class="switch" role="switch" aria-checked="' + devOn() + '" data-act="dev-toggle" aria-label="開發人員模式"><span></span></button></div>' +
+    (devOn() ? '<div class="field"><label for="dev-coins">金幣數量</label><div class="row"><input class="input en" id="dev-coins" type="number" inputmode="numeric" min="0" step="1" value="' + wallet().balance + '"><button class="btn" data-act="dev-coins">套用</button></div></div>' +
       '<div class="field"><label for="dev-food">糧食</label><div class="row"><input class="input en" id="dev-food" type="number" inputmode="numeric" min="0" step="1" value="' + city().food + '"><button class="btn" data-act="dev-food">套用</button></div></div>' +
       '<div class="field"><label for="dev-time">現在時間（測試用）</label><div class="row"><input class="input en" id="dev-time" type="datetime-local" step="60" value="' + localDT(new Date()) + '"><button class="btn" data-act="dev-time">套用</button></div>' +
       (window.__timeOffset ? '<div class="row between" style="align-items:center;margin-top:6px"><span class="small" style="color:#C93636">正在用測試時間</span><button class="btn soft sm" data-act="dev-time-reset">回到現在時間</button></div>' : "") + "</div>" +
@@ -4774,7 +4818,13 @@ const ACT = {
     if (!isFinite(v)){ toast("請輸入數字"); return; }
     city().knowledge = v; saveCity(); render(); toast("知識改成 " + v);
   },
-  "dev-toggle": () => { const st = set(); st.devMode = !st.devMode; saveProfile(); render(); },
+  "dev-toggle": async () => {
+    const st = set();
+    if (devOn()){ st.devMode = false; admForget(); saveProfile(); render(); return; }
+    if (!(await admLoginBox())) return;
+    st.devMode = true; saveProfile(); render();
+    ACT["adm-load"](null, true);
+  },
   "dev-coins": () => {
     const v = Math.max(0, Math.floor(Number(($("#dev-coins") || {}).value)));
     if (!isFinite(v)){ toast("請輸入數字"); return; }
@@ -4903,6 +4953,13 @@ const ACT = {
   "backup-later": () => { S.backupSnooze = true; render(); },
   /* hidden way in for the admin before anyone has an account: tap the name 5 times, or open the app with #admin */
   "gate-brand": () => { const G = S.gate; G.taps = (G.taps || 0) + 1; clearTimeout(G.tapT); G.tapT = setTimeout(() => G.taps = 0, 1500); if (G.taps >= 5){ S.gate = {page:"admin"}; drawGate(); } },
+  "gate-admin": async () => {
+    const G = S.gate, user = (($("#ga-au") || {}).value || "").trim(), key = ($("#ga-ak") || {}).value || "";
+    if (!user || !key){ G.err = "請輸入管理員帳號和管理密碼。"; drawGate(); return; }
+    G.busy = true; G.err = ""; S.admLast = user; drawGate();
+    try { await admCheck(user, key); S.adm = null; } catch (e) { G.err = e.message; }
+    G.busy = false; drawGate();
+  },
   "gate-page": el => { S.gate = {page:el.dataset.p}; Cloud.err = ""; drawGate(); },
   "gate-eye": () => { S.gate.showPw = !S.gate.showPw; drawGate(); const i = $("#g-pw"); if (i) i.focus(); },
   "gate-login": async () => {
@@ -4954,11 +5011,11 @@ const ACT = {
     render();
   },
   "adm-load": async (el, keep) => {
-    const k = (($("#adm-key") || {}).value || "").trim();
-    try { sessionStorage.setItem("eel-admin", k); } catch (e) {}
+    const k = admKey();
+    if (!k) return;
     S.adm = Object.assign(S.adm || {}, {busy:true}, keep ? {} : {err:"", ok:""}); render();
     try { const j = await Cloud.api("/admin/users", {admin:k}); S.adm.users = j.users; const c = await Cloud.api("/admin/config", {admin:k}); S.adm.voiceKeySet = c.voiceKeySet; S.adm.voiceUrl = String(c.voiceUrl || "").replace(/^https?:\/\//, ""); }
-    catch (e) { S.adm.err = e.message; S.adm.users = null; }
+    catch (e) { S.adm.err = e.message; S.adm.users = null; if (/管理員帳號或密碼不對/.test(e.message)){ admForget(); set().devMode = false; saveProfile(); toast("管理員帳號或密碼已經改了，請重新開啟開發人員模式。"); } }
     S.adm.busy = false; render();
   },
   "adm-add": async () => {
@@ -5012,7 +5069,7 @@ document.addEventListener("click", e => {
 });
 document.addEventListener("keydown", e => {
   if (e.key !== "Enter" || !e.target.closest || !e.target.closest("#gate")) return;
-  const b = $("#gate [data-act=gate-login], #gate [data-act=gate-forgot]");
+  const b = $("#gate [data-act=gate-login], #gate [data-act=gate-forgot], #gate [data-act=gate-admin]");
   if (b){ e.preventDefault(); b.click(); }
 });
 document.addEventListener("change", e => {
