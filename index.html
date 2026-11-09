@@ -252,7 +252,8 @@ main.flush{padding:0;gap:0;overflow:hidden}
 .icon-btn.mic{color:#D9534F}
 .play-mini.mic{margin-left:6px}
 .shadow-target{display:flex;align-items:flex-start;gap:10px;padding:14px;border-radius:14px;background:var(--field)}
-.shadow-target .en{flex:1;font-size:19px;line-height:1.9}
+.shadow-target .en{flex:1;font-size:19px;line-height:1.9;max-height:38vh;overflow-y:auto}
+.shadow-target.long .en{font-size:16px;line-height:1.8}
 .sw{display:inline-flex;flex-direction:column;align-items:center;line-height:1.25;padding:0 2px;border-radius:6px}
 .sw small{font-size:11px;font-family:var(--font-zh, inherit);font-weight:700}
 .sw.ok{color:#2F8A68}.sw.ok.weak{color:#C97A00;text-decoration:underline dotted}
@@ -391,6 +392,10 @@ main.flush{padding:0;gap:0;overflow:hidden}
 .para.playing{background:color-mix(in srgb,var(--yellow) 22%,transparent);box-shadow:0 0 0 8px color-mix(in srgb,var(--yellow) 22%,transparent)}
 .para .say{position:absolute;right:0;top:2px;width:34px;height:34px;border-radius:10px;border:0;background:color-mix(in srgb,var(--paper-ink) 7%,transparent);color:var(--paper-ink);display:grid;place-items:center}
 .para .say svg{width:17px;height:17px}
+.para:has(.shadow-p){min-height:88px}
+.para .say.shadow-p{top:44px;height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;background:#FDECEC;color:#D9534F}
+.para .say.shadow-p svg{width:15px;height:15px}
+.para .say.shadow-p span{font-size:10.5px;font-weight:800;line-height:1}
 .w{cursor:pointer;border-radius:4px;transition:background .12s}
 .w:hover{background:color-mix(in srgb,var(--paper-ink) 10%,transparent)}
 .w.picked{background:var(--primary);color:#fff}
@@ -1722,7 +1727,8 @@ function renderBody(body, ctxId, opts){
       } else inner += sh;
     }
     if (buf.trim()){ ctx.sentences[si] = buf.trim(); si++; }
-    html += '<div class="para" data-pi="' + pi + '"><p>' + inner + (opts.cursor && pi === paras.length - 1 ? '<span class="cursor"></span>' : "") + '</p><button class="say" data-act="say-para" data-pi="' + pi + '" aria-label="朗讀這段">' + ICON.speaker + "</button></div>";
+    html += '<div class="para" data-pi="' + pi + '"><p>' + inner + (opts.cursor && pi === paras.length - 1 ? '<span class="cursor"></span>' : "") + '</p><button class="say" data-act="say-para" data-pi="' + pi + '" aria-label="朗讀這段">' + ICON.speaker + "</button>" +
+      (opts.cursor ? "" : '<button class="say shadow-p" data-act="shadow-para" data-pi="' + pi + '" aria-label="跟讀這段">' + MIC_SVG + "<span>跟讀</span></button>") + "</div>";
   });
   return '<div class="text" data-ctx="' + ctxId + '">' + html + "</div>";
 }
@@ -3484,8 +3490,7 @@ function drawReader(first){
   $("#rd-ttl").textContent = (DAY_NAMES[r.day] || "") + " · " + genreLabel(r);
   const L = LENGTHS[set().length] || LENGTHS.mid;
   let html = '<div class="meta"><span class="chip">第 ' + w.n + " 週 · " + DAY_NAMES[r.day] + '</span><span class="chip">' + genreLabel(r) + '</span><span class="chip">約 ' + L.min + ' 分鐘</span><span class="chip" id="rd-voice" hidden></span></div>';
-  if (parsed && parsed.title) html += '<div class="title-row">' + (streaming ? "" : '<button class="shadow-go" data-act="shadow-article" aria-label="開始跟讀整篇">' + MIC_SVG + "<span>開始跟讀</span></button>") +
-    '<div style="flex:1;min-width:0"><div class="reader-title">' + esc(parsed.title) + "</div>" + (parsed.title_zh ? '<div class="reader-title-zh" style="margin-top:4px">' + esc(parsed.title_zh) + "</div>" : "") + "</div></div>";
+  if (parsed && parsed.title) html += '<div class="reader-title">' + esc(parsed.title) + "</div>" + (parsed.title_zh ? '<div class="reader-title-zh">' + esc(parsed.title_zh) + "</div>" : "");
   html += '<div class="legend"><span><i style="background:var(--yellow)"></i>本週單字</span><span><i style="background:var(--green)"></i>本週句型</span><span>點任何一個字看解釋</span></div>';
   if (streaming){
     if (parsed.body) html += renderBody(parsed.body, "reader", {words:w.words.concat(r.extra || []), pats:weekPats(w), cursor:true});
@@ -3613,7 +3618,7 @@ function shadowHTML(o){
       : d.t === "miss" ? '<span class="sw miss">' + esc(d.show || d.w) + "<small>漏了</small></span>"
       : '<span class="sw extra">+' + esc(d.heard) + "</span>").join(" ");
   }
-  let html = head + '<div class="shadow-target"><div class="en">' + target + "</div>" + say + "</div>";
+  let html = head + '<div class="shadow-target' + (o.text.length > 90 ? " long" : "") + '"><div class="en">' + target + "</div>" + say + "</div>";
   if (o.state === "nourl")
     return html + '<p class="muted" style="margin:0">跟讀評分用你電腦上的 Whisper 聽寫。先在電腦開「啟動語音伺服器.bat」，再到「設定 → 朗讀」貼上伺服器網址。</p>' +
       '<button class="btn block" data-act="shadow-setup">去設定</button>';
@@ -3655,11 +3660,11 @@ async function shadowStart(){
   REC.mr.ondataavailable = e => { if (e.data && e.data.size) REC.chunks.push(e.data); };
   REC.mr.onstop = () => shadowSend(o);
   REC.mr.start();
-  o.state = "rec"; o.t0 = performance.now(); drawSheet();
+  o.state = "rec"; o.t0 = performance.now(); o.maxSec = Math.min(120, Math.max(30, o.text.split(/\s+/).length * 1.2)); drawSheet();
   clearInterval(REC.timer);
   REC.timer = setInterval(() => {
     const sec = (performance.now() - o.t0) / 1000, el = $("#rec-time"); if (el) el.textContent = sec.toFixed(1);
-    if (sec >= 30) shadowStop();          /* one sentence never needs more than this */
+    if (sec >= o.maxSec) shadowStop();    /* about a second per word, plenty for one paragraph */
   }, 100);
 }
 function shadowStop(){ clearInterval(REC.timer); if (REC.mr && REC.mr.state === "recording") REC.mr.stop(); }
@@ -4322,6 +4327,11 @@ const ACT = {
     if (S.reader) closeReader(); closeSheet(); if (el.dataset.v === "prefs") S.prefPage = null; go(el.dataset.v); },
   "shadow": el => openShadow(el.dataset.text),
   "shadow-start": () => shadowStart(),
+  "shadow-para": el => {
+    const ctxEl = el.closest("[data-ctx]"), ctx = ctxEl && S.ctx[ctxEl.dataset.ctx];
+    const text = ctx && ctx.paras[Number(el.dataset.pi)];
+    if (text) openShadow(text);
+  },
   "shadow-next": () => { const o = S.sheet; if (o && o.kind === "shadow" && o.state !== "rec" && o.state !== "up") shadowGo(o, 1); },
   "shadow-prev": () => { const o = S.sheet; if (o && o.kind === "shadow" && o.state !== "rec" && o.state !== "up") shadowGo(o, -1); },
   "shadow-jump": el => { const o = S.sheet; if (!o || o.kind !== "shadow") return; o.i = Number(el.dataset.i) - 1; shadowGo(o, 1); },
