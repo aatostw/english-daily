@@ -242,6 +242,13 @@ main.flush{padding:0;gap:0;overflow:hidden}
 .cc-body{flex:1;min-height:0;overflow-y:auto;padding:14px 16px 18px;display:flex;flex-direction:column;gap:12px;-webkit-overflow-scrolling:touch}
 .day-row .state{flex:none;font-size:12px;font-weight:700;color:#C97A00}.day-row .state.done{color:#3E9C7A}
 .sh-say{display:flex;gap:6px}
+.title-row{display:flex;align-items:flex-start;gap:14px}
+.shadow-go{flex:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;width:64px;height:64px;margin-top:2px;border:0;border-radius:18px;background:#E53935;color:#fff;font-size:11.5px;font-weight:800;font-family:inherit;box-shadow:0 3px 0 #B71C1C;transition:transform .1s}
+.shadow-go svg{width:24px;height:24px}.shadow-go:active{transform:translateY(2px);box-shadow:0 1px 0 #B71C1C}
+.shadow-count{margin-left:10px;font-size:13px;font-weight:700;color:var(--muted);font-family:inherit}
+.shadow-prog{height:5px;border-radius:99px;background:#EEF1F5;overflow:hidden;margin-top:-6px}.shadow-prog b{display:block;height:100%;background:#E53935;border-radius:99px;transition:width .3s}
+.shadow-nav{margin-top:2px}
+.shadow-list{display:flex;flex-direction:column;gap:6px;max-height:40vh;overflow-y:auto}
 .icon-btn.mic{color:#D9534F}
 .play-mini.mic{margin-left:6px}
 .shadow-target{display:flex;align-items:flex-start;gap:10px;padding:14px;border-radius:14px;background:var(--field)}
@@ -3477,7 +3484,8 @@ function drawReader(first){
   $("#rd-ttl").textContent = (DAY_NAMES[r.day] || "") + " · " + genreLabel(r);
   const L = LENGTHS[set().length] || LENGTHS.mid;
   let html = '<div class="meta"><span class="chip">第 ' + w.n + " 週 · " + DAY_NAMES[r.day] + '</span><span class="chip">' + genreLabel(r) + '</span><span class="chip">約 ' + L.min + ' 分鐘</span><span class="chip" id="rd-voice" hidden></span></div>';
-  if (parsed && parsed.title) html += '<div class="reader-title">' + esc(parsed.title) + "</div>" + (parsed.title_zh ? '<div class="reader-title-zh">' + esc(parsed.title_zh) + "</div>" : "");
+  if (parsed && parsed.title) html += '<div class="title-row">' + (streaming ? "" : '<button class="shadow-go" data-act="shadow-article" aria-label="開始跟讀整篇">' + MIC_SVG + "<span>開始跟讀</span></button>") +
+    '<div style="flex:1;min-width:0"><div class="reader-title">' + esc(parsed.title) + "</div>" + (parsed.title_zh ? '<div class="reader-title-zh" style="margin-top:4px">' + esc(parsed.title_zh) + "</div>" : "") + "</div></div>";
   html += '<div class="legend"><span><i style="background:var(--yellow)"></i>本週單字</span><span><i style="background:var(--green)"></i>本週句型</span><span>點任何一個字看解釋</span></div>';
   if (streaming){
     if (parsed.body) html += renderBody(parsed.body, "reader", {words:w.words.concat(r.extra || []), pats:weekPats(w), cursor:true});
@@ -3570,13 +3578,32 @@ function checkSelection(){
 const MIC_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor"/><path d="M6 11a6 6 0 0 0 12 0M12 17v3.5M8.5 20.5h7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
 const REC = {mr:null, stream:null, chunks:[], timer:null, url:""};
 function asrBase(){ return String((set().pcVoice || {}).url || "").trim().replace(/\/+$/, ""); }
-function openShadow(text){
-  text = String(text || "").trim(); if (!text) return;
-  S.sheet = {kind:"shadow", text, state:asrBase() ? "idle" : "nourl"}; S.sheetAt = performance.now();
+function openShadow(text, list){
+  list = (list || [text]).map(t => String(t || "").trim()).filter(Boolean); if (!list.length) return;
+  S.sheet = {kind:"shadow", list, i:0, text:list[0], scores:[], state:asrBase() ? "idle" : "nourl"}; S.sheetAt = performance.now();
   $("#sheet").hidden = false; drawSheet();
 }
+/* go through a whole article sentence by sentence */
+function shadowGo(o, step){
+  const i = o.i + step; if (i < 0 || i > o.list.length) return;
+  o.i = i; o.res = null; o.err = "";
+  if (i === o.list.length){ o.state = "summary"; drawSheet(); return; }
+  o.text = o.list[i]; o.state = "idle"; drawSheet();
+  TTS.speak(o.text);   /* hear it first, then read it back */
+}
 function shadowHTML(o){
-  const head = '<div class="grab" aria-hidden="true"></div><div class="sh-head"><div class="sh-word phrase" style="flex:1;min-width:0">跟讀評分</div><button class="icon-btn" data-act="close-sheet" aria-label="關閉">×</button></div>';
+  const many = o.list && o.list.length > 1;
+  const head = '<div class="grab" aria-hidden="true"></div><div class="sh-head"><div class="sh-word phrase" style="flex:1;min-width:0">跟讀評分' +
+    (many && o.state !== "summary" ? '<span class="shadow-count">第 ' + (o.i + 1) + " / " + o.list.length + " 句</span>" : "") + '</div><button class="icon-btn" data-act="close-sheet" aria-label="關閉">×</button></div>' +
+    (many ? '<div class="shadow-prog"><b style="width:' + Math.round(Math.min(o.i, o.list.length) / o.list.length * 100) + '%"></b></div>' : "");
+  if (o.state === "summary"){
+    const done = o.scores.filter(x => x != null), avg = done.length ? Math.round(done.reduce((a, b) => a + b, 0) / done.length) : 0;
+    const col = avg >= 85 ? "#3E9C7A" : avg >= 65 ? "#E0A21E" : "#D9534F";
+    return head + '<div class="shadow-score" style="justify-content:center"><div class="ring" style="--c:' + col + ";--v:" + avg + '"><b>' + avg + '</b><span>平均</span></div>' +
+      '<div class="small muted">整篇跟讀完成！<br>評了 ' + done.length + " / " + o.list.length + " 句" + (done.length ? "，最高 " + Math.max.apply(null, done) + " 分" : "") + "</div></div>" +
+      '<div class="shadow-list">' + o.list.map((t, i) => '<button class="day-row" data-act="shadow-jump" data-i="' + i + '"><span class="t"><div class="en">' + esc(t) + '</div></span><span class="state ' + (o.scores[i] >= 80 ? "done" : "") + '">' + (o.scores[i] != null ? o.scores[i] + " 分" : "沒唸") + "</span></button>").join("") + "</div>" +
+      '<button class="btn block" data-act="close-sheet">完成</button>';
+  }
   const say = '<button class="icon-btn" data-act="say" data-text="' + esc(o.text) + '" aria-label="聽示範">' + ICON.speaker + "</button>";
   let target = esc(o.text);
   if (o.res && o.res.diff){
@@ -3611,7 +3638,9 @@ function shadowHTML(o){
       '<div class="small muted">電腦聽到：<span class="en">' + esc(r.heard || "（沒聽到聲音）") + "</span></div>" +
       (REC.url ? '<button class="btn soft sm" data-act="shadow-mine" style="align-self:flex-start">聽我剛剛唸的</button>' : "");
   }
-  return html + '<button class="rec-btn" data-act="shadow-start" aria-label="開始錄音">' + MIC_SVG + '</button><div class="rec-hint">' + (o.state === "done" ? "再唸一次" : "按一下開始唸，唸完再按一下") + "</div>";
+  const nav = many ? '<div class="row between shadow-nav"><button class="btn ghost sm" data-act="shadow-prev"' + (o.i ? "" : " disabled") + ">上一句</button>" +
+    '<button class="btn ' + (o.state === "done" ? "" : "ghost ") + 'sm" data-act="shadow-next">' + (o.i === o.list.length - 1 ? "看總成績" : o.state === "done" ? "下一句" : "跳過") + "</button></div>" : "";
+  return html + '<button class="rec-btn" data-act="shadow-start" aria-label="開始錄音">' + MIC_SVG + '</button><div class="rec-hint">' + (o.state === "done" ? "再唸一次" : "按一下開始唸，唸完再按一下") + "</div>" + nav;
 }
 async function shadowStart(){
   const o = S.sheet; if (!o || o.kind !== "shadow") return;
@@ -3650,6 +3679,7 @@ async function shadowSend(o){
     const j = await r.json().catch(() => ({}));
     if (!r.ok || !j.ok) throw new Error(j.error || ("電腦回應錯誤（" + r.status + "）"));
     o.res = j; o.state = "done";
+    if (o.scores) o.scores[o.i] = Math.max(o.scores[o.i] || 0, j.score || 0);
     if (j.score >= 80) earnShadow(o.text);
   } catch (e) {
     o.state = "err";
@@ -4281,6 +4311,15 @@ const ACT = {
     if (S.reader) closeReader(); closeSheet(); if (el.dataset.v === "prefs") S.prefPage = null; go(el.dataset.v); },
   "shadow": el => openShadow(el.dataset.text),
   "shadow-start": () => shadowStart(),
+  "shadow-next": () => { const o = S.sheet; if (o && o.kind === "shadow" && o.state !== "rec" && o.state !== "up") shadowGo(o, 1); },
+  "shadow-prev": () => { const o = S.sheet; if (o && o.kind === "shadow" && o.state !== "rec" && o.state !== "up") shadowGo(o, -1); },
+  "shadow-jump": el => { const o = S.sheet; if (!o || o.kind !== "shadow") return; o.i = Number(el.dataset.i) - 1; shadowGo(o, 1); },
+  "shadow-article": () => {
+    const ctx = S.ctx.reader || {}, list = (ctx.sentences || []).filter(Boolean);
+    if (!list.length){ toast("文章還沒準備好"); return; }
+    openShadow(list[0], list);
+    if (S.sheet && S.sheet.state === "idle") TTS.speak(list[0]);
+  },
   "shadow-stop": () => shadowStop(),
   "shadow-mine": () => { if (REC.url){ TTS.stop && TTS.stop(); const a = new Audio(REC.url); a.play().catch(() => {}); } },
   "shadow-setup": () => { closeSheet(); go("prefs"); S.prefPage = "voice"; render(); },
