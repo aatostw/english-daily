@@ -280,14 +280,10 @@ function cityRemoveAt(c, k){
 
 /* ---------- 編輯：choose from a library on the left, then tap (or drag onto) a tile ---------- */
 const CITY_TOOLS = {turn:"轉方向", remove:"移除"};
-/* left: 編輯, which turns into 取消編輯 while editing; under it the 工具 (turn, remove) */
+/* left: 編輯, which turns into 取消編輯 while editing */
 function cityEditBtnHTML(){
   const E = S.cityEdit, on = !!E;
   let html = '<div class="city-left"><button class="cs-btn" data-act="' + (on ? "city-edit-done" : "city-edit") + '"><span class="cs-ic">' + (on ? CITY_ICONS.done : CITY_ICONS.edit) + "</span><span>" + (on ? "取消編輯" : "編輯") + "</span></button>";
-  if (on && E.tab !== "ground"){
-    const tool = (v, ic, label) => '<button class="ce-tool' + (E.sel === "t:" + v ? " on" : "") + '" data-act="city-edit-pick" data-v="t:' + v + '" aria-pressed="' + (E.sel === "t:" + v) + '"><span class="ce-pic">' + ic + "</span><span>" + label + "</span></button>";
-    html += '<div class="ce-tools"><div class="ce-tools-h"><span class="ce-pic">' + CITY_ICONS.tools + "</span>工具</div>" + tool("turn", CITY_ICONS.turn, "轉方向") + tool("remove", CITY_ICONS.remove, "移除") + "</div>";
-  }
   return html + "</div>";
 }
 /* right, while editing: the three libraries; tapping one shows its items in the same column,
@@ -296,7 +292,7 @@ function cityEditHTML(c){
   const E = S.cityEdit, bal = wallet().balance;
   if (!E.tab){
     const cat = (k, ic, label) => '<button class="cs-btn" data-act="city-edit-tab" data-v="' + k + '"><span class="cs-ic">' + ic + "</span><span>" + label + "</span></button>";
-    return '<div class="city-side">' + cat("build", CITY_ICONS.lib_build, "建築") + cat("ground", CITY_ICONS.lib_ground, "土地") + cat("deco", CITY_ICONS.lib_deco, "裝飾") + "</div>";
+    return '<div class="city-side">' + cat("tools", CITY_ICONS.tools, "工具") + cat("build", CITY_ICONS.lib_build, "建築") + cat("ground", CITY_ICONS.lib_ground, "土地") + cat("deco", CITY_ICONS.lib_deco, "裝飾") + "</div>";
   }
   const item = (key, name, sub, pic, ok) => '<button class="ce-item' + (E.sel === key ? " on" : "") + '" data-act="city-edit-pick" data-v="' + key + '"' + (ok === false ? " disabled" : "") + ">" +
     pic + "<b>" + name + "</b>" + (sub ? "<small>" + sub + "</small>" : "") + "</button>";
@@ -311,6 +307,8 @@ function cityEditHTML(c){
       }).join("");
   } else if (E.tab === "ground"){
     rows = Object.entries(CITY_GROUNDS).map(([k, v]) => item("g:" + k, v[0], price(1), '<span class="ce-swatch" style="background:' + v[2] + '"></span>', bal >= 1)).join("");
+  } else if (E.tab === "tools"){
+    rows = item("t:turn", "轉方向", "門口換一面", '<span class="ce-pic">' + CITY_ICONS.turn + "</span>") + item("t:remove", "移除", "道路退錢", '<span class="ce-pic">' + CITY_ICONS.remove + "</span>");
   } else {
     const decos = c.owned.deco.reduce((m, d) => (m[d] = (m[d] || 0) + 1, m), {});
     rows = Object.keys(decos).length ? Object.entries(decos).map(([d, n]) => item("d:" + d, CITY_DECOS[d], "× " + n, '<span class="ce-pic">' + CITY_ICONS.lib_deco + "</span>")).join("")
