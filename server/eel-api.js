@@ -27,6 +27,8 @@ let ready = false;
 async function ensure(db){
   if (ready) return;
   await db.batch(SCHEMA.map(s => db.prepare(s)));
+  /* added later: when someone pressed "forgot password" (0 = no request) */
+  try { await db.prepare("ALTER TABLE users ADD COLUMN reset_req INTEGER NOT NULL DEFAULT 0").run(); } catch (e) {}
   ready = true;
 }
 
@@ -98,6 +100,15 @@ async function login(req, env){
   return json(req, 200, {ok:true, token, user:{email:u.email, name:u.name}});
 }
 
+/* "Forgot password": there's no email sending, so this asks the admin, who sets a new password.
+   The answer is the same whether or not the account exists. */
+async function forgot(req, env){
+  const email = cleanEmail((await body(req)).email);
+  if (!okEmail(email)) return json(req, 400, {ok:false, error:"Email 格式不對"});
+  await env.DB.prepare("UPDATE users SET reset_req = ? WHERE email = ?").bind(Date.now(), email).run();
+  return json(req, 200, {ok:true});
+}
+
 async function pull(req, env, me){
   const url = new URL(req.url), since = Number(url.searchParams.get("since")) || 0;
   const r = await env.DB.prepare("SELECT id, json, at, del FROM items WHERE user_id = ? AND at > ? ORDER BY at LIMIT 500").bind(me.id, since).all();
@@ -145,7 +156,7 @@ async function adminRoute(req, env, path){
   const b = req.method === "POST" ? await body(req) : {};
   if (path === "/admin/users" && req.method === "GET"){
     const r = await env.DB.prepare(
-      "SELECT u.email, u.name, u.created_at, (SELECT COUNT(*) FROM items i WHERE i.user_id = u.id AND i.del = 0) AS items, " +
+      "SELECT u.email, u.name, u.created_at, u.reset_req, (SELECT COUNT(*) FROM items i WHERE i.user_id = u.id AND i.del = 0) AS items, " +
       "(SELECT MAX(last_seen) FROM sessions s WHERE s.user_id = u.id) AS last_seen FROM users u ORDER BY u.created_at").all();
     return json(req, 200, {ok:true, users:r.results || []});
   }
@@ -168,7 +179,7 @@ async function adminRoute(req, env, path){
     if (pw.length < 6) return json(req, 400, {ok:false, error:"密碼至少 6 個字"});
     const salt = randHex(16);
     await env.DB.batch([
-      env.DB.prepare("UPDATE users SET pw_hash = ?, pw_salt = ?, fails = 0, locked_until = 0 WHERE id = ?").bind(await hashPw(pw, salt), salt, u.id),
+      env.DB.prepare("UPDATE users SET pw_hash = ?, pw_salt = ?, fails = 0, locked_until = 0, reset_req = 0 WHERE id = ?").bind(await hashPw(pw, salt), salt, u.id),
       env.DB.prepare("DELETE FROM sessions WHERE user_id = ?").bind(u.id)
     ]);
     return json(req, 200, {ok:true});
@@ -194,6 +205,7 @@ export default {
       if (path === "/" || path === "/ping") return json(req, 200, {ok:true, app:"everyday-english-api", version:1, admin:!!env.ADMIN_KEY});
       if (path.startsWith("/admin/")) return adminRoute(req, env, path);
       if (path === "/login" && req.method === "POST") return login(req, env);
+      if (path === "/forgot" && req.method === "POST") return forgot(req, env);
       const me = await auth(req, env);
       if (!me) return json(req, 401, {ok:false, error:"請重新登入", relogin:true});
       if (path === "/me") return json(req, 200, {ok:true, user:{email:me.email, name:me.name}});

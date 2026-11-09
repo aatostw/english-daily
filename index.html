@@ -59,6 +59,41 @@ h1,h2,h3{margin:0;text-wrap:balance;line-height:1.25}
 .pill.ok{background:var(--green-soft);color:var(--green-text)}
 .pill.warn{background:var(--yellow-soft);color:var(--ink)}
 .pill.warn::before{background:#C99A17}
+/* ---------- login gate ---------- */
+.gate{position:absolute;inset:0;z-index:50;background:#F5F7FA;overflow:auto;overscroll-behavior:contain}
+.gate .g-deco{position:absolute;pointer-events:none}
+.gate .g-blob1{top:-120px;left:-150px;width:300px;height:280px;background:#E8EDF3;border-radius:0 0 58% 42%/0 0 62% 38%;transform:rotate(-18deg)}
+.gate .g-dots{top:24px;right:20px;width:80px;height:80px;background:radial-gradient(circle,#C5CFDB 2.6px,transparent 3px) 0 0/20px 20px}
+.gate .g-blob2{bottom:-90px;left:-70px;width:260px;height:200px;background:#E8EDF3;border-radius:46% 54% 0 0/60% 50% 0 0}
+.gate .g-blob3{bottom:-60px;right:-80px;width:220px;height:150px;background:#EDF1F6;border-radius:60% 40% 0 0}
+.gate .g-blob4{top:46%;right:-60px;width:120px;height:60px;background:#E8EDF3;border-radius:50%}
+.gate .g-in{position:relative;z-index:1;max-width:380px;margin:0 auto;min-height:100%;padding:max(140px,18vh) 28px 48px;display:flex;flex-direction:column;gap:18px}
+.gate .g-brand{font-family:var(--font-en);font-weight:600;font-size:27px;letter-spacing:.14em;color:#2E3F55;text-align:center;line-height:1}
+.gate .g-title{font-size:22px;font-weight:900;letter-spacing:.32em;text-indent:.32em;text-align:center;color:var(--ink);margin:0 0 16px}
+.gate .g-field{display:flex;align-items:center;gap:12px;height:50px;padding:0 18px;border:2px solid #CDD4DC;border-radius:999px;background:transparent;transition:border-color .15s}
+.gate .g-field:focus-within{border-color:var(--primary)}
+.gate .g-field svg{flex:none;color:#9AA6B3}
+.gate .g-field input{flex:1;min-width:0;border:0;background:transparent;font:inherit;font-size:16px;color:var(--ink);outline:none}
+.gate .g-field input::placeholder{color:#9AA6B3}
+.gate .g-eye{border:0;background:none;padding:4px;margin:-4px;color:#9AA6B3;display:grid;place-items:center;cursor:pointer}
+.gate .g-forgot{align-self:flex-end;border:0;background:none;font:inherit;font-family:var(--font-en);font-weight:600;font-size:14px;color:var(--primary-text);padding:4px 2px;margin-top:-6px;cursor:pointer}
+.gate .g-btn{height:56px;border:0;border-radius:999px;background:var(--primary);color:#fff;font:inherit;font-size:17px;font-weight:700;letter-spacing:.06em;box-shadow:0 10px 20px rgba(57,100,141,.28);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .1s,filter .15s}
+.gate .g-btn:active{transform:scale(.98);filter:brightness(.94)}
+.gate .g-btn[disabled]{opacity:.7}
+.gate .g-note{text-align:center;font-weight:700;font-size:15px;color:var(--ink);margin-top:14px}
+.gate .g-err{background:#FBE9E7;color:#C0392B;border-radius:12px;padding:10px 14px;font-size:14px;text-align:center}
+.gate .g-back{position:absolute;top:22px;left:20px;width:40px;height:40px;border-radius:12px;border:1px solid #DDE3EA;background:#fff;color:#6B7A8A;display:grid;place-items:center;cursor:pointer;z-index:2}
+.gate .g-h{font-size:22px;font-weight:900;color:var(--primary-text);text-align:center;margin:0}
+.gate .g-p{font-size:15px;color:#3A4756;text-align:center;line-height:1.6;margin:0 0 18px}
+.gate .g-field.box{border-radius:12px;border:1px solid #CDD4DC;background:#fff;height:58px}
+.gate .g-btn.box{border-radius:12px}
+.gate .g-link{align-self:center;border:0;background:none;font:inherit;font-weight:700;font-size:15px;color:var(--ink);padding:8px;margin-top:40px;cursor:pointer}
+.gate .g-modal{position:fixed;inset:0;z-index:3;background:rgba(40,50,62,.5);display:grid;place-items:center;padding:20px}
+.gate .g-card{background:#fff;border-radius:28px;padding:32px 30px 30px;width:100%;max-width:340px;text-align:center;display:flex;flex-direction:column;gap:14px;align-items:center}
+.gate .g-ok{width:80px;height:80px;border-radius:50%;background:#E1EAF7;display:grid;place-items:center;color:var(--primary)}
+.gate .g-card .g-btn{align-self:stretch;margin-top:12px;border-radius:999px}
+.prefs-logout{display:block;margin:6px auto 0;border:0;background:none;font:inherit;font-size:16px;font-weight:700;color:#D93025;padding:12px 28px;cursor:pointer;border-radius:12px}
+.prefs-logout:active{background:#FBE9E7}
 .adm-u{border:1px solid var(--line);border-radius:14px;padding:12px}
 .pill.bad{background:color-mix(in srgb,var(--danger) 14%,transparent);color:var(--danger)}
 main{flex:1;overflow-y:auto;padding:16px 16px 28px;display:flex;flex-direction:column;gap:14px;-webkit-overflow-scrolling:touch}
@@ -573,6 +608,7 @@ h1,h2{color:var(--primary-text)}
     <button class="sheet-bg" data-act="close-sheet" aria-label="關閉"></button>
     <div class="sheet-card" id="sheet-card" role="dialog" aria-modal="true" aria-label="單字解釋"></div>
   </div>
+  <div id="gate" class="gate" hidden></div>
   <div id="dialog" class="dialog" hidden></div>
   <div id="toast" class="toast" hidden></div>
 </div>
@@ -998,6 +1034,7 @@ const Cloud = {
   async logout(wipe){
     await this.push().catch(() => {});
     if (this.cfg && this.cfg.token) await this.api("/logout", {body:{}}).catch(() => {});
+    try { if (this.cfg && this.cfg.email) localStorage.setItem("eel-last-email", this.cfg.email); } catch (e) {}
     this.cfg = null; this.save(); this.setQueue({}); this.err = "";
     if (wipe){
       this.localIds().forEach(id => { Store.mem.delete(id); try { localStorage.removeItem(LS + id); } catch (e) {} });
@@ -1950,6 +1987,7 @@ function renderPill(){
   }
 }
 function render(){
+  drawGate();
   renderPill();
   const main = $("#main"), tabs = $("#tabs");
   document.documentElement.style.setProperty("--read-size", FONT[set().font] || FONT.m);
@@ -3080,8 +3118,6 @@ function renderOnboarding(){
           '<div class="reader-title" style="font-size:22px">' + esc(SAMPLE.title) + '</div><div class="muted small" style="margin:2px 0 12px">' + esc(SAMPLE.title_zh) + "</div>" +
           renderBody(SAMPLE.body, "sample", {words:SAMPLE.words, pats:SAMPLE.pats}) +
         "</div></section>" +
-      (S.mode === "local" ? (S.onbLogin ? '<section class="card"><div class="row between" style="align-items:center"><h2 style="font-size:20px;margin:0">登入帳號</h2><button class="icon-btn" data-act="onb-login" aria-label="關閉">×</button></div>' + loginFormHTML() + "</section>"
-        : '<button class="btn soft block" data-act="onb-login">已經有帳號？登入</button>') : "") +
       '<label class="btn ghost block" for="import-file">換手機了？匯入進度檔</label><input type="file" id="import-file" accept="application/json,.json,text/plain,.txt" hidden>';
   }
   if (o.step === 1){
@@ -3528,6 +3564,50 @@ function aiCardHTML(){
 function fillAudioUsage(){
   AudioDB.usage().then(u => { const el = $("#audio-usage"); if (el) el.textContent = "已存的聲音：" + u.count + " 個・" + (u.bytes / 1048576).toFixed(1) + " MB（上限 " + Math.round(AUDIO_LIMIT / 1048576) + " MB）"; });
 }
+const GATE_ICON = {
+  mail:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m4 7 8 6 8-6"/></svg>',
+  lock:'<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 10V8a5 5 0 0 1 10 0v2h.5A1.5 1.5 0 0 1 19 11.5v8a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 19.5v-8A1.5 1.5 0 0 1 6.5 10H7zm2 0h6V8a3 3 0 0 0-6 0v2z"/></svg>',
+  eye:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
+  eyeOff:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 5.1A10.7 10.7 0 0 1 12 5c6.4 0 10 7 10 7a17.6 17.6 0 0 1-3.2 4.1M6.6 6.6A17.4 17.4 0 0 0 2 12s3.6 7 10 7a10 10 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>',
+  back:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>',
+  check:'<svg width="40" height="40" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="currentColor"/><path d="m7.5 12.2 3 3 6-6.2" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+};
+/* Logging in is required: until then this screen covers the app. Once logged in, the phone stays logged in. */
+function drawGate(){
+  const el = $("#gate");
+  const need = S.mode === "local" && !Cloud.on();
+  if (!need){ if (!el.hidden){ el.hidden = true; el.innerHTML = ""; } return; }
+  const G = S.gate || (S.gate = {page:"login"});
+  const keep = {}; el.querySelectorAll("input[id]").forEach(i => keep[i.id] = i.value);
+  const focus = document.activeElement && el.contains(document.activeElement) ? document.activeElement.id : "";
+  const deco = '<i class="g-deco g-blob1"></i><i class="g-deco g-dots"></i><i class="g-deco g-blob4"></i><i class="g-deco g-blob2"></i><i class="g-deco g-blob3"></i>';
+  const email = keep["g-email"] != null ? keep["g-email"] : ((Cloud.cfg && Cloud.cfg.email) || (() => { try { return localStorage.getItem("eel-last-email") || ""; } catch (e) { return ""; } })());
+  let html;
+  if (G.page === "forgot"){
+    html = deco + '<button class="g-back" data-act="gate-page" data-p="login" aria-label="回到登入">' + GATE_ICON.back + "</button>" +
+      '<div class="g-in" style="padding-top:max(190px,24vh)"><h1 class="g-h">忘記密碼了嗎？</h1>' +
+      '<p class="g-p">別擔心，探險家！輸入你的帳號 Email，<br>我們會通知管理者幫你重設密碼。</p>' +
+      '<label class="g-field box">' + GATE_ICON.mail + '<input id="g-femail" type="email" autocomplete="username" autocapitalize="off" spellcheck="false" placeholder="輸入你的 Email" aria-label="Email" value="' + esc(keep["g-femail"] != null ? keep["g-femail"] : email) + '"></label>' +
+      (G.err ? '<div class="g-err">' + esc(G.err) + "</div>" : "") +
+      '<button class="g-btn box" data-act="gate-forgot"' + (G.busy ? " disabled" : "") + ">" + (G.busy ? '<span class="spinner"></span>' : "") + "送出重設要求</button>" +
+      '<button class="g-link" data-act="gate-page" data-p="login">回到登入</button></div>' +
+      (G.sent ? '<div class="g-modal"><div class="g-card" role="alertdialog" aria-modal="true"><div class="g-ok">' + GATE_ICON.check + '</div><h2 class="g-h">送出成功！</h2>' +
+        '<p class="g-p" style="margin:0">已通知管理者，他會幫你設定新密碼，再告訴你。拿到新密碼後就能繼續你的旅程。</p>' +
+        '<button class="g-btn" data-act="gate-page" data-p="login">我知道了</button></div></div>' : "");
+  } else {
+    const show = !!G.showPw;
+    html = deco + '<div class="g-in"><div class="g-brand">english daily</div><h1 class="g-title">冒險登入</h1>' +
+      '<label class="g-field">' + GATE_ICON.mail + '<input id="g-email" type="email" autocomplete="username" autocapitalize="off" spellcheck="false" placeholder="Email" aria-label="Email" value="' + esc(email) + '"></label>' +
+      '<div class="g-field"><label for="g-pw" style="display:contents">' + GATE_ICON.lock + '</label><input id="g-pw" type="' + (show ? "text" : "password") + '" autocomplete="current-password" placeholder="密碼" aria-label="密碼" value="' + esc(keep["g-pw"] || "") + '">' +
+        '<button class="g-eye" data-act="gate-eye" aria-label="' + (show ? "隱藏密碼" : "顯示密碼") + '">' + (show ? GATE_ICON.eye : GATE_ICON.eyeOff) + "</button></div>" +
+      '<button class="g-forgot" data-act="gate-page" data-p="forgot">Forgot Password?</button>' +
+      (Cloud.err ? '<div class="g-err">' + esc(Cloud.err) + "</div>" : "") +
+      '<button class="g-btn" data-act="gate-login"' + (Cloud.busy ? " disabled" : "") + ">" + (Cloud.busy ? '<span class="spinner"></span>登入中' : "登入") + "</button>" +
+      '<div class="g-note">註冊帳號（暫不開放）</div></div>';
+  }
+  el.innerHTML = html; el.hidden = false;
+  if (focus && document.getElementById(focus)) document.getElementById(focus).focus();
+}
 function cloudAgo(t){
   if (!t) return "還沒同步";
   const m = Math.round((Cloud.now() - t) / 60000);
@@ -3550,7 +3630,7 @@ function accountCardHTML(){
       '<span class="pill' + (Cloud.err ? " bad" : "") + '">' + (Cloud.err ? "同步失敗" : n ? "等待上傳 " + n + " 項" : "已同步") + "</span></div>" +
     '<div class="small muted">' + cloudAgo(c.lastSync) + "・進度會自動上傳，打開 App 時會下載其他裝置的進度。</div>" +
     (Cloud.err ? '<div class="err">' + esc(Cloud.err) + "</div>" : "") +
-    '<div class="row"><button class="btn soft" style="flex:1" data-act="cloud-sync"' + (Cloud.busy ? " disabled" : "") + ">" + (Cloud.busy ? '<span class="spinner"></span>同步中' : "立即同步") + '</button><button class="btn ghost" style="flex:1" data-act="cloud-logout">登出</button></div>' +
+    '<div class="row"><button class="btn soft" style="flex:1" data-act="cloud-sync"' + (Cloud.busy ? " disabled" : "") + ">" + (Cloud.busy ? '<span class="spinner"></span>同步中' : "立即同步") + "</button></div>" +
     '<details class="ledger"><summary>修改密碼</summary><div class="stack" style="margin-top:10px">' +
       '<input class="input" id="cl-old" type="password" autocomplete="current-password" placeholder="目前的密碼" aria-label="目前的密碼">' +
       '<input class="input" id="cl-new" type="password" autocomplete="new-password" placeholder="新密碼（至少 6 個字）" aria-label="新密碼">' +
@@ -3561,7 +3641,7 @@ function adminHTML(){
   const a = S.adm || {}, users = a.users;
   let list = "";
   if (users) list = users.length ? '<div class="stack">' + users.map(u =>
-      '<div class="adm-u"><div class="row between" style="align-items:center"><div style="min-width:0"><b>' + esc(u.name || "（沒有名字）") + '</b><div class="small muted en" style="overflow-wrap:anywhere">' + esc(u.email) + '</div><div class="small muted">' + u.items + " 項進度・" + (u.last_seen ? "最近登入 " + new Date(u.last_seen).toLocaleDateString() : "還沒登入過") + "</div></div>" +
+      '<div class="adm-u"><div class="row between" style="align-items:center"><div style="min-width:0"><b>' + esc(u.name || "（沒有名字）") + '</b><div class="small muted en" style="overflow-wrap:anywhere">' + esc(u.email) + "</div>" + (u.reset_req ? '<div><span class="pill bad" style="margin-top:4px">要求重設密碼</span></div>' : "") + '<div class="small muted">' + u.items + " 項進度・" + (u.last_seen ? "最近登入 " + new Date(u.last_seen).toLocaleDateString() : "還沒登入過") + "</div></div>" +
         '<div class="row" style="gap:6px;flex:none"><button class="btn soft sm" data-act="adm-reset" data-email="' + esc(u.email) + '">重設密碼</button><button class="btn danger sm" data-act="adm-del" data-email="' + esc(u.email) + '">刪除</button></div></div>' +
         (a.reset === u.email ? '<div class="row" style="margin-top:8px"><input class="input" id="adm-rp" type="text" autocomplete="off" placeholder="新密碼（至少 6 個字）" aria-label="新密碼"><button class="btn sm" data-act="adm-reset-go" data-email="' + esc(u.email) + '">確定</button></div>' : "") +
       "</div>").join("") + "</div>" : '<p class="muted small" style="margin:0">還沒有帳號。</p>';
@@ -3585,7 +3665,8 @@ function renderPrefs(){
     ["data", "資料", "匯出、匯入進度和金幣紀錄"]
   ];
   if (!S.prefPage) return '<section class="card"><h2 style="font-size:20px">設定</h2><div class="stack">' + items.map(([k, t, sub]) =>
-    '<button class="menu-row" data-act="pref-open" data-p="' + k + '"><span><b>' + t + '</b><span class="small muted">' + esc(sub) + '</span></span><span class="chev" aria-hidden="true">›</span></button>').join("") + "</div></section>";
+    '<button class="menu-row" data-act="pref-open" data-p="' + k + '"><span><b>' + t + '</b><span class="small muted">' + esc(sub) + '</span></span><span class="chev" aria-hidden="true">›</span></button>').join("") + "</div></section>" +
+    (Cloud.on() ? '<button class="prefs-logout" data-act="cloud-logout">登出</button>' : "");
   const parts = prefsParts();
   return '<div class="row"><button class="btn ghost sm" data-act="pref-back">' + ICON.back.replace("<svg", '<svg width="16" height="16"') + "設定</button></div>" + (parts[S.prefPage] || "");
 }
@@ -4809,7 +4890,24 @@ const ACT = {
   "export-file": () => exportProgress(),
   "share-file": () => shareProgress(),
   "backup-later": () => { S.backupSnooze = true; render(); },
-  "onb-login": () => { S.onbLogin = !S.onbLogin; Cloud.err = ""; render(); if (S.onbLogin) setTimeout(() => { const e = $("#cl-email"); if (e){ e.scrollIntoView({block:"center", behavior:"smooth"}); e.focus({preventScroll:true}); } }, 50); },
+  "gate-page": el => { S.gate = {page:el.dataset.p}; Cloud.err = ""; drawGate(); },
+  "gate-eye": () => { S.gate.showPw = !S.gate.showPw; drawGate(); const i = $("#g-pw"); if (i) i.focus(); },
+  "gate-login": async () => {
+    const email = (($("#g-email") || {}).value || "").trim(), pw = ($("#g-pw") || {}).value || "";
+    if (!email || !pw){ Cloud.err = "請輸入 Email 和密碼。"; drawGate(); return; }
+    Cloud.busy = true; Cloud.err = ""; drawGate();
+    try { if (await Cloud.login(email, pw)){ S.gate = {page:"login"}; S.view = "home"; toast("歡迎回來！"); } }
+    catch (e) { Cloud.err = e.message; }
+    Cloud.busy = false; render();
+  },
+  "gate-forgot": async () => {
+    const G = S.gate, email = (($("#g-femail") || {}).value || "").trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ G.err = "請輸入正確的 Email。"; drawGate(); return; }
+    G.busy = true; G.err = ""; drawGate();
+    try { await Cloud.api("/forgot", {body:{email}}); G.sent = true; }
+    catch (e) { G.err = e.message; }
+    G.busy = false; drawGate();
+  },
   "cloud-login": async () => {
     const email = (($("#cl-email") || {}).value || "").trim(), pw = ($("#cl-pw") || {}).value || "";
     S.cloudEmail = email;
@@ -4833,7 +4931,7 @@ const ACT = {
     const c = await choiceBox("登出", "登出後，這支手機上的進度要怎麼處理？雲端上的進度不會刪除。", ["保留在這支手機", "清掉這支手機的進度"]);
     if (c < 0) return;
     await Cloud.logout(c === 1);
-    toast("已登出。"); render();
+    S.gate = {page:"login"}; S.prefPage = null; render();
   },
   "cloud-pw": async () => {
     const old = ($("#cl-old") || {}).value || "", nw = ($("#cl-new") || {}).value || "";
@@ -4884,6 +4982,11 @@ document.addEventListener("click", e => {
   if (actEl.hasAttribute("disabled")) return;
   const fn = ACT[actEl.dataset.act];
   if (fn){ e.preventDefault(); e.stopPropagation(); fn(actEl, e); }
+});
+document.addEventListener("keydown", e => {
+  if (e.key !== "Enter" || !e.target.closest || !e.target.closest("#gate")) return;
+  const b = $("#gate [data-act=gate-login], #gate [data-act=gate-forgot]");
+  if (b){ e.preventDefault(); b.click(); }
 });
 document.addEventListener("change", e => {
   const el = e.target;
