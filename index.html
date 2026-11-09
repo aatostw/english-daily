@@ -98,6 +98,36 @@ h1,h2,h3{margin:0;text-wrap:balance;line-height:1.25}
 .voice-tile .vt-name{flex:1;min-width:0;display:flex;flex-direction:column;color:var(--ink)}
 .voice-tile .vt-name .small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .voice-tile .btn{flex:none;background:#fff}
+.back-btn{width:40px;height:40px;flex:none;border-radius:12px;border:1px solid #DDE3EA;background:#fff;color:#6B7A8A;display:grid;place-items:center;cursor:pointer;padding:0;transition:transform .1s}
+.back-btn:active{transform:scale(.95)}
+.back-row{display:flex;align-items:center;gap:12px}
+.pref-card{gap:18px}
+.pref-group{display:flex;flex-direction:column;gap:8px}
+.pref-h{font-size:13px;font-weight:700;color:var(--muted);letter-spacing:.04em}
+.pref-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;background:var(--field);border-radius:14px}
+.seg.big button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:10px 6px;min-height:52px;font-size:15px}
+.seg.big button small{font-size:12px;color:var(--muted);font-weight:500}
+.seg.big button b{font-weight:700}
+.read-preview{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:12px 16px}
+.read-preview p{margin:4px 0 0;font-family:var(--font-en);font-size:var(--read-size);line-height:1.6;color:var(--paper-ink)}
+.tier-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.tier-grid button{display:flex;align-items:center;justify-content:center;gap:6px;padding:10px 4px;border:1.5px solid var(--line);border-radius:12px;background:var(--surface);font:inherit;font-weight:700;font-size:15px;color:var(--ink);cursor:pointer}
+.tier-grid .tier-n{width:20px;height:20px;border-radius:50%;background:var(--field);color:var(--muted);font-size:12px;display:grid;place-items:center;font-family:var(--font-en)}
+.tier-grid button[aria-pressed="true"]{border-color:var(--primary);background:var(--primary-soft);color:var(--primary)}
+.tier-grid button[aria-pressed="true"] .tier-n{background:var(--primary);color:#fff}
+.tier-desc{font-size:14px;color:var(--muted);text-align:center}
+.src-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.src-card{position:relative;display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px 4px 14px;border:1.5px solid var(--line);border-radius:14px;background:var(--surface);font:inherit;font-weight:700;font-size:13.5px;color:var(--ink);cursor:pointer;transition:transform .1s}
+.src-card:active{transform:scale(.97)}
+.src-card svg{color:var(--muted)}
+.src-card[aria-pressed="true"]{border-color:var(--primary);background:var(--primary-soft);color:var(--primary)}
+.src-card[aria-pressed="true"] svg{color:var(--primary)}
+.src-card:disabled{opacity:.5;cursor:default}
+.src-lock{position:absolute;top:6px;right:6px;font-style:normal;font-size:10.5px;font-weight:700;background:var(--field);color:var(--muted);border-radius:999px;padding:1px 6px}
+.pref-row .btn{background:#fff}
+.val-pill{font-family:var(--font-en);font-weight:700;font-size:14px;background:var(--primary-soft);color:var(--primary);border-radius:999px;padding:2px 10px}
+.dev-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.dev-grid .dev-time{grid-column:1/-1}
 .prefs-logout{display:block;margin:6px auto 0;border:0;background:none;font:inherit;font-size:16px;font-weight:700;color:#D93025;padding:12px 28px;cursor:pointer;border-radius:12px}
 .prefs-logout:active{background:#FBE9E7}
 .adm-u{border:1px solid var(--line);border-radius:14px;padding:12px}
@@ -2002,7 +2032,7 @@ function render(){
     tabs.hidden = true; main.innerHTML = renderOnboarding();
     const st = S.onb.step, last = st === 2;
     dock.className = "dock onb-nav" + (S.onb.step === 0 ? " solo" : ""); dock.hidden = false;
-    dock.innerHTML = (st > 0 ? '<button class="back" data-act="onb-back">' + ICON.back + '<span>Back</span></button>' : "") +
+    dock.innerHTML = (st > 0 ? '<button class="back-btn" data-act="onb-back" aria-label="上一步">' + GATE_ICON.back + "</button>" : "") +
       '<button class="btn next" data-act="' + (last ? "onb-finish" : "onb-next") + '">' + (last ? (provReady(aiState().provider) ? "開始使用" : "先跳過") : "繼續") + ' <span aria-hidden="true">→</span></button>';
     return;
   }
@@ -3451,7 +3481,7 @@ function feedbackHTML(w, conv, d){
 }
 function renderTalk(){
   const from = S.talkFrom === "city" ? "city" : "home";
-  return '<div class="row"><button class="btn ghost sm" data-act="tab" data-v="' + from + '">' + ICON.back.replace("<svg", '<svg width="16" height="16"') + (from === "city" ? "我的城市" : "首頁") + "</button></div>" + talkBodyHTML(false);
+  return '<div class="back-row"><button class="back-btn" data-act="tab" data-v="' + from + '" aria-label="回到' + (from === "city" ? "我的城市" : "首頁") + '">' + GATE_ICON.back + "</button></div>" + talkBodyHTML(false);
 }
 function talkBodyHTML(compact){
   talkBodyHTML.compact = compact;
@@ -3621,9 +3651,12 @@ function drawGate(){
 }
 function cloudAgo(t){
   if (!t) return "還沒同步";
-  const m = Math.round((Cloud.now() - t) / 60000);
-  return m < 1 ? "剛剛同步" : m < 60 ? m + " 分鐘前同步" : m < 1440 ? Math.round(m / 60) + " 小時前同步" : Math.round(m / 1440) + " 天前同步";
+  const sec = Math.max(0, Math.round((Cloud.now() - t) / 1000)), m = Math.floor(sec / 60);
+  return sec < 10 ? "剛剛同步" : sec < 60 ? Math.floor(sec / 10) * 10 + " 秒前同步" : m < 60 ? m + " 分鐘前同步" : m < 1440 ? Math.floor(m / 60) + " 小時前同步" : Math.floor(m / 1440) + " 天前同步";
 }
+function syncLabel(){ return Cloud.err ? "同步失敗" : Cloud.pushing || Cloud.pulling || Cloud.pending() ? "同步中…" : cloudAgo(Cloud.cfg && Cloud.cfg.lastSync); }
+/* keep "N 秒前同步" ticking while it's on screen */
+setInterval(() => { const el = document.getElementById("sync-ago"); if (el && Cloud.cfg) el.textContent = syncLabel(); }, 5000);
 function loginFormHTML(){
   const last = (Cloud.cfg && Cloud.cfg.email) || S.cloudEmail || "";
   return '<div class="field"><label for="cl-email">Email</label><input class="input en" id="cl-email" type="email" autocomplete="username" autocapitalize="off" spellcheck="false" value="' + esc(last) + '"></div>' +
@@ -3638,8 +3671,7 @@ function accountCardHTML(){
   const c = Cloud.cfg, n = Cloud.pending();
   return '<section class="card"><h2 style="font-size:20px">帳號</h2>' +
     '<div class="row between" style="align-items:center"><div><b>' + esc(c.name || c.email) + '</b><div class="small muted en">' + esc(c.email) + "</div></div>" +
-      '<span class="pill' + (Cloud.err ? " bad" : "") + '">' + (Cloud.err ? "同步失敗" : n ? "等待上傳 " + n + " 項" : "已同步") + "</span></div>" +
-    '<div class="small muted">' + cloudAgo(c.lastSync) + "・進度會自動上傳，打開 App 時會下載其他裝置的進度。</div>" +
+      '<span class="pill' + (Cloud.err ? " bad" : "") + '" id="sync-ago">' + syncLabel() + "</span></div>" +
     (Cloud.err ? '<div class="err">' + esc(Cloud.err) + "</div>" : "") +
     '<div class="row"><button class="btn soft" style="flex:1" data-act="cloud-sync"' + (Cloud.busy ? " disabled" : "") + ">" + (Cloud.busy ? '<span class="spinner"></span>同步中' : "立即同步") + "</button></div>" +
     '<details class="ledger"><summary>修改密碼</summary><div class="stack" style="margin-top:10px">' +
@@ -3721,7 +3753,7 @@ function renderPrefs(){
     '<button class="menu-row" data-act="pref-open" data-p="' + k + '"><span><b>' + t + '</b><span class="small muted">' + esc(sub) + '</span></span><span class="chev" aria-hidden="true">›</span></button>').join("") + "</div></section>" +
     (Cloud.on() ? '<button class="prefs-logout" data-act="cloud-logout">登出</button>' : "");
   const parts = prefsParts();
-  return '<div class="row"><button class="btn ghost sm" data-act="pref-back">' + ICON.back.replace("<svg", '<svg width="16" height="16"') + "設定</button></div>" + (parts[S.prefPage] || "");
+  return '<div class="back-row"><button class="back-btn" data-act="pref-back" aria-label="回到設定">' + GATE_ICON.back + "</button></div>" + (parts[S.prefPage] || "");
 }
 function prefsParts(){
   setTimeout(fillAudioUsage, 0);
@@ -3739,47 +3771,62 @@ function prefsParts(){
     voices.map(v => '<option value="' + esc(v.voiceURI) + '"' + (st.voice === v.voiceURI ? " selected" : "") + ">" + esc(v.name) + "（" + esc(v.lang) + "）</option>").join("") + "</select>" +
     (TTS.ok ? "" : '<div class="err">這個瀏覽器不支援系統聲音。</div>');
   /* the Pocket TTS voice: default, or one the user uploaded; also used for words when sentences go to the computer */
-  const pocketBox = '<div class="field"><label>Pocket TTS 的聲音</label>' +
+  const pocketBox = '<div class="pref-group"><div class="pref-h">Pocket TTS 的聲音</div>' +
       '<div class="voice-tile">' + ICON.speaker.replace("<svg", '<svg width="20" height="20"') +
         '<span class="vt-name">' + (pkv.wavName ? '<b>你上傳的聲音</b><span class="small muted en">' + esc(pkv.wavName) + "</span>" : "<b>預設聲音</b>") + "</span>" +
         (pkv.wavName ? '<button class="btn soft sm" data-act="pocket-wav-clear">改回預設</button>' : '<label class="btn soft sm" for="pocket-wav" style="margin:0">換成自己的</label>') + "</div>" +
       '<input type="file" id="pocket-wav" accept="audio/*" hidden data-act-change="pocket-wav"></div>' +
     '<div class="row between" style="align-items:center"><span class="small muted" id="audio-usage">已存的聲音：計算中…</span><button class="btn ghost sm" style="flex:none;white-space:nowrap" data-act="audio-clear">清除</button></div>';
-  parts.voice = '<section class="card"><div class="row between" style="align-items:center"><h2 style="font-size:20px;margin:0">朗讀</h2>' +
+  const SRC_ICON = {
+    system:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M10.5 18.5h3"/></svg>',
+    builtin:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 11v2"/></svg>',
+    pc:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4" width="19" height="12.5" rx="2"/><path d="M8.5 20.5h7M12 16.5v4"/></svg>'
+  };
+  const srcCard = (v, label) => '<button class="src-card" data-act="setting" data-key="voiceSource" data-val="' + v + '" aria-pressed="' + (src === v) + '"' + (v === "pc" && !vOk ? " disabled" : "") + ">" + SRC_ICON[v] + "<span>" + label + "</span>" + (v === "pc" && !vOk ? '<i class="src-lock">未開通</i>' : "") + "</button>";
+  parts.voice = '<section class="card pref-card"><div class="row between" style="align-items:center"><h2 style="font-size:20px;margin:0">朗讀</h2>' +
       '<button class="tip-btn" data-act="voice-tip" aria-expanded="' + !!S.voiceTip + '" aria-label="說明">?</button></div>' +
     (S.voiceTip ? '<div class="note">唸不出來時會自動換下一個：GPT-SoVITS → Pocket TTS → 系統聲音。' + (vOk ? "" : "GPT-SoVITS 要管理員幫你的帳號開通才能用。") + "</div>" : "") +
-    '<div class="field"><label>朗讀聲音</label><div class="seg" role="group">' + srcBtn("system", "系統聲音") + srcBtn("builtin", "Pocket TTS") + srcBtn("pc", "GPT-SoVITS") + "</div></div>" +
-    (src === "system" ? '<div class="field"><label for="voice">系統聲音</label>' + sysVoices + "</div>" : "") +
+    '<div class="pref-group"><div class="pref-h">朗讀聲音</div><div class="src-cards">' + srcCard("system", "系統聲音") + srcCard("builtin", "Pocket TTS") + srcCard("pc", "GPT-SoVITS") + "</div></div>" +
+    (src === "system" ? '<div class="pref-group"><div class="pref-h">系統聲音</div>' + sysVoices + "</div>" : "") +
     (src === "builtin" ? pocketBox : "") +
-    (!vOk ? "" : '<div class="field asr-box"><label>跟讀評分（電腦的 Whisper）</label>' +
-      '<div class="row between" style="align-items:center"><button class="btn soft sm" data-act="asr-ping"' + (S.asrPing === "checking" ? " disabled" : "") + ">" + (S.asrPing === "checking" ? '<span class="spinner"></span>測試中' : "測試連線") + "</button>" +
-      (S.asrPing && S.asrPing !== "checking" ? '<span class="small" style="color:' + (/^ok:/.test(S.asrPing) ? "#3E9C7A" : "#C97A00") + '">' + esc(S.asrPing.replace(/^ok:/, "")) + "</span>" : "") + "</div></div>") +
-    '<div class="row" style="gap:8px"><button class="btn soft" style="flex:1" data-act="say" data-text="magic">' + spk + '試聽單字</button>' +
-      '<button class="btn soft" style="flex:1" data-act="say" data-text="Small steps. Every day. That is how you get better.">' + spk + "試聽句子</button></div>" +
-    '<div class="field"><label for="rate">速度：<span id="rate-v">' + st.rate.toFixed(1) + '×</span></label><input type="range" id="rate" min="0.5" max="1.2" step="0.1" value="' + st.rate + '" data-act-change="rate"></div>' +
+    '<div class="pref-group"><div class="pref-h">試聽</div><div class="row" style="gap:8px"><button class="btn soft" style="flex:1" data-act="say" data-text="magic">' + spk + '單字</button>' +
+      '<button class="btn soft" style="flex:1" data-act="say" data-text="Small steps. Every day. That is how you get better.">' + spk + "句子</button></div></div>" +
+    '<div class="pref-group"><div class="row between" style="align-items:center"><label class="pref-h" for="rate">速度</label><span class="val-pill" id="rate-v">' + st.rate.toFixed(1) + "×</span></div>" +
+      '<input type="range" id="rate" min="0.5" max="1.2" step="0.1" value="' + st.rate + '" data-act-change="rate"><div class="row between small muted"><span>慢</span><span>快</span></div></div>' +
+    (!vOk ? "" : '<div class="pref-row"><span><b>跟讀評分</b>' + (S.asrPing && S.asrPing !== "checking" ? '<span class="small" style="margin-left:8px;color:' + (/^ok:/.test(S.asrPing) ? "#3E9C7A" : "#C97A00") + '">' + esc(S.asrPing.replace(/^ok:/, "")) + "</span>" : "") + "</span>" +
+      '<button class="btn soft sm" data-act="asr-ping"' + (S.asrPing === "checking" ? " disabled" : "") + ">" + (S.asrPing === "checking" ? '<span class="spinner"></span>測試中' : "測試連線") + "</button></div>") +
     (src !== "system" ? '<details class="ledger"><summary>備用的系統聲音</summary><div class="stack" style="margin-top:10px">' + sysVoices + "</div></details>" : "") + "</section>";
 
   const seg = (key, opts) => '<div class="seg" role="group">' + opts.map(o => '<button data-act="setting" data-key="' + key + '" data-val="' + o[0] + '" aria-pressed="' + (st[key] === o[0]) + '">' + o[1] + "</button>").join("") + "</div>";
-  parts.read = '<section class="card"><h2 style="font-size:20px">閱讀</h2>' +
-    '<div class="field"><label>文章長度</label>' + seg("length", [["short","短・2 分鐘"],["mid","中・3 分鐘"],["long","長・5 分鐘"]]) + "</div>" +
-    '<div class="field"><label>文章類型</label>' + seg("genre", [["alt","輪流"],["story","只要情感"],["know","只要知識"]]) + "</div>" +
-    '<div class="field"><label>字體大小</label>' + seg("font", [["s","小"],["m","中"],["l","大"]]) + "</div>" +
-    '<div class="field"><label>難度（排位）</label><div class="seg tiers" role="group">' + TIERS.map((t, i) => '<button data-act="set-tier" data-i="' + i + '" aria-pressed="' + (tierIdx() === i) + '">' + t.name + "</button>").join("") + '</div><div class="small muted">' + TIERS[tierIdx()].desc + "。只影響之後產生的文章和對話。</div></div></section>";
+  const opt = (key, v, inner) => '<button data-act="setting" data-key="' + key + '" data-val="' + v + '" aria-pressed="' + (st[key] === v) + '">' + inner + "</button>";
+  parts.read = '<section class="card pref-card"><h2 style="font-size:20px;margin:0">閱讀</h2>' +
+    '<div class="read-preview" aria-hidden="true"><span class="small muted">預覽</span><p>Small steps, every day. That is how you get better.</p></div>' +
+    '<div class="pref-group"><div class="pref-h">字體大小</div><div class="seg big">' +
+      opt("font", "s", '<span style="font-size:14px">A</span>') + opt("font", "m", '<span style="font-size:18px">A</span>') + opt("font", "l", '<span style="font-size:23px">A</span>') + "</div></div>" +
+    '<div class="pref-group"><div class="pref-h">文章長度</div><div class="seg big">' +
+      ["short","mid","long"].map(k => opt("length", k, "<b>" + LENGTHS[k].label + '</b><small>' + LENGTHS[k].min + " 分鐘</small>")).join("") + "</div></div>" +
+    '<div class="pref-group"><div class="pref-h">文章類型</div><div class="seg big">' +
+      opt("genre", "alt", "<b>輪流</b><small>情感＋知識</small>") + opt("genre", "story", "<b>情感</b><small>小故事</small>") + opt("genre", "know", "<b>知識</b><small>長知識</small>") + "</div></div>" +
+    '<div class="pref-group"><div class="pref-h">難度</div><div class="tier-grid">' +
+      TIERS.map((t, i) => '<button data-act="set-tier" data-i="' + i + '" aria-pressed="' + (tierIdx() === i) + '"><span class="tier-n">' + (i + 1) + "</span>" + t.name + "</button>").join("") +
+      '</div><div class="tier-desc">' + esc(TIERS[tierIdx()].desc) + "</div></div></section>";
 
   const w = curWeek(), ps = progressStats();
   parts.data = '<section class="card"><h2 style="font-size:20px">資料</h2>' +
     (Cloud.on() ? "" : '<p class="muted small" style="margin:0">' + (S.mode === "local" ? "進度存在這個瀏覽器裡（登入帳號就會自動存到雲端）。換手機前先匯出進度檔，到新手機打開 App 後再匯入，就能接著學。" : "這個瀏覽器不能儲存資料，關掉頁面後進度會消失。請匯出進度檔保存。") + "</p>") +
     '<div class="stats"><div><b>' + (w ? w.n : 0) + '</b><span>目前週數</span></div><div><b>' + ps.weeksDone + '</b><span>完成週數</span></div><div><b>' + ps.articlesRead + '</b><span>讀完篇數</span></div><div><b>' + ps.streak + '</b><span>連續天數</span></div></div>' +
     '<div class="small">上次匯出：<b>' + lastExportText() + "</b></div>" + ledgerHTML() +
-    '<div class="row wrap"><button class="btn" data-act="export-file">匯出進度檔</button>' + (canShareFile() ? '<button class="btn soft" data-act="share-file">分享進度檔</button>' : "") +
+    '<div class="row wrap"><button class="btn" data-act="export-file">匯出進度檔</button>' +
       '<label class="btn soft" for="import-file">匯入進度檔</label><input type="file" id="import-file" accept="application/json,.json,text/plain,.txt" hidden></div>' +
     '<div class="divider"></div><div class="row between" style="align-items:center"><div><b>開發人員</b></div>' +
       '<button class="switch" role="switch" aria-checked="' + devOn() + '" data-act="dev-toggle" aria-label="開發人員模式"><span></span></button></div>' +
-    (devOn() ? '<div class="field"><label for="dev-coins">金幣數量</label><div class="row"><input class="input en" id="dev-coins" type="number" inputmode="numeric" min="0" step="1" value="' + wallet().balance + '"><button class="btn" data-act="dev-coins">套用</button></div></div>' +
-      '<div class="field"><label for="dev-food">糧食</label><div class="row"><input class="input en" id="dev-food" type="number" inputmode="numeric" min="0" step="1" value="' + city().food + '"><button class="btn" data-act="dev-food">套用</button></div></div>' +
-      '<div class="field"><label for="dev-time">現在時間（測試用）</label><div class="row"><input class="input en" id="dev-time" type="datetime-local" step="60" value="' + localDT(new Date()) + '"><button class="btn" data-act="dev-time">套用</button></div>' +
-      (window.__timeOffset ? '<div class="row between" style="align-items:center;margin-top:6px"><span class="small" style="color:#C93636">正在用測試時間</span><button class="btn soft sm" data-act="dev-time-reset">回到現在時間</button></div>' : "") + "</div>" +
-      '<div class="field"><label for="dev-know">知識</label><div class="row"><input class="input en" id="dev-know" type="number" inputmode="numeric" min="0" step="1" value="' + knowledge() + '"><button class="btn" data-act="dev-know">套用</button></div></div>' + adminHTML() : "") +
+    (devOn() ? '<div class="dev-grid">' +
+      '<div class="field"><label for="dev-coins">金幣</label><input class="input en" id="dev-coins" type="number" inputmode="numeric" min="0" step="1" value="' + wallet().balance + '"></div>' +
+      '<div class="field"><label for="dev-food">糧食</label><input class="input en" id="dev-food" type="number" inputmode="numeric" min="0" step="1" value="' + city().food + '"></div>' +
+      '<div class="field"><label for="dev-know">知識</label><input class="input en" id="dev-know" type="number" inputmode="numeric" min="0" step="1" value="' + knowledge() + '"></div>' +
+      '<div class="field dev-time"><label for="dev-time">現在時間（測試用）</label><input class="input en" id="dev-time" type="datetime-local" step="60" value="' + localDT(new Date()) + '" data-init="' + localDT(new Date()) + '"></div></div>' +
+      (window.__timeOffset ? '<div class="row between" style="align-items:center"><span class="small" style="color:#C93636">正在用測試時間</span><button class="btn soft sm" data-act="dev-time-reset">回到現在時間</button></div>' : "") +
+      '<button class="btn block" data-act="dev-apply">套用</button>'+ adminHTML() : "") +
     '<div class="divider"></div><div class="row"><button class="btn danger" data-act="reset">全部重來</button></div></section>';
   return parts;
 }
@@ -3832,7 +3879,7 @@ function closeReader(){
   render();
 }
 function readerShell(){
-  return '<div class="reader-top"><button class="icon-btn" data-act="close-reader" aria-label="返回">' + ICON.back + '</button><div class="ttl" id="rd-ttl"></div>' +
+  return '<div class="reader-top"><button class="back-btn" data-act="close-reader" aria-label="返回">' + GATE_ICON.back + '</button><div class="ttl" id="rd-ttl"></div>' +
     '<button class="icon-btn" id="rd-play" data-act="read-all" aria-label="朗讀全文">' + ICON.play + "</button>" +
     '<button class="icon-btn" data-act="font-cycle" aria-label="字體大小">' + ICON.font + "</button></div>" +
     '<div class="reader-body" id="rd-body"></div>';
@@ -4805,6 +4852,22 @@ const ACT = {
   "bank-word": el => { const x = S.bank[el.dataset.id]; if (x) openSheet({state:"ready", sentence:x.sentence || "", pat:null, data:Object.assign({word:x.en, lemma:x.en}, x)}); },
   "close-sheet": el => { if (el && el.classList && el.classList.contains("sheet-bg") && performance.now() - (S.sheetAt || 0) < 500) return; closeSheet(); },
   "me": () => { if (S.reader) closeReader(); go("city"); cityOpen({s:"avatar"}); },
+  "dev-apply": () => {
+    const num = id => { const v = Math.floor(Number(($("#" + id) || {}).value)); return isFinite(v) && v >= 0 ? v : null; };
+    const coins = num("dev-coins"), food = num("dev-food"), know = num("dev-know");
+    if (coins == null || food == null || know == null){ toast("請輸入 0 以上的數字"); return; }
+    const W = wallet(), c = city(), done = [];
+    if (coins !== W.balance){ W.ledger.push({at:Date.now(), amount:coins - W.balance, reason:"開發人員調整"}); W.balance = coins; Store.set("wallet", W).catch(() => {}); done.push("金幣"); }
+    if (food !== c.food || know !== knowledge()){ if (food !== c.food) done.push("糧食"); if (know !== knowledge()) done.push("知識"); c.food = food; c.knowledge = know; saveCity(); }
+    const te = $("#dev-time");
+    if (te && te.value && te.value !== te.dataset.init){
+      const t = new Date(te.value).getTime(), real = Date.now() - (window.__timeOffset || 0);
+      if (!isFinite(t)){ toast("時間格式不對"); return; }
+      try { localStorage.setItem("eel-time-offset", String(t - real)); } catch (e) {}
+      setTimeout(() => location.reload(), 300); return;
+    }
+    renderCoins(); renderPill(); render(); toast(done.length ? "已套用：" + done.join("、") : "沒有改動");
+  },
   "dev-know": () => {
     const v = Math.max(0, Math.floor(Number(($("#dev-know") || {}).value)));
     if (!isFinite(v)){ toast("請輸入數字"); return; }
