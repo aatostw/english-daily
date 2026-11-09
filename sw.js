@@ -2,7 +2,7 @@
    The app itself: network first (so updates arrive), cached copy when offline.
    Fonts, the Pocket TTS library, its runtime and voice models: cache first —
    downloaded once while online, then served from the phone. */
-const SHELL = "eel-shell-v53";
+const SHELL = "eel-shell-v54";
 const ASSETS = "eel-assets-v1";
 const SHELL_FILES = [
   "./",
@@ -30,7 +30,12 @@ const SHELL_FILES = [
   "./js/boot.js",
   "./pts-worker.js",
   "./voice-ref.wav",
-  "./lisa.jpg"
+  "./lisa.jpg",
+  "./manifest.webmanifest",
+  "./icons/icon-192.png",
+  "./icons/icon-512.png",
+  "./icons/icon.svg",
+  "./icons/apple-touch-icon.png"
 ];
 const ASSET_HOSTS = /(^|\.)(jsdelivr\.net|huggingface\.co|hf\.co|googleapis\.com|gstatic\.com)$/;
 
