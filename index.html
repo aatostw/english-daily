@@ -241,6 +241,32 @@ main.flush{padding:0;gap:0;overflow:hidden}
 .cc-x svg{width:20px;height:20px}.cc-x:active{transform:scale(.92)}
 .cc-body{flex:1;min-height:0;overflow-y:auto;padding:14px 16px 18px;display:flex;flex-direction:column;gap:12px;-webkit-overflow-scrolling:touch}
 .day-row .state{flex:none;font-size:12px;font-weight:700;color:#C97A00}.day-row .state.done{color:#3E9C7A}
+.sh-say{display:flex;gap:6px}
+.icon-btn.mic{color:#D9534F}
+.play-mini.mic{margin-left:6px}
+.shadow-target{display:flex;align-items:flex-start;gap:10px;padding:14px;border-radius:14px;background:var(--field)}
+.shadow-target .en{flex:1;font-size:19px;line-height:1.9}
+.sw{display:inline-flex;flex-direction:column;align-items:center;line-height:1.25;padding:0 2px;border-radius:6px}
+.sw small{font-size:11px;font-family:var(--font-zh, inherit);font-weight:700}
+.sw.ok{color:#2F8A68}.sw.ok.weak{color:#C97A00;text-decoration:underline dotted}
+.sw.sub{color:#D23B3B;background:#FDECEC}.sw.sub small{color:#D23B3B}
+.sw.miss{color:#9AA3AE;text-decoration:line-through}.sw.miss small{color:#9AA3AE;text-decoration:none}
+.sw.extra{color:#9AA3AE;font-size:14px}
+.rec-btn{align-self:center;width:76px;height:76px;border:0;border-radius:50%;background:#E53935;color:#fff;display:grid;place-items:center;box-shadow:0 4px 0 #B71C1C,0 8px 18px rgba(229,57,53,.3);transition:transform .1s}
+.rec-btn svg{width:34px;height:34px}.rec-btn:active{transform:translateY(3px);box-shadow:0 1px 0 #B71C1C}
+.rec-btn.on{animation:rec-pulse 1.2s ease-in-out infinite}
+.rec-dot{width:24px;height:24px;border-radius:6px;background:#fff}
+@keyframes rec-pulse{0%,100%{box-shadow:0 4px 0 #B71C1C,0 0 0 0 rgba(229,57,53,.45)}50%{box-shadow:0 4px 0 #B71C1C,0 0 0 16px rgba(229,57,53,0)}}
+.rec-hint{text-align:center;font-size:13px;color:var(--muted)}
+.rec-wait{display:flex;align-items:center;justify-content:center;gap:10px;padding:18px;color:var(--muted)}
+.shadow-score{display:flex;align-items:center;gap:16px}
+.ring{flex:none;width:84px;height:84px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(closest-side,var(--surface) 78%,transparent 80% 100%),conic-gradient(var(--c) calc(var(--v) * 1%),#EEF1F5 0)}
+.ring b{font:800 28px/1 var(--font-en);color:var(--c)}.ring span{font-size:11px;color:var(--muted)}
+.sbars{flex:1;display:flex;flex-direction:column;gap:7px}
+.sbar{display:grid;grid-template-columns:48px 1fr 28px;align-items:center;gap:8px;font-size:12px;font-weight:700;color:var(--muted)}
+.sbar i{height:8px;border-radius:99px;background:#EEF1F5;overflow:hidden}.sbar i b{display:block;height:100%;border-radius:99px}
+.sbar em{font-style:normal;text-align:right;color:var(--ink);font-family:var(--font-en)}
+.shadow-hints{display:flex;flex-direction:column;gap:6px;padding:10px 12px;border-radius:12px;background:#FFF6E0;font-size:14px}
 .warn-x{flex:none;width:30px;height:30px;border:0;border-radius:50%;background:transparent;color:#D93F3F;font-size:20px;line-height:1}
 .warn-x:active{background:#FDECEC}
 .talk-row{align-items:flex-end;gap:8px;flex-wrap:nowrap}
@@ -3351,6 +3377,11 @@ function prefsParts(){
     (src === "system" ? '<div class="field"><label for="voice">系統聲音</label>' + sysVoices + "</div>" : "") +
     (src === "builtin" ? pocketBox : "") +
     (src === "pc" ? pcBox + '<details class="ledger"><summary>單字用的 Pocket TTS 聲音</summary><div class="stack" style="margin-top:10px">' + pocketBox + "</div></details>" : "") +
+    '<div class="field asr-box"><label for="' + (src === "pc" ? "pc-url" : "asr-url") + '">跟讀評分（電腦的 Whisper）</label>' +
+      (src === "pc" ? "" : '<input class="input en" id="asr-url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://xxxx.trycloudflare.com" value="' + esc(pv.url || "") + '" data-act-change="pc-url">') +
+      '<div class="small muted">按句子旁邊的麥克風唸一遍，電腦會聽寫並評分：說對了沒、流暢度、清楚度，還會指出哪個音可能沒發好。' + (src === "pc" ? "用上面同一個伺服器網址。" : "填電腦語音伺服器視窗裡的網址。") + "</div>" +
+      '<div class="row between" style="align-items:center"><button class="btn soft sm" data-act="asr-ping"' + (S.asrPing === "checking" ? " disabled" : "") + ">" + (S.asrPing === "checking" ? '<span class="spinner"></span>測試中' : "測試連線") + "</button>" +
+      (S.asrPing && S.asrPing !== "checking" ? '<span class="small" style="color:' + (/^ok:/.test(S.asrPing) ? "#3E9C7A" : "#C97A00") + '">' + esc(S.asrPing.replace(/^ok:/, "")) + "</span>" : "") + "</div></div>" +
     '<div class="row" style="gap:8px"><button class="btn soft" style="flex:1" data-act="say" data-text="magic">' + spk + '試聽單字</button>' +
       '<button class="btn soft" style="flex:1" data-act="say" data-text="Small steps. Every day. That is how you get better.">' + spk + "試聽句子</button></div>" +
     '<div class="field"><label for="rate">速度：<span id="rate-v">' + st.rate.toFixed(1) + '×</span></label><input type="range" id="rate" min="0.5" max="1.2" step="0.1" value="' + st.rate + '" data-act-change="rate"></div>' +
@@ -3478,7 +3509,8 @@ function practiceHTML(a, w){
   if (S.err.practice) html += '<div class="err">' + esc(S.err.practice) + "</div>";
   if (fb){
     /* a small play button sits right after each sentence worth hearing: the fix, and the more natural version */
-    const play = t => '<button class="icon-btn play-mini" data-act="say" data-text="' + esc(t) + '" aria-label="播放">' + ICON.play + "</button>";
+    const play = t => '<button class="icon-btn play-mini" data-act="say" data-text="' + esc(t) + '" aria-label="播放">' + ICON.play + "</button>" +
+      '<button class="icon-btn play-mini mic" data-act="shadow" data-text="' + esc(t) + '" aria-label="跟讀評分">' + MIC_SVG + "</button>";
     const line = (cls, t, id) => '<span class="fix-line"><span class="' + cls + '">' + tapText(t, id) + "</span>" + play(t) + "</span>";
     const fixed = fb.corrected && fb.corrected.trim() !== (a.answer || "").trim();
     html += '<div class="fix">' + (fb.ok ? '<span class="to">寫得很好！</span>' : "") +
@@ -3534,7 +3566,108 @@ function checkSelection(){
   const phrase = /\s/.test(text);
   openSheet({state:"loading", phrase, selText:text, sentence, pat:null, data:{word:text.replace(/^[^A-Za-z]+|[^A-Za-z]+$/g, ""), lemma:""}});
 }
+/* ---------- 跟讀評分：錄你唸的句子，送到電腦的 Whisper 聽寫並評分 ---------- */
+const MIC_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor"/><path d="M6 11a6 6 0 0 0 12 0M12 17v3.5M8.5 20.5h7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+const REC = {mr:null, stream:null, chunks:[], timer:null, url:""};
+function asrBase(){ return String((set().pcVoice || {}).url || "").trim().replace(/\/+$/, ""); }
+function openShadow(text){
+  text = String(text || "").trim(); if (!text) return;
+  S.sheet = {kind:"shadow", text, state:asrBase() ? "idle" : "nourl"}; S.sheetAt = performance.now();
+  $("#sheet").hidden = false; drawSheet();
+}
+function shadowHTML(o){
+  const head = '<div class="grab" aria-hidden="true"></div><div class="sh-head"><div class="sh-word phrase" style="flex:1;min-width:0">跟讀評分</div><button class="icon-btn" data-act="close-sheet" aria-label="關閉">×</button></div>';
+  const say = '<button class="icon-btn" data-act="say" data-text="' + esc(o.text) + '" aria-label="聽示範">' + ICON.speaker + "</button>";
+  let target = esc(o.text);
+  if (o.res && o.res.diff){
+    /* the sentence again, word by word: green = said right, red = heard as something else, grey = missed */
+    target = o.res.diff.map(d => d.t === "ok" ? '<span class="sw ok' + (d.p < .55 ? " weak" : "") + '">' + esc(d.show || d.w) + "</span>"
+      : d.t === "sub" ? '<span class="sw sub">' + esc(d.show || d.w) + "<small>聽成 " + esc(d.heard) + "</small></span>"
+      : d.t === "miss" ? '<span class="sw miss">' + esc(d.show || d.w) + "<small>漏了</small></span>"
+      : '<span class="sw extra">+' + esc(d.heard) + "</span>").join(" ");
+  }
+  let html = head + '<div class="shadow-target"><div class="en">' + target + "</div>" + say + "</div>";
+  if (o.state === "nourl")
+    return html + '<p class="muted" style="margin:0">跟讀評分用你電腦上的 Whisper 聽寫。先在電腦開「啟動語音伺服器.bat」，再到「設定 → 朗讀」貼上伺服器網址。</p>' +
+      '<button class="btn block" data-act="shadow-setup">去設定</button>';
+  if (o.state === "rec")
+    return html + '<button class="rec-btn on" data-act="shadow-stop" aria-label="停止錄音"><span class="rec-dot"></span></button><div class="rec-hint"><b id="rec-time">0.0</b> 秒・唸完按一下停止</div>';
+  if (o.state === "up")
+    return html + '<div class="rec-wait"><span class="spinner"></span>電腦正在聽…</div>';
+  if (o.state === "err")
+    html += '<div class="err">' + esc(o.err) + "</div>";
+  if (o.state === "done" && o.res){
+    const r = o.res, col = v => v >= 85 ? "#3E9C7A" : v >= 65 ? "#E0A21E" : "#D9534F";
+    const bar = (label, v) => '<div class="sbar"><span>' + label + '</span><i><b style="width:' + Math.max(3, v) + "%;background:" + col(v) + '"></b></i><em>' + v + "</em></div>";
+    const hints = [...new Set(r.diff.filter(d => d.hint).map(d => d.hint))];
+    const notes = [];
+    if (r.wpm) notes.push("語速每分鐘 " + r.wpm + " 字" + (r.wpm < 90 ? "，可以再順一點" : r.wpm > 210 ? "，稍微放慢會更清楚" : "，很自然"));
+    (r.pauses || []).forEach(p => notes.push("在 <b>" + esc(p.after) + "</b> 和 <b>" + esc(p.before) + "</b> 之間停了 " + p.sec + " 秒"));
+    if ((r.unclear || []).length) notes.push("唸得不太清楚：" + r.unclear.map(esc).join("、"));
+    html += '<div class="shadow-score"><div class="ring" style="--c:' + col(r.score) + ";--v:" + r.score + '"><b>' + r.score + "</b><span>分</span></div>" +
+      '<div class="sbars">' + bar("說對了", r.accuracy) + bar("流暢度", r.fluency) + bar("清楚度", r.clarity) + "</div></div>" +
+      (hints.length ? '<div class="shadow-hints">' + hints.map(h => "<div><b>提示</b>　" + esc(h) + "</div>").join("") + "</div>" : "") +
+      (notes.length ? '<div class="small muted">' + notes.join("<br>") + "</div>" : "") +
+      '<div class="small muted">電腦聽到：<span class="en">' + esc(r.heard || "（沒聽到聲音）") + "</span></div>" +
+      (REC.url ? '<button class="btn soft sm" data-act="shadow-mine" style="align-self:flex-start">聽我剛剛唸的</button>' : "");
+  }
+  return html + '<button class="rec-btn" data-act="shadow-start" aria-label="開始錄音">' + MIC_SVG + '</button><div class="rec-hint">' + (o.state === "done" ? "再唸一次" : "按一下開始唸，唸完再按一下") + "</div>";
+}
+async function shadowStart(){
+  const o = S.sheet; if (!o || o.kind !== "shadow") return;
+  TTS.stop && TTS.stop();
+  try {
+    REC.stream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true, noiseSuppression:true}});
+  } catch (e) { o.state = "err"; o.err = "沒辦法用麥克風，請在瀏覽器允許麥克風權限。"; drawSheet(); return; }
+  const type = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg"].find(t => window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t)) || "";
+  try { REC.mr = new MediaRecorder(REC.stream, type ? {mimeType:type} : undefined); }
+  catch (e) { shadowRelease(); o.state = "err"; o.err = "這個瀏覽器不能錄音。"; drawSheet(); return; }
+  REC.chunks = [];
+  REC.mr.ondataavailable = e => { if (e.data && e.data.size) REC.chunks.push(e.data); };
+  REC.mr.onstop = () => shadowSend(o);
+  REC.mr.start();
+  o.state = "rec"; o.t0 = performance.now(); drawSheet();
+  clearInterval(REC.timer);
+  REC.timer = setInterval(() => {
+    const sec = (performance.now() - o.t0) / 1000, el = $("#rec-time"); if (el) el.textContent = sec.toFixed(1);
+    if (sec >= 30) shadowStop();          /* one sentence never needs more than this */
+  }, 100);
+}
+function shadowStop(){ clearInterval(REC.timer); if (REC.mr && REC.mr.state === "recording") REC.mr.stop(); }
+function shadowRelease(){ clearInterval(REC.timer); try { REC.stream && REC.stream.getTracks().forEach(t => t.stop()); } catch (e) {} REC.stream = null; REC.mr = null; }
+async function shadowSend(o){
+  const type = (REC.mr && REC.mr.mimeType) || "audio/webm";
+  const blob = new Blob(REC.chunks, {type});
+  shadowRelease();
+  if (REC.url) URL.revokeObjectURL(REC.url);
+  REC.url = URL.createObjectURL(blob);
+  if (S.sheet !== o) return;
+  if (blob.size < 1200){ o.state = "err"; o.err = "沒錄到聲音，再試一次。"; drawSheet(); return; }
+  o.state = "up"; drawSheet();
+  const ctl = new AbortController(), timeout = setTimeout(() => ctl.abort(), 60000);
+  try {
+    const r = await fetch(asrBase() + "/asr?target=" + encodeURIComponent(o.text), {method:"POST", body:blob, headers:{"Content-Type":type.split(";")[0]}, signal:ctl.signal});
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.ok) throw new Error(j.error || ("電腦回應錯誤（" + r.status + "）"));
+    o.res = j; o.state = "done";
+    if (j.score >= 80) earnShadow(o.text);
+  } catch (e) {
+    o.state = "err";
+    o.err = e.name === "AbortError" ? "電腦太久沒回應。" : /Failed to fetch|NetworkError|Load failed/i.test(String(e.message)) ? "連不到電腦。確認電腦上的語音伺服器開著，網址也是最新的。" : String(e.message || e);
+  } finally { clearTimeout(timeout); }
+  if (S.sheet === o) drawSheet();
+}
+/* a little reward: 2 coins for every sentence read well (80+), up to 20 coins a day */
+function earnShadow(text){
+  const w = wallet(), t = todayStr();
+  w.shadow = w.shadow && w.shadow.date === t ? w.shadow : {date:t, coins:0, done:[]};
+  const key = text.toLowerCase().slice(0, 120);
+  if (w.shadow.coins >= 20 || w.shadow.done.includes(key)) return;
+  w.shadow.done.push(key); w.shadow.coins += 2;
+  earn(2, "跟讀評分"); toast("唸得很好！+2 金幣");
+}
 function closeSheet(){
+  if (S.sheet && S.sheet.kind === "shadow"){ shadowStop(); shadowRelease(); }
   try { if (S.sheet && S.sheet.selText) window.getSelection().removeAllRanges(); } catch (e) {}
   S.sheet = null; $("#sheet").hidden = true; $("#sheet-card").innerHTML = "";
   document.querySelectorAll(".w.picked").forEach(x => x.classList.remove("picked"));
@@ -3555,6 +3688,7 @@ function drawSheet(){
   const o = S.sheet; if (!o) return;
   $("#sheet-card").setAttribute("aria-label", o.kind === "theme" ? "選主題" : "單字解釋");
   if (o.kind === "theme"){ $("#sheet-card").innerHTML = themeSheetHTML(); return; }
+  if (o.kind === "shadow"){ $("#sheet-card").setAttribute("aria-label", "跟讀評分"); $("#sheet-card").innerHTML = shadowHTML(o); return; }
   if (o.kind === "genpick"){ $("#sheet-card").setAttribute("aria-label", "再讀一篇"); $("#sheet-card").innerHTML = genPickHTML(o); return; }
   if (o.kind === "city"){ $("#sheet-card").setAttribute("aria-label", "我的城市"); $("#sheet-card").innerHTML = citySheetHTML(o); return; }
 
@@ -3565,7 +3699,7 @@ function drawSheet(){
     '<div class="sh-head"><div style="min-width:0"><div class="sh-word' + (o.phrase ? " phrase" : "") + '">' + esc(d.en || d.word) + "</div>" +
     '<div class="sh-ipa">' + (d.ipa ? esc(d.ipa) : (o.state === "loading" ? '<span class="skel" style="width:90px"></span>' : "")) + (d.pos ? '<span class="chip">' + esc(d.pos) + "</span>" : "") +
     (d.lemma && d.word && d.lemma.toLowerCase() !== d.word.toLowerCase() ? '<span class="small">原形：<span class="en">' + esc(d.lemma) + "</span></span>" : "") + "</div></div>" +
-    '<div class="sh-say"><button class="icon-btn" data-act="say" data-text="' + esc(head) + '" aria-label="朗讀">' + ICON.speaker + '</button></div></div>';
+    '<div class="sh-say"><button class="icon-btn" data-act="say" data-text="' + esc(head) + '" aria-label="朗讀">' + ICON.speaker + '</button><button class="icon-btn mic" data-act="shadow" data-text="' + esc(head) + '" aria-label="跟讀評分">' + MIC_SVG + '</button></div></div>';
   if (o.state === "loading"){
     html += '<div class="stack"><div class="skel" style="width:70%"></div><div class="skel" style="width:45%"></div><div class="skel" style="width:85%"></div></div>';
   } else if (o.state === "error" || o.state === "noai"){
@@ -3580,7 +3714,8 @@ function drawSheet(){
   if (o.sentence){
     html += '<div class="sent-box"><span class="label">整句</span><span class="en">' + esc(o.sentence) + "</span>" +
       (d.sentence_zh ? '<span class="small">' + esc(d.sentence_zh) + "</span>" : (o.state === "ready" ? '<button class="btn ghost sm" style="align-self:flex-start;padding:4px 0" data-act="tr-sent"' + (o.trBusy ? " disabled" : "") + ">" + (o.trBusy ? "翻譯中…" : "翻譯整句") + "</button>" : "")) +
-      '<button class="btn ghost sm" style="align-self:flex-start;padding:4px 0" data-act="say" data-text="' + esc(o.sentence) + '">' + ICON.speaker.replace("<svg", '<svg width="16" height="16"') + "唸整句</button></div>";
+      '<div class="row" style="gap:14px"><button class="btn ghost sm" style="padding:4px 0" data-act="say" data-text="' + esc(o.sentence) + '">' + ICON.speaker.replace("<svg", '<svg width="16" height="16"') + "唸整句</button>" +
+      '<button class="btn ghost sm" style="padding:4px 0" data-act="shadow" data-text="' + esc(o.sentence) + '">' + MIC_SVG.replace("<svg", '<svg width="16" height="16"') + "跟讀這句</button></div></div>";
   }
   html += '<div class="links"><a class="btn soft sm" href="' + cambridge(head) + '" target="_blank" rel="noopener">劍橋字典 ↗</a><a class="btn soft sm" href="' + gtrans(head) + '" target="_blank" rel="noopener">Google 翻譯 ↗</a>' +
     '<button class="icon-btn ' + (starred ? "on" : "") + '" data-act="star" aria-pressed="' + starred + '" aria-label="' + (starred ? "取消收藏" : "收藏") + '"' + (o.state === "loading" ? " disabled" : "") + ">" + (starred ? ICON.starOn : ICON.star) + "</button></div>";
@@ -4144,6 +4279,20 @@ const ACT = {
     const v = el.dataset.v;
     setTimeout(() => { const t = document.querySelector('#tabs .tab[data-v="' + v + '"]'); if (t){ t.classList.remove("pop"); void t.offsetWidth; t.classList.add("pop"); } }, 0);
     if (S.reader) closeReader(); closeSheet(); if (el.dataset.v === "prefs") S.prefPage = null; go(el.dataset.v); },
+  "shadow": el => openShadow(el.dataset.text),
+  "shadow-start": () => shadowStart(),
+  "shadow-stop": () => shadowStop(),
+  "shadow-mine": () => { if (REC.url){ TTS.stop && TTS.stop(); const a = new Audio(REC.url); a.play().catch(() => {}); } },
+  "shadow-setup": () => { closeSheet(); go("prefs"); S.prefPage = "voice"; render(); },
+  "asr-ping": async () => {
+    const base = asrBase(); if (!base){ toast("先貼上伺服器網址"); return; }
+    S.asrPing = "checking"; render();
+    try {
+      const r = await fetch(base + "/ping", {cache:"no-store"}); const j = await r.json();
+      S.asrPing = !j.ok ? "連得到，但回應怪怪的" : j.asr === "ready" ? "ok:連線成功，跟讀評分可以用（" + (j.asr_model || "Whisper") + "）" : j.asr === "loading" ? "連線成功，Whisper 還在載入（第一次會下載模型，請等幾分鐘）" : j.asr ? "連線成功，但跟讀評分沒開啟：" + j.asr : "連線成功，但電腦上的 voice_server.py 是舊版，還沒有跟讀評分";
+    } catch (e) { S.asrPing = "連不到電腦，確認語音伺服器視窗開著、網址是最新的"; }
+    render();
+  },
   "city-chat-close": () => { S.cityChat = false; City3D.focusLisa(false); render(); },
   "open-chat": () => { const w = curWeek(); if (!w) return;
     if (S.view === "city"){ S.chatDay = chatDayFor(w); S.cityChat = true; S.talk.scrollDown = true; closeSheet && S.sheet && closeSheet(); City3D.focusLisa(true); render(); return; }
