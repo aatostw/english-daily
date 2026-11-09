@@ -204,6 +204,7 @@ const CITY_ICONS = {
   outfit:'<svg viewBox="0 0 32 32"><path d="M11 4l-8 5 3 6 3-1.5V28h14V13.5l3 1.5 3-6-8-5c-.6 2.4-2.6 4-5 4s-4.4-1.6-5-4z" fill="#4C8BE0"/><path d="M11 4c.6 2.4 2.6 4 5 4s4.4-1.6 5-4" fill="none" stroke="#2F6AB8" stroke-width="1.5"/><circle cx="16" cy="18" r="3" fill="#FFD873"/></svg>',
   bag:'<svg viewBox="0 0 32 32"><path d="M11 9V7a5 5 0 0 1 10 0v2" fill="none" stroke="#8A5A3A" stroke-width="2.4"/><rect x="5" y="9" width="22" height="19" rx="6" fill="#C98A55"/><rect x="9" y="17" width="14" height="8" rx="3" fill="#A86E3E"/><rect x="14" y="15" width="4" height="4" rx="1" fill="#FFD873"/></svg>',
   edit:'<svg viewBox="0 0 32 32"><path d="M6 26l1.6-6.4L21.5 5.7a2.4 2.4 0 0 1 3.4 0l1.4 1.4a2.4 2.4 0 0 1 0 3.4L12.4 24.4z" fill="#F5C64F"/><path d="M21.5 5.7l4.8 4.8" stroke="#E57373" stroke-width="4" stroke-linecap="round"/><path d="M7.6 19.6l4.8 4.8L6 26z" fill="#F6EAD3"/><path d="M6 26l1.2-1.2" stroke="#4A4A4A" stroke-width="2" stroke-linecap="round"/><path d="M9.5 18l9.6-9.6" stroke="#E0A92E" stroke-width="1.6" stroke-linecap="round"/></svg>',
+  upgrade:'<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="14" fill="#4DB892"/><circle cx="16" cy="16" r="14" fill="none" stroke="#3A9877" stroke-width="2"/><path d="M16 23V10M10 15.5l6-6 6 6" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   done:'<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="13" fill="#E57373"/><path d="M11 11l10 10M21 11 11 21" stroke="#fff" stroke-width="3.4" stroke-linecap="round"/></svg>',
   turn:'<svg viewBox="0 0 32 32"><path d="M24.5 12A9.5 9.5 0 1 0 25.5 19" fill="none" stroke="#4C8BE0" stroke-width="3.4" stroke-linecap="round"/><path d="M26.5 5.5v8h-8" fill="none" stroke="#4C8BE0" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   remove:'<svg viewBox="0 0 32 32"><path d="M8 10h16l-1.4 16a2 2 0 0 1-2 1.8h-9.2a2 2 0 0 1-2-1.8z" fill="#E57373"/><rect x="5" y="6.5" width="22" height="3.6" rx="1.8" fill="#C94F4F"/><rect x="12.5" y="3.5" width="7" height="3.5" rx="1.5" fill="#C94F4F"/><path d="M13 14v9M19 14v9" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>',
@@ -381,12 +382,12 @@ function citySheetHTML(o){
     const ground = it.b ? '<div class="label" style="margin-top:4px">地面<span class="small muted">（換一次 1 金幣）</span></div><div class="ground-row">' + Object.entries(CITY_GROUNDS).map(([k, v]) =>
       '<button class="ground-btn' + (gr === k ? " on" : "") + '" data-act="city-ground" data-k="' + o.k + '" data-g="' + k + '" aria-pressed="' + (gr === k) + '"><span style="background:' + v[2] + '"></span>' + v[0] + "</button>").join("") + "</div>" : "";
     const restyle = "";
-    const up = cost ? (lock ? '<div class="menu-row locked-row"><span><b>升到 Lv' + (lv + 1) + '</b><span class="small muted">' + next + "</span></span><span class=\"small muted\">" + lock + "</span></div>"
-      : '<button class="menu-row" data-act="city-upgrade" data-k="' + o.k + '"' + (bal < cost ? " disabled" : "") + '><span><b>升到 Lv' + (lv + 1) + '</b><span class="small muted">' + next +
+    const up = cost ? (lock ? '<div class="up-row max"><span class="up-ic">' + CITY_ICONS.upgrade + '</span><span class="up-txt"><b>升到 Lv' + (lv + 1) + '</b><span class="small muted">' + next + '</span><span class="small" style="color:#C97A00">' + lock + "</span></span></div>"
+      : '<button class="up-row" data-act="city-upgrade" data-k="' + o.k + '"' + (bal < cost ? " disabled" : "") + '><span class="up-ic">' + CITY_ICONS.upgrade + '</span><span class="up-txt"><b>升到 Lv' + (lv + 1) + '</b><span class="small muted">' + next +
         '</span></span><span class="price"><img class="coin-icon" src="' + COIN_IMG + '" alt="">' + cost + "</span></button>")
-      : (b && (b.make || b.grow || b.fun) ? '<p class="small muted" style="margin:0">已經是最高等級 Lv3</p>' : "");
-    return head(cityName(it)) + warn + '<p class="muted" style="margin:0">' + info + "</p>" + up + turn + restyle + ground +
-      (it.b === "hall" ? "" : '<button class="btn block ' + (it.d ? "soft" : "danger-soft") + '" data-act="city-move" data-k="' + o.k + '">' + (it.d ? "收回背包" : it.b === "road" ? "移除這段道路（退回 " + CITY_BUILDINGS.road.price + " 金幣）" : "拆掉（不退金幣）") + "</button>");
+      : '<div class="up-row max"><span class="up-ic">' + CITY_ICONS.upgrade + '</span><span class="up-txt"><b>已經是最高等級 Lv3</b></span></div>';
+    /* only upgrading here: turning, grounds and removing live in 編輯 */
+    return head(cityName(it)) + up;
   }
   if (o.s === "shop"){
     return head("商店") + '<div class="stack">' +

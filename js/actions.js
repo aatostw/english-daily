@@ -124,7 +124,14 @@ const ACT = {
     W.balance = v; W.ledger.push({at:Date.now(), amount:diff, reason:"開發人員調整"});
     Store.set("wallet", W).catch(() => {}); renderCoins(); render(); toast("金幣改成 " + v.toLocaleString());
   },
-  "city-tile": el => { const c = city(), k = anchorOf(c, el.dataset.k); cityOpen(c.tiles[k] ? {s:"tile", k} : {s:"build", k}); },
+  "city-tile": el => {
+    const c = city(), k = anchorOf(c, el.dataset.k), it = c.tiles[k];
+    if (!it){ cityOpen({s:"build", k}); return; }
+    /* roads and decorations have nothing to upgrade: change them in 編輯 */
+    const b = it.b && CITY_BUILDINGS[it.b];
+    if (!b || !(b.make || b.grow || b.fun || b.fixed)){ toast("要移動、轉向或移除，請按左上的「編輯」"); return; }
+    cityOpen({s:"tile", k});
+  },
   "city-sheet": el => cityOpen({s:el.dataset.s}),
   "city-req": el => cityOpen({s:"req", id:el.dataset.id}),
   "city-feed": () => cityFeed(),
