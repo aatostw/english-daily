@@ -514,29 +514,35 @@ async function cityAnswer(el){
   if (ok) toast("拿到禮物：" + q.gift);
 }
 
-/* 編輯: drag an item from the library onto the island */
+/* 編輯: drag an item from the library onto the island.
+   Mouse: just drag. Touch: hold the item a moment, then drag (a quick swipe still scrolls the list). */
 (() => {
   let drag = null;
+  const lift = () => { if (!drag) return; drag.ready = true; if (drag.el) drag.el.classList.add("lift"); try { navigator.vibrate && navigator.vibrate(12); } catch (e) {} };
   document.addEventListener("pointerdown", e => {
     const it = e.target.closest && e.target.closest(".ce-item");
     if (!it || it.disabled || !S.cityEdit) return;
-    drag = {key:it.dataset.v, x:e.clientX, y:e.clientY, ghost:null, label:it.querySelector("b") ? it.querySelector("b").textContent : ""};
+    drag = {key:it.dataset.v, el:it, x:e.clientX, y:e.clientY, ghost:null, ready:e.pointerType === "mouse", label:it.querySelector("b") ? it.querySelector("b").textContent : ""};
+    if (!drag.ready) drag.timer = setTimeout(lift, 280);
   });
   document.addEventListener("pointermove", e => {
     if (!drag) return;
+    const far = Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 8;
+    if (!drag.ready){ if (far){ clearTimeout(drag.timer); drag = null; } return; }
     if (!drag.ghost){
-      const dx = Math.abs(e.clientX - drag.x), dy = Math.abs(e.clientY - drag.y);
-      if (dx < 10 && dy < 10) return;
-      if (dy > dx){ drag = null; return; }   /* up/down scrolls the list; sideways drags the item out */
+      if (!far) return;
       drag.ghost = document.createElement("div"); drag.ghost.className = "ce-ghost"; drag.ghost.textContent = drag.label;
       document.body.appendChild(drag.ghost);
     }
-    drag.ghost.style.transform = "translate(" + e.clientX + "px," + e.clientY + "px) translate(-50%,-120%)";
+    drag.ghost.style.transform = "translate(" + e.clientX + "px," + e.clientY + "px) translate(-50%,-130%)";
     drag.ghost.classList.toggle("ok", !!City3D.keyAt(e.clientX, e.clientY));
   });
+  /* while an item is lifted, the finger moves it instead of scrolling the page */
+  document.addEventListener("touchmove", e => { if (drag && drag.ready && e.cancelable) e.preventDefault(); }, {passive:false});
   const end = e => {
     if (!drag) return;
-    const d = drag; drag = null;
+    const d = drag; drag = null; clearTimeout(d.timer);
+    if (d.el) d.el.classList.remove("lift");
     if (!d.ghost) return;
     d.ghost.remove();
     /* the click that follows a drag shouldn't also toggle the item */
