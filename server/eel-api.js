@@ -164,7 +164,8 @@ async function voice(req, env, path){
   const me = await auth(req, env, true);
   if (!me) return json(req, 401, {ok:false, error:"請重新登入", relogin:true});
   if (!me.voice) return json(req, 403, {ok:false, error:"管理員還沒幫你開通電腦語音", noVoice:true});
-  const key = await getConfig(env, "voiceKey");
+  /* the computer's password lives in Cloudflare (secret VOICE_KEY), so nobody types it in the app */
+  const key = env.VOICE_KEY || await getConfig(env, "voiceKey");
   if (!key) return json(req, 503, {ok:false, error:"管理員還沒設定電腦語音的密碼", noKey:true});
   const base = (await getConfig(env, "voiceUrl")) || VOICE_URL;
   const inUrl = new URL(req.url), q = new URLSearchParams(inUrl.search);
@@ -205,7 +206,7 @@ async function adminRoute(req, env, path){
       if (typeof b.voiceKey === "string" && b.voiceKey.trim()) await env.DB.prepare("INSERT INTO config (k, v) VALUES ('voiceKey', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v").bind(b.voiceKey.trim()).run();
       if (typeof b.voiceUrl === "string") await env.DB.prepare("INSERT INTO config (k, v) VALUES ('voiceUrl', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v").bind(b.voiceUrl.trim().replace(/\/+$/, "")).run();
     }
-    return json(req, 200, {ok:true, voiceKeySet:!!(await getConfig(env, "voiceKey")), voiceUrl:(await getConfig(env, "voiceUrl")) || VOICE_URL});
+    return json(req, 200, {ok:true, voiceKeySet:!!(env.VOICE_KEY || await getConfig(env, "voiceKey")), voiceUrl:(await getConfig(env, "voiceUrl")) || VOICE_URL});
   }
   const email = cleanEmail(b.email);
   if (!okEmail(email)) return json(req, 400, {ok:false, error:"Email 格式不對"});

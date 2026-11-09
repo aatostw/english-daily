@@ -3591,7 +3591,7 @@ function drawGate(){
   if (G.page === "admin"){
     html = deco + '<button class="g-back" data-act="gate-page" data-p="login" aria-label="回到登入">' + GATE_ICON.back + "</button>" +
       '<div class="g-in" style="padding-top:80px"><section class="card">' + (admCreds() ? adminHTML()
-        : '<h2 style="font-size:20px">管理員登入</h2><p class="muted small" style="margin:0">輸入 Cloudflare 上設定的管理員帳號（ADMIN_USER）和管理密碼（ADMIN_KEY）。</p>' + admLoginHTML("ga") +
+        : '<h2 style="font-size:20px">管理員登入</h2>' + admLoginHTML("ga") +
           (G.err ? '<div class="err">' + esc(G.err) + "</div>" : "") +
           '<button class="btn block" data-act="gate-admin"' + (G.busy ? " disabled" : "") + ">" + (G.busy ? '<span class="spinner"></span>確認中' : "確認") + "</button>") + "</section></div>";
   } else if (G.page === "forgot"){
@@ -3658,7 +3658,7 @@ function adminHTML(){
         '<div class="row between" style="align-items:center;margin-top:8px"><span class="small"><b>電腦語音</b><span class="muted">（GPT-SoVITS、跟讀評分）</span></span><button class="switch" role="switch" aria-checked="' + !!u.voice + '" data-act="adm-voice" data-email="' + esc(u.email) + '" data-on="' + (u.voice ? 0 : 1) + '" aria-label="電腦語音"><span></span></button></div>' +
         (a.reset === u.email ? '<div class="row" style="margin-top:8px"><input class="input" id="adm-rp" type="text" autocomplete="off" placeholder="新密碼（至少 6 個字）" aria-label="新密碼"><button class="btn sm" data-act="adm-reset-go" data-email="' + esc(u.email) + '">確定</button></div>' : "") +
       "</div>").join("") + "</div>" : '<p class="muted small" style="margin:0">還沒有帳號。</p>';
-  return '<div class="divider"></div><div><b>帳號管理</b><div class="small muted">幫家人、朋友建立帳號、開通電腦語音。</div></div>' +
+  return '<div class="divider"></div><div><b>帳號管理</b></div>' +
     '<!--cloud-url--><div hidden><label for="cloud-url">伺服器網址</label><input class="input en" id="cloud-url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="' + CLOUD_URL + '" value="' + esc((Cloud.cfg && Cloud.cfg.url !== CLOUD_URL && Cloud.cfg.url) || S.cloudUrl || "") + '" data-act-change="cloud-url"' + (Cloud.on() ? " disabled" : "") + "></div>" +
     '<div class="row between" style="align-items:center"><span class="small muted">管理員：<b class="en">' + esc(admUser()) + '</b></span><button class="btn soft sm" data-act="adm-load"' + (a.busy ? " disabled" : "") + ">" + (a.busy ? '<span class="spinner"></span>' : "") + "重新整理</button></div>" +
     (a.err ? '<div class="err">' + esc(a.err) + "</div>" : "") + (a.ok ? '<div class="note ok">' + esc(a.ok) + "</div>" : "") + list +
@@ -3668,9 +3668,7 @@ function adminHTML(){
       '<input class="input" id="adm-pw" type="text" autocomplete="off" placeholder="密碼（至少 6 個字）" aria-label="密碼">' +
       '<label class="row" style="align-items:center;gap:8px;font-size:14px"><input type="checkbox" id="adm-voice" checked> 開通電腦語音（GPT-SoVITS、跟讀評分）</label>' +
       '<button class="btn" data-act="adm-add">建立帳號</button></div></details>' +
-    '<details class="ledger"><summary>電腦語音設定</summary><div class="stack" style="margin-top:10px">' +
-      '<div class="small muted">開通的人會透過伺服器用你的電腦唸英文、評分，不用知道網址和密碼。' + (a.voiceKeySet ? "密碼<b>已設定</b>。" : '<b style="color:var(--danger)">還沒設定密碼</b>。') + "</div>" +
-      '<div class="row"><input class="input" id="adm-vkey" type="password" autocomplete="off" placeholder="電腦語音伺服器視窗上的密碼" aria-label="電腦語音密碼"><button class="btn" style="flex:none;white-space:nowrap" data-act="adm-vkey">儲存</button></div></div></details>' : "");
+    "" : "");
 }
 /* the admin's name and password (Cloudflare: ADMIN_USER / ADMIN_KEY), kept only on this device after they were checked */
 function admCreds(){ try { const c = JSON.parse(localStorage.getItem("eel-admin") || "null"); return c && c.key ? c : null; } catch (e) { return null; } }
@@ -3692,8 +3690,7 @@ function admLoginBox(){
     const d = $("#dialog");
     const draw = (err, busy) => {
       const au = ($("#dl-au") || {}).value, ak = ($("#dl-ak") || {}).value;
-      d.innerHTML = '<div class="card" role="alertdialog" aria-modal="true"><h3>開發人員模式</h3><p class="muted small" style="margin:0">請輸入 Cloudflare 上設定的管理員帳號（ADMIN_USER）和管理密碼（ADMIN_KEY）。</p>' +
-        admLoginHTML("dl") + (err ? '<div class="err">' + esc(err) + "</div>" : "") +
+      d.innerHTML = '<div class="card" role="alertdialog" aria-modal="true"><h3>開發人員模式</h3>' + admLoginHTML("dl") + (err ? '<div class="err">' + esc(err) + "</div>" : "") +
         '<div class="row" style="justify-content:flex-end"><button class="btn soft" id="dlg-no">取消</button><button class="btn" id="dlg-ok"' + (busy ? " disabled" : "") + ">" + (busy ? '<span class="spinner"></span>確認中' : "確認") + "</button></div></div>";
       if (au != null) $("#dl-au").value = au;
       if (ak != null) $("#dl-ak").value = ak;
@@ -3771,13 +3768,12 @@ function prefsParts(){
 
   const w = curWeek(), ps = progressStats();
   parts.data = '<section class="card"><h2 style="font-size:20px">資料</h2>' +
-    '<p class="muted small" style="margin:0">' + (Cloud.on() ? "你已登入，進度會自動存到雲端，換手機登入同一個帳號就能接著學。也可以另外匯出進度檔備份。" : S.mode === "local" ? "進度存在這個瀏覽器裡（登入帳號就會自動存到雲端）。換手機前先匯出進度檔，到新手機打開 App 後再匯入，就能接著學。" : "這個瀏覽器不能儲存資料，關掉頁面後進度會消失。請匯出進度檔保存。") + "</p>" +
+    (Cloud.on() ? "" : '<p class="muted small" style="margin:0">' + (S.mode === "local" ? "進度存在這個瀏覽器裡（登入帳號就會自動存到雲端）。換手機前先匯出進度檔，到新手機打開 App 後再匯入，就能接著學。" : "這個瀏覽器不能儲存資料，關掉頁面後進度會消失。請匯出進度檔保存。") + "</p>") +
     '<div class="stats"><div><b>' + (w ? w.n : 0) + '</b><span>目前週數</span></div><div><b>' + ps.weeksDone + '</b><span>完成週數</span></div><div><b>' + ps.articlesRead + '</b><span>讀完篇數</span></div><div><b>' + ps.streak + '</b><span>連續天數</span></div></div>' +
     '<div class="small">上次匯出：<b>' + lastExportText() + "</b></div>" + ledgerHTML() +
     '<div class="row wrap"><button class="btn" data-act="export-file">匯出進度檔</button>' + (canShareFile() ? '<button class="btn soft" data-act="share-file">分享進度檔</button>' : "") +
       '<label class="btn soft" for="import-file">匯入進度檔</label><input type="file" id="import-file" accept="application/json,.json,text/plain,.txt" hidden></div>' +
-    '<p class="muted small" style="margin:0">進度檔包含每週主題、句型、單字、每天的文章和造句、週日對話回饋、收藏的單字和學習紀錄，不包含 API Key。匯入會取代這支手機目前的進度。</p>' +
-    '<div class="divider"></div><div class="row between" style="align-items:center"><div><b>開發人員</b><div class="small muted">測試用，可以直接改金幣、糧食、知識和時間</div></div>' +
+    '<div class="divider"></div><div class="row between" style="align-items:center"><div><b>開發人員</b></div>' +
       '<button class="switch" role="switch" aria-checked="' + devOn() + '" data-act="dev-toggle" aria-label="開發人員模式"><span></span></button></div>' +
     (devOn() ? '<div class="field"><label for="dev-coins">金幣數量</label><div class="row"><input class="input en" id="dev-coins" type="number" inputmode="numeric" min="0" step="1" value="' + wallet().balance + '"><button class="btn" data-act="dev-coins">套用</button></div></div>' +
       '<div class="field"><label for="dev-food">糧食</label><div class="row"><input class="input en" id="dev-food" type="number" inputmode="numeric" min="0" step="1" value="' + city().food + '"><button class="btn" data-act="dev-food">套用</button></div></div>' +
