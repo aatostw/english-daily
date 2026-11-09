@@ -183,9 +183,10 @@ const ACT = {
   "city-move": el => { cityRemoveAt(city(), el.dataset.k); closeSheet(); render(); },
   "city-edit": () => { S.cityEdit = {tab:null, sel:null}; render(); },
   "city-edit-done": () => { S.cityEdit = null; render(); },
-  "city-edit-back": () => { S.cityEdit.tab = null; S.cityEdit.sel = null; render(); },
-  "city-edit-tab": el => { const E = S.cityEdit; E.tab = el.dataset.v; E.sel = null; render(); },
-  "city-edit-pick": el => { const E = S.cityEdit; E.sel = E.sel === el.dataset.v ? null : el.dataset.v; render(); },
+  "city-edit-back": () => { S.cityEdit.tab = null; render(); },
+  "city-edit-tab": el => { const E = S.cityEdit; E.tab = el.dataset.v; render(); },
+  "city-edit-pick": el => { const E = S.cityEdit; E.sel = E.sel === el.dataset.v ? null : el.dataset.v; E.moveFrom = null; render(); },
+  "city-edit-clear": () => { S.cityEdit.sel = null; S.cityEdit.moveFrom = null; render(); },
   "city-food": () => { const c = city(); if (!spend(CITY_FOOD.price, "城市：買糧食")){ toast("金幣不夠。"); return; } c.food += CITY_FOOD.n; saveCity(); drawSheet(); render(); toast("買了 " + CITY_FOOD.n + " 份糧食"); },
   "city-wear": el => { const c = city(); c.avatar[el.dataset.slot] = el.dataset.k; saveCity(); drawSheet(); render(); },
   "city-buypart": el => {

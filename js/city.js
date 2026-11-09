@@ -169,7 +169,7 @@ function renderCity(){
   const stage = '<div id="city3d" class="city3d"><div class="city-wait">' + (City3D.failed ? "這台裝置不能顯示 3D 城市。" : '<span class="spinner"></span>正在載入城市…') + "</div></div>";
   if (S.cityChat && curWeek()) return '<div class="city-stage chat">' + stage + cityChatHTML() + "</div>";
   return '<div class="city-stage' + (S.cityEdit ? " editing" : "") + '">' + stage + '<div class="city-hud">' + cityTopHTML(c) +
-    '<div class="hud-row">' + cityEditBtnHTML() + (S.cityEdit ? cityEditHTML(c) : citySideHTML(c)) + "</div></div></div>";
+    '<div class="hud-row">' + cityEditBtnHTML() + (S.cityEdit ? cityEditHTML(c) : citySideHTML(c)) + "</div>" + cityModeBarHTML(c) + "</div></div>";
 }
 /* the floating card at the top: today's resident requests */
 function cityTopHTML(c){
@@ -208,6 +208,7 @@ const CITY_ICONS = {
   edit:'<svg viewBox="0 0 32 32"><path d="M6 26l1.6-6.4L21.5 5.7a2.4 2.4 0 0 1 3.4 0l1.4 1.4a2.4 2.4 0 0 1 0 3.4L12.4 24.4z" fill="#F5C64F"/><path d="M21.5 5.7l4.8 4.8" stroke="#E57373" stroke-width="4" stroke-linecap="round"/><path d="M7.6 19.6l4.8 4.8L6 26z" fill="#F6EAD3"/><path d="M6 26l1.2-1.2" stroke="#4A4A4A" stroke-width="2" stroke-linecap="round"/><path d="M9.5 18l9.6-9.6" stroke="#E0A92E" stroke-width="1.6" stroke-linecap="round"/></svg>',
   upgrade:'<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="14" fill="#4DB892"/><circle cx="16" cy="16" r="14" fill="none" stroke="#3A9877" stroke-width="2"/><path d="M16 23V10M10 15.5l6-6 6 6" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   done:'<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="13" fill="#E57373"/><path d="M11 11l10 10M21 11 11 21" stroke="#fff" stroke-width="3.4" stroke-linecap="round"/></svg>',
+  move:'<svg viewBox="0 0 32 32"><path d="M16 3l4.5 5h-3v6.5H24v-3l5 4.5-5 4.5v-3h-6.5V24h3L16 29l-4.5-5h3v-6.5H8v3L3 16l5-4.5v3h6.5V8h-3z" fill="#4DB892"/></svg>',
   turn:'<svg viewBox="0 0 32 32"><path d="M24.5 12A9.5 9.5 0 1 0 25.5 19" fill="none" stroke="#4C8BE0" stroke-width="3.4" stroke-linecap="round"/><path d="M26.5 5.5v8h-8" fill="none" stroke="#4C8BE0" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   remove:'<svg viewBox="0 0 32 32"><path d="M8 10h16l-1.4 16a2 2 0 0 1-2 1.8h-9.2a2 2 0 0 1-2-1.8z" fill="#E57373"/><rect x="5" y="6.5" width="22" height="3.6" rx="1.8" fill="#C94F4F"/><rect x="12.5" y="3.5" width="7" height="3.5" rx="1.5" fill="#C94F4F"/><path d="M13 14v9M19 14v9" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>',
   tools:'<svg viewBox="0 0 32 32"><path d="M21.5 4a6.5 6.5 0 0 0-6.2 8.5L5.2 22.6a2.6 2.6 0 0 0 3.7 3.7L19 16.2A6.5 6.5 0 0 0 27.5 9l-3.6 3.6-3.4-.9-.9-3.4L23 4.7A6.5 6.5 0 0 0 21.5 4z" fill="#8E99A6"/><circle cx="7.6" cy="24.4" r="1.3" fill="#fff"/></svg>',
@@ -308,15 +309,43 @@ function cityEditHTML(c){
   } else if (E.tab === "ground"){
     rows = Object.entries(CITY_GROUNDS).map(([k, v]) => item("g:" + k, v[0], price(1), '<span class="ce-swatch" style="background:' + v[2] + '"></span>', bal >= 1)).join("");
   } else if (E.tab === "tools"){
-    rows = item("t:turn", "轉方向", "門口換一面", '<span class="ce-pic">' + CITY_ICONS.turn + "</span>") + item("t:remove", "移除", "道路退錢", '<span class="ce-pic">' + CITY_ICONS.remove + "</span>");
+    rows = item("t:move", "移動", "整棟搬走", '<span class="ce-pic">' + CITY_ICONS.move + "</span>") + item("t:turn", "轉方向", "門口換一面", '<span class="ce-pic">' + CITY_ICONS.turn + "</span>") + item("t:remove", "移除", "道路退錢", '<span class="ce-pic">' + CITY_ICONS.remove + "</span>");
   } else {
     const decos = c.owned.deco.reduce((m, d) => (m[d] = (m[d] || 0) + 1, m), {});
     rows = Object.keys(decos).length ? Object.entries(decos).map(([d, n]) => item("d:" + d, CITY_DECOS[d], "× " + n, '<span class="ce-pic">' + CITY_ICONS.lib_deco + "</span>")).join("")
       : '<p class="ce-empty">背包裡還沒有裝飾。答對居民請求有機會拿到。</p>';
   }
   return '<div class="ce-col"><button class="back-btn" data-act="city-edit-back" aria-label="回到建築、土地、其他">' + GATE_ICON.back + "</button>" +
-    '<div class="ce-list">' + rows + "</div>" + (E.sel ? '<div class="ce-hint">點島上的格子</div>' : "") + "</div>";
+    '<div class="ce-list">' + rows + "</div></div>";
 }
+/* while something is chosen in 編輯: a bar at the bottom says what tapping a tile will do, with ✕ to stop */
+function cityModeBarHTML(c){
+  const E = S.cityEdit; if (!E || !E.sel) return "";
+  const [t, v] = E.sel.split(":");
+  const what = t === "b" ? "蓋" + CITY_BUILDINGS[v].name : t === "g" ? "鋪" + CITY_GROUNDS[v][0] : t === "d" ? "放" + CITY_DECOS[v]
+    : v === "turn" ? "轉方向" : v === "remove" ? "移除" : E.moveFrom ? "移動" + cityName(c.tiles[E.moveFrom] || {}) : "移動";
+  const how = t === "t" && v === "move" ? (E.moveFrom ? "點一塊空地放過去" : "點要搬的建築或裝飾") : "點島上的格子";
+  return '<div class="ce-bar' + (v === "remove" ? " warn" : "") + '"><span><b>' + esc(what) + "中</b>・" + how + '</span><button data-act="city-edit-clear" aria-label="取消">×</button></div>';
+}
+/* 移動: the building (or decoration) keeps its level and residents; each tile keeps its own ground */
+function cityMoveAt(c, from, to){
+  const it = c.tiles[from], dst = c.tiles[to];
+  if (!it || it.b === "hall" || tileEmpty(it)) return "這格沒有可以搬的東西";
+  if (!tileEmpty(dst)) return "要搬到空地";
+  if (it.b === "road"){
+    const saved = c.tiles[from]; delete c.tiles[from];
+    const ok = roadOk(c, to); c.tiles[from] = saved;
+    if (!ok) return "道路要貼著建築或其他道路。";
+  }
+  const moved = Object.assign({}, it); delete moved.g;
+  if (dst && dst.g) moved.g = dst.g;
+  if (it.g) c.tiles[from] = {g:it.g}; else delete c.tiles[from];
+  c.tiles[to] = moved;
+  if (hasDoor(moved) && moved.b !== "hall") moved.face = autoFace(c, to);
+  c.residents.forEach(p => { if (p.home === from) p.home = to; });
+  saveCity(); return "";
+}
+
 /* do the chosen thing on tile k; returns a message when it can't */
 function cityEditApply(k){
   const E = S.cityEdit, c = city(); if (!E || !E.sel || !k) return;
@@ -325,6 +354,13 @@ function cityEditApply(k){
   if (t === "b") err = !tileEmpty(it) ? "這格已經有東西了" : cityBuildAt(c, k, v);
   else if (t === "d") err = !tileEmpty(it) ? "這格已經有東西了" : cityDecoAt(c, k, v);
   else if (t === "g") err = cityGroundAt(c, k, v);
+  else if (t === "t" && v === "move"){
+    if (!E.moveFrom){
+      if (!it || it.b === "hall" || tileEmpty(it)) err = it && it.b === "hall" ? "市中心不能搬" : "點一棟建築或一個裝飾";
+      else E.moveFrom = k;
+    } else if (k === E.moveFrom) E.moveFrom = null;
+    else { err = cityMoveAt(c, E.moveFrom, k); if (!err) E.moveFrom = null; }
+  }
   else if (t === "t" && v === "turn") err = !hasDoor(it) || it.b === "hall" ? "這格沒有可以轉的門" : (it.face = ((it.face >= 0 ? it.face : 5) + 1) % 6, saveCity(), "");
   else if (t === "t" && v === "remove"){
     if (!it || it.b === "hall") err = it ? "市中心不能移除" : "這格是空的";
