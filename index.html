@@ -3683,9 +3683,20 @@ async function shadowSend(o){
     if (j.score >= 80) earnShadow(o.text);
   } catch (e) {
     o.state = "err";
-    o.err = e.name === "AbortError" ? "電腦太久沒回應。" : /Failed to fetch|NetworkError|Load failed/i.test(String(e.message)) ? "連不到電腦。確認電腦上的語音伺服器開著，網址也是最新的。" : String(e.message || e);
+    o.err = e.name === "AbortError" ? "電腦太久沒回應。" : String(e.message || e);
+    if (/Failed to fetch|NetworkError|Load failed/i.test(String(e.message))) o.err = await asrDiagnose();
   } finally { clearTimeout(timeout); }
   if (S.sheet === o) drawSheet();
+}
+/* when sending the recording fails, ask the computer what's wrong so the message says what to do */
+async function asrDiagnose(){
+  try {
+    const r = await fetch(asrBase() + "/ping", {cache:"no-store"}), j = await r.json();
+    if (!j.asr) return "電腦連得到，但電腦上的語音伺服器是舊版，還不能評分。請關掉電腦上的語音伺服器視窗，重新雙擊「啟動語音伺服器.bat」，再把新網址貼過來。";
+    if (j.asr === "loading") return "電腦的 Whisper 還在準備（第一次要下載模型，可能要幾分鐘），等一下再唸一次。";
+    if (j.asr !== "ready") return "電腦的跟讀評分沒開啟（" + j.asr + "），看一下電腦上語音伺服器視窗的訊息。";
+    return "錄音傳到電腦時斷掉了，再唸一次試試。";
+  } catch (e) { return "連不到電腦。確認電腦上的語音伺服器開著，網址也是最新的（每次重開都會換）。"; }
 }
 /* a little reward: 2 coins for every sentence read well (80+), up to 20 coins a day */
 function earnShadow(text){
