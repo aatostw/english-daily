@@ -1187,8 +1187,20 @@ function busyErr(e){
   return !!e && e.code === "http" && ([429, 500, 502, 503, 504, 529].includes(e.status) || /overload|high demand|unavailable|exhausted/i.test(e.message || ""));
 }
 function modelName(p, id){ return id; }
-/* Ask the chosen model. When it is busy, wait and try once more;
-   on Gemini, then move on to the other free models. */
+/* Other Gemini models to try when the chosen one is busy: the free Flash models this key can
+   really use (from the model list, fetched once if missing), newest first, Pro models left out. */
+async function geminiBackups(first){
+  if (!MODEL_LISTS.gemini || !MODEL_LISTS.gemini.length){ try { await fetchModels("gemini"); } catch (e) {} }
+  const have = MODEL_LISTS.gemini || [];
+  const ok = id => /flash/i.test(id) && !/(pro|thinking|exp|tts|image|live|audio)/i.test(id);
+  const ver = id => { const m = id.match(/(\d+(?:\.\d+)?)/); return m ? parseFloat(m[1]) : 0; };
+  let list = have.length ? GEMINI_FREE.filter(m => have.includes(m)).concat(have.filter(ok).sort((a, b) => ver(b) - ver(a) || (/lite/.test(a) ? 1 : 0) - (/lite/.test(b) ? 1 : 0)))
+    : GEMINI_FREE.slice();
+  list = [...new Set(list)].filter(m => m !== first);
+  return list.slice(0, 4);
+}
+/* Ask the chosen model. When it is busy, wait 1.5 seconds and try once more;
+   on Gemini, then move on to the other free models one by one, saying which one is used. */
 async function callAI(task, input, opts){
   opts = opts || {};
   const cfg = taskCfg(task), p = cfg.provider;
@@ -1196,9 +1208,7 @@ async function callAI(task, input, opts){
   if (!provBase(p)) throw {code:"no_base", provider:p};
   const first = String(cfg.model || "").trim();
   if (!first) throw {code:"no_model", provider:p};
-  const chain = [first];
-  if (p === "gemini") GEMINI_FREE.forEach(m => { if (!chain.includes(m) && chain.length < 4) chain.push(m); });
-  let lastErr = null;
+  let chain = [first], firstErr = null, lastBusy = true;
   for (let i = 0; i < chain.length; i++){
     const tries = i === 0 ? 2 : 1;
     for (let t = 0; t < tries; t++){
@@ -1209,14 +1219,20 @@ async function callAI(task, input, opts){
         if (i > 0) toast(modelName(p, first) + " 太忙了，這次改用 " + modelName(p, chain[i]));
         return r;
       } catch (e) {
-        lastErr = e;
-        if (streamed || !busyErr(e) || (opts.signal && opts.signal.aborted)) throw e;
-        if (t + 1 < tries) await sleep(1500);
+        if (streamed || (opts.signal && opts.signal.aborted)) throw e;
+        if (i === 0 && !busyErr(e)) throw e;
+        if (!firstErr) firstErr = e;
+        lastBusy = busyErr(e);
+        /* a backup model that is missing or not allowed for this key: just try the next one */
+        if (i > 0 && !busyErr(e)) break;
+        if (t + 1 < tries){ toast(modelName(p, chain[i]) + " 忙碌中，1.5 秒後重試…"); await sleep(1500); }
       }
     }
     if (p !== "gemini") break;
+    if (i === 0) chain = chain.concat(await geminiBackups(first));
+    if (i + 1 < chain.length) toast(modelName(p, chain[i]) + (lastBusy ? " 還是很忙" : " 這把金鑰不能用") + "，改用 " + modelName(p, chain[i + 1]) + "…");
   }
-  throw lastErr;
+  throw firstErr;
 }
 async function callModel(p, model, input, opts){
   const P = PROVIDERS[p];
