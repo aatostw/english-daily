@@ -234,8 +234,9 @@ async function readFeed(f){
 }
 async function gemini(env, prompt, json){
   const model = env.NEWS_MODEL || "gemini-3.5-flash-lite";
-  const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + encodeURIComponent(env.GEMINI_KEY), {
-    method:"POST", headers:{"Content-Type":"application/json"},
+  /* the key goes in a header: works for both the old AIza… keys and the new AQ.… auth keys */
+  const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent", {
+    method:"POST", headers:{"Content-Type":"application/json", "x-goog-api-key":String(env.GEMINI_KEY).trim()},
     body:JSON.stringify({contents:[{role:"user", parts:[{text:prompt}]}], generationConfig:Object.assign({temperature:0.7}, json ? {responseMimeType:"application/json"} : {})})
   });
   const j = await r.json().catch(() => ({}));
