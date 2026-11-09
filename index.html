@@ -128,6 +128,11 @@ h1,h2,h3{margin:0;text-wrap:balance;line-height:1.25}
 .val-pill{font-family:var(--font-en);font-weight:700;font-size:14px;background:var(--primary-soft);color:var(--primary);border-radius:999px;padding:2px 10px}
 .dev-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .dev-grid .dev-time{grid-column:1/-1}
+.news-card .news-meta{display:flex;flex-wrap:wrap;gap:6px}
+.news-title{font-size:20px;font-weight:700;line-height:1.3;color:var(--ink)}
+.news-zh{font-size:15px;color:var(--muted);margin-top:-6px}
+.news-src{line-height:1.7;padding:4px 2px}
+.news-src a{color:var(--primary-text)}
 .prefs-logout{display:block;margin:6px auto 0;border:0;background:none;font:inherit;font-size:16px;font-weight:700;color:#D93025;padding:12px 28px;cursor:pointer;border-radius:12px}
 .prefs-logout:active{background:#FBE9E7}
 .adm-u{border:1px solid var(--line);border-radius:14px;padding:12px}
@@ -788,7 +793,7 @@ const SAMPLE = {
    ========================================================= */
 const S = {
   mode:"loading", db:null, uid:null, sample:null,
-  profile:null, weeks:{}, arts:{}, convs:{}, bank:{},
+  profile:null, weeks:{}, arts:{}, convs:{}, bank:{}, news:{},
   ctx:{}, view:"home", onb:{step:0, stage:0}, pick:null, chats:{}, chatDay:null, prefPage:null,
   busy:{}, err:{}, reader:null, sheet:null, talk:{}, wordFilter:"all", test:{}, provTest:{}, provEdit:"gemini", customTask:{}
 };
@@ -1090,7 +1095,7 @@ async function reloadFromStore(){
   KEYS = (() => { try { return JSON.parse(localStorage.getItem(KEYS_ID) || "{}") || {}; } catch (e) { return {}; } })();
   let p = null; try { p = await Store.get("profile"); } catch (e) {}
   if (!p){
-    S.profile = null; S.weeks = {}; S.arts = {}; S.convs = {}; S.chats = {}; S.bank = {}; S.city = null; S.log = {kind:"log", days:{}}; S.wallet = newWallet(); S.onb = {step:0, stage:0}; S.pick = null;
+    S.profile = null; S.weeks = {}; S.arts = {}; S.news = {}; S.convs = {}; S.chats = {}; S.bank = {}; S.city = null; S.log = {kind:"log", days:{}}; S.wallet = newWallet(); S.onb = {step:0, stage:0}; S.pick = null;
   } else {
     try { await loadAll(); } catch (e) {}
   }
@@ -3277,6 +3282,7 @@ function dailyHistoryHTML(){
 function secTitle(t){ return '<h2 class="sec-title">' + t + "</h2>"; }
 /* 首頁: tracker, Lisa, my city */
 function renderHome(){
+  if (Cloud.on() && NEWS.status === "idle") setTimeout(() => loadNews(), 0);
   const need = themeNeed(), w = curWeek();
   let html = aiBannerHTML() + bannerHTML(need) + backupNagHTML();
   if (!w) html += previewHTML(need);
@@ -3286,6 +3292,7 @@ function renderHome(){
     html += secTitle("每日的文章");
     html += articleCardHTML(w, Math.max(0, Math.min(5, di)));   /* on Sunday, Saturday's set stays open for more reading */
   }
+  if (Cloud.on()) html += secTitle("每日新聞") + newsCardHTML();
   return html + lisaCardHTML(w);
 }
 function chatChecklistHTML(w, conv, d){
@@ -3844,7 +3851,7 @@ function prepareArticleVoice(isNew){
   const w = S.weeks[r.week];
   TTS.prefetchAll(ctx.paras);
   const sents = TTS.pcOn() ? [] : (ctx.sentences || []).filter(Boolean);
-  const kw = (w ? w.words : []).concat(r.extra || []).map(x => x && x.en).filter(Boolean);
+  const kw = (w ? w.words : []).concat(r.extra || [], r.news && r.art.words || []).map(x => x && x.en).filter(Boolean);
   const saved = Object.values(S.bank || {}).map(x => x && x.en).filter(Boolean).map(x => x.toLowerCase());
   const words = [];
   (ctx.paras || []).forEach(p => (String(p).match(/[A-Za-z][A-Za-z'’-]*/g) || []).forEach(x => {
@@ -3888,6 +3895,12 @@ function drawReader(first){
   const r = S.reader; if (!r) return;
   const el = $("#reader");
   if (first || !$("#rd-body")) el.innerHTML = readerShell();
+  if (r.news){
+    $("#rd-ttl").textContent = "每日新聞";
+    $("#rd-body").innerHTML = newsReaderHTML(r.art);
+    if (TTS.batchInfo) TTS.batchShow();
+    return;
+  }
   const w = S.weeks[r.week];
   const a = r.art;
   const streaming = r.state === "stream";
@@ -4334,6 +4347,70 @@ async function generateArticle(n, d, k, pick, topic){
     render();
   }
 }
+/* =========================================================
+   Daily news: one international tech story a day, the same for everyone,
+   made once on the server at six levels. This phone keeps today's copy at its level.
+   ========================================================= */
+const NEWS = {status:"idle", err:"", timer:0, tries:0};
+function newsToday(){ return Object.values(S.news || {}).filter(x => x && x.kind === "news").sort((a, b) => b.date < a.date ? -1 : 1)[0] || null; }
+async function loadNews(force){
+  if (!Cloud.on() || NEWS.status === "loading") return;
+  const have = newsToday();
+  const fresh = have && have.date === todayTaipei() && (have.tier === tierIdx() || have.read);
+  if (fresh && !force) { NEWS.status = "ready"; return; }
+  NEWS.status = "loading"; NEWS.err = ""; renderNewsCard();
+  try {
+    const r = await fetch(Cloud.url() + "/news?tier=" + tierIdx(), {headers:{Authorization:"Bearer " + Cloud.cfg.token}});
+    const j = await r.json().catch(() => ({}));
+    if (r.status === 202 || j.pending){
+      NEWS.status = "pending"; NEWS.err = j.error || "";
+      clearTimeout(NEWS.timer);
+      if (NEWS.tries++ < 30) NEWS.timer = setTimeout(() => { if (NEWS.status === "pending"){ NEWS.status = "idle"; loadNews(); } }, 6000);
+    } else if (!r.ok || !j.ok) throw new Error(j.error || "伺服器回應 " + r.status);
+    else {
+      const n = j.news, old = S.news["news-" + n.date];
+      const item = Object.assign({kind:"news", read:false}, n, old && old.read ? {read:true, readAt:old.readAt} : {});
+      S.news["news-" + n.date] = item; Store.set("news-" + n.date, item).catch(() => {});
+      NEWS.status = "ready"; NEWS.tries = 0;
+    }
+  } catch (e) { NEWS.status = "error"; NEWS.err = e.message || "連不上伺服器"; }
+  renderNewsCard();
+}
+function todayTaipei(){ return new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10); }
+function renderNewsCard(){ const el = $("#news-card"); if (el) el.outerHTML = newsCardHTML(); }
+function newsCardHTML(){
+  if (!Cloud.on()) return "";
+  const n = newsToday(), today = n && n.date === todayTaipei();
+  let inner;
+  if (n && (today || NEWS.status !== "pending")){
+    inner = '<div class="news-meta"><span class="chip">' + esc(n.source && n.source.site || "") + '</span><span class="chip">' + esc(n.level || "") + "</span>" + (today ? "" : '<span class="chip">' + esc(n.date.slice(5).replace("-", "/")) + "</span>") + (n.read ? '<span class="chip done">讀完了</span>' : "") + "</div>" +
+      '<div class="news-title en">' + esc(n.title) + '</div><div class="news-zh">' + esc(n.title_zh || "") + "</div>" +
+      (n.summary_zh ? '<p class="muted small" style="margin:0">' + esc(n.summary_zh) + "</p>" : "") +
+      '<button class="btn' + (n.read ? " soft" : "") + ' block" data-act="open-news" data-id="news-' + esc(n.date) + '">' + (n.read ? "再讀一次" : "閱讀") + "</button>";
+  } else if (NEWS.status === "error"){
+    inner = '<div class="err">' + esc(NEWS.err) + '</div><button class="btn soft block" data-act="news-retry">再試一次</button>';
+  } else {
+    inner = '<div class="writing"><span class="spinner"></span>' + (NEWS.status === "pending" ? "今天的新聞正在準備中，大約一分鐘…" : "正在拿今天的新聞…") + "</div>";
+  }
+  return '<section class="card news-card" id="news-card"><div class="row between" style="align-items:center"><div class="label">國際科技</div><span class="small muted">每天一篇，大家讀同一則</span></div>' + inner + "</section>";
+}
+function openNews(id){
+  const a = S.news[id]; if (!a) return;
+  openReader({news:true, state:"ready", art:a});
+  prepareArticleVoice(false);
+}
+function newsReaderHTML(a){
+  const mins = Math.max(1, Math.round(String(a.body).split(/\s+/).length / 110));
+  let html = '<div class="meta"><span class="chip">每日新聞 · ' + esc(a.date.slice(5).replace("-", "/")) + '</span><span class="chip">' + esc(a.level || "") + '</span><span class="chip">約 ' + mins + ' 分鐘</span><span class="chip" id="rd-voice" hidden></span></div>';
+  html += '<div class="reader-title">' + esc(a.title) + "</div>" + (a.title_zh ? '<div class="reader-title-zh">' + esc(a.title_zh) + "</div>" : "");
+  html += '<div class="legend"><span><i style="background:var(--yellow)"></i>新聞單字</span><span>點任何一個字看解釋</span></div>';
+  html += renderBody(a.body, "reader", {words:a.words || [], pats:{}});
+  if ((a.words || []).length) html += '<section class="card"><div class="label">新聞單字</div><div>' + a.words.map(x =>
+    '<button class="word-row" data-act="say" data-text="' + esc(x.en) + '"><span class="w-main"><span class="w-en">' + esc(x.en) + '</span><div class="w-zh">' + esc(x.zh) + "</div></span>" + ICON.speaker.replace("<svg", '<svg width="18" height="18"') + "</button>").join("") + "</div></section>";
+  if (a.source && a.source.link) html += '<div class="small muted news-src">資料來源：' + esc(a.source.site) + ' · <a href="' + esc(a.source.link) + '" target="_blank" rel="noopener">' + esc(a.source.title) + "</a><br>本文由 AI 依新聞改寫成學習用的英文。</div>";
+  html += a.read ? '<div class="row"><span class="chip done">讀完了</span></div>' : '<button class="btn green block" data-act="mark-read">我讀完也唸完了</button>';
+  return html;
+}
 function openArticle(id){
   const a = S.arts[id]; if (!a) return;
   openReader({week:a.week, day:a.day, k:a.k, genre:a.genre, topic:a.topic, state:"ready", art:a});
@@ -4507,7 +4584,7 @@ async function resetAll(){
     }
     await Store.del("profile");
   } catch (e) { toast("刪除時出了問題，請再試一次。"); return; }
-  S.profile = null; S.weeks = {}; S.arts = {}; S.convs = {}; S.chats = {}; S.bank = {}; S.city = null; S.log = {kind:"log", days:{}}; S.wallet = newWallet(); S.onb = {step:0, stage:0}; S.pick = null;
+  S.profile = null; S.weeks = {}; S.arts = {}; S.news = {}; S.convs = {}; S.chats = {}; S.bank = {}; S.city = null; S.log = {kind:"log", days:{}}; S.wallet = newWallet(); S.onb = {step:0, stage:0}; S.pick = null;
   render();
 }
 async function testProvider(p){
@@ -4834,7 +4911,13 @@ const ACT = {
   "close-reader": () => closeReader(),
   "stop-gen": () => { if (S.reader && S.reader.ctl) S.reader.ctl.abort(); },
   "retry-gen": () => { const r = S.reader; closeReader(); generateArticle(r.week, r.day, r.k); },
-  "mark-read": () => { const a = S.reader && S.reader.art; if (!a) return; const pi = $("#pr-input"); if (pi && !a.feedback) a.answer = pi.value; const firstRead = !a.read; a.read = true; a.readAt = Date.now(); Store.set(artId(a), a).catch(() => {}); if (firstRead){
+  "open-news": el => openNews(el.dataset.id),
+  "news-retry": () => { NEWS.status = "idle"; NEWS.tries = 0; loadNews(true); },
+  "mark-read": () => { const a = S.reader && S.reader.art; if (!a) return;
+    if (a.kind === "news"){
+      if (!a.read){ a.read = true; a.readAt = Date.now(); Store.set("news-" + a.date, a).catch(() => {}); logActivity("read"); earn(10, "讀完新聞《" + a.title + "》"); gainKnow(3, "讀完新聞"); checkStreakBonus(); }
+      closeReader(); return;
+    } const pi = $("#pr-input"); if (pi && !a.feedback) a.answer = pi.value; const firstRead = !a.read; a.read = true; a.readAt = Date.now(); Store.set(artId(a), a).catch(() => {}); if (firstRead){
     logActivity("read");
     earn(10, "讀完《" + (a.title || "文章") + "》");
     gainKnow(3, "讀完文章");
@@ -5187,7 +5270,8 @@ async function loadAll(){
   const base = defaultSettings();
   p.settings = Object.assign(base, p.settings || {});
   p.settings.models = Object.assign(defaultSettings().models, (p.settings && p.settings.models) || {});
-  const [weeks, arts, convs, words, chats] = await Promise.all([Store.list("week"), Store.list("art"), Store.list("conv"), Store.list("word"), Store.list("chat")]);
+  const [weeks, arts, convs, words, chats, news] = await Promise.all([Store.list("week"), Store.list("art"), Store.list("conv"), Store.list("word"), Store.list("chat"), Store.list("news")]);
+  S.news = {}; news.forEach(x => { const id = x._id; delete x._id; S.news[id] = x; });
   S.chats = {}; chats.forEach(c => { delete c._id; S.chats[c.week + "-" + c.day] = c; });
   S.weeks = {}; weeks.forEach(w => { delete w._id; S.weeks[w.n] = w; });
   S.arts = {}; arts.forEach(a => { delete a._id; S.arts[artId(a)] = a; });

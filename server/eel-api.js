@@ -22,7 +22,8 @@ const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS items (user_id INTEGER NOT NULL, id TEXT NOT NULL, json TEXT, at INTEGER NOT NULL, del INTEGER NOT NULL DEFAULT 0,
      PRIMARY KEY (user_id, id))`,
   `CREATE INDEX IF NOT EXISTS items_at ON items (user_id, at)`,
-  `CREATE TABLE IF NOT EXISTS config (k TEXT PRIMARY KEY, v TEXT NOT NULL)`
+  `CREATE TABLE IF NOT EXISTS config (k TEXT PRIMARY KEY, v TEXT NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS news (date TEXT PRIMARY KEY, status TEXT NOT NULL, json TEXT, err TEXT, created_at INTEGER NOT NULL)`
 ];
 const VOICE_URL = "https://voice.natursai.com";
 let ready = false;
@@ -186,6 +187,138 @@ async function voice(req, env, path){
   return new Response(r.body, {status:r.status, headers:h});
 }
 
+
+/* ======================================================================
+   Daily news: one international tech story a day, the same for everyone,
+   written by AI at six difficulty levels and stored, so it's made only once.
+   Runs every morning (Cron); if that failed, the first reader starts it.
+   Needs the secret GEMINI_KEY (optional variable NEWS_MODEL).
+   ====================================================================== */
+const NEWS_FEEDS = [
+  {site:"BBC", url:"https://feeds.bbci.co.uk/news/technology/rss.xml"},
+  {site:"Ars Technica", url:"https://feeds.arstechnica.com/arstechnica/technology-lab"},
+  {site:"The Verge", url:"https://www.theverge.com/rss/tech/index.xml"},
+  {site:"TechCrunch", url:"https://techcrunch.com/feed/"}
+];
+const NEWS_LEVELS = [
+  {name:"菜鳥", words:120, level:"CEFR A1 (complete beginner): sentences of 5-8 words, only the ~500 most common words, present tense"},
+  {name:"學員", words:160, level:"CEFR A2 (elementary): sentences of 8-12 words, the ~1,500 most common words, simple past and future"},
+  {name:"新秀", words:220, level:"CEFR B1 (intermediate): sentences of 12-15 words, ~3,000 common words, everyday phrasal verbs"},
+  {name:"高手", words:280, level:"CEFR B2 (upper intermediate): sentences of 15-20 words, ~5,000 words, phrasal verbs and conditionals"},
+  {name:"專家", words:330, level:"CEFR C1 (advanced): varied sentence lengths, 8,000+ words, idioms and nuance"},
+  {name:"巔峰", words:380, level:"CEFR C2 (proficient): natural news style, rich vocabulary"}
+];
+const taipeiDate = (t) => new Date((t || Date.now()) + 8 * 3600000).toISOString().slice(0, 10);
+
+function decodeXml(t){
+  return String(t || "").replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1").replace(/<[^>]+>/g, " ")
+    .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&#(\d+);/g, (m, n) => String.fromCharCode(n)).replace(/&amp;/g, "&")
+    .replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+}
+function tag(block, name){ const m = block.match(new RegExp("<" + name + "(?:\\s[^>]*)?>([\\s\\S]*?)</" + name + ">", "i")); return m ? m[1] : ""; }
+async function readFeed(f){
+  try {
+    const r = await fetch(f.url, {headers:{"User-Agent":"everyday-english-news/1.0"}, cf:{cacheTtl:600}});
+    if (!r.ok) return [];
+    const x = await r.text(), out = [];
+    const blocks = x.match(/<item[\s>][\s\S]*?<\/item>/gi) || x.match(/<entry[\s>][\s\S]*?<\/entry>/gi) || [];
+    for (const b of blocks.slice(0, 25)){
+      let link = decodeXml(tag(b, "link"));
+      if (!link){ const m = b.match(/<link[^>]*href="([^"]+)"/i); link = m ? m[1] : ""; }
+      const when = Date.parse(decodeXml(tag(b, "pubDate") || tag(b, "published") || tag(b, "updated"))) || 0;
+      const title = decodeXml(tag(b, "title")), summary = decodeXml(tag(b, "description") || tag(b, "summary") || tag(b, "content")).slice(0, 600);
+      if (title && link) out.push({site:f.site, title, summary, link, when});
+    }
+    return out;
+  } catch (e) { return []; }
+}
+async function gemini(env, prompt, json){
+  const model = env.NEWS_MODEL || "gemini-3.5-flash-lite";
+  const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + encodeURIComponent(env.GEMINI_KEY), {
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({contents:[{role:"user", parts:[{text:prompt}]}], generationConfig:Object.assign({temperature:0.7}, json ? {responseMimeType:"application/json"} : {})})
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error("Gemini " + r.status + ": " + ((j.error && j.error.message) || "").slice(0, 160));
+  const t = ((((j.candidates || [])[0] || {}).content || {}).parts || []).map(p => p.text || "").join("");
+  if (!t) throw new Error("Gemini 沒有回覆內容");
+  return json ? JSON.parse(t.replace(/^```(?:json)?\s*|\s*```$/g, "")) : t;
+}
+function levelPrompt(story, L){
+  return [
+    "You write a short daily news article for adult English learners in Taiwan, based on one real international technology news story.",
+    "Story (" + story.site + "): " + story.title,
+    "Summary: " + story.summary,
+    "",
+    "Rules:",
+    "- Only state facts that are in the story above. Do not invent names, numbers, dates or quotes. You may explain general background (what a technology is, why it matters) in simple words.",
+    "- Write it fresh in your own words; do not copy sentences from the summary.",
+    "- Learner level: " + L.level,
+    "- Length: about " + L.words + " words, in short paragraphs of 1-4 sentences separated by a blank line.",
+    "- Choose 5 useful words or phrases from your article for the learner. Mark every use of them in the body as {{the words as they appear|n}} where n is 0-4, e.g. {{launched|2}}. No other markup: no **, no #, no lists.",
+    "- All Chinese in Traditional Chinese (Taiwan).",
+    "",
+    'Reply with only JSON: {"title":"<English headline, at most 9 words>","title_zh":"<headline in Chinese>","summary_zh":"<one sentence in Chinese: what happened>","body":"<the article>","words":[{"en":"<word or phrase, dictionary form>","zh":"<short Chinese meaning>"}]}'
+  ].join("\n");
+}
+async function makeNews(env, date){
+  const lock = await env.DB.prepare("SELECT status, created_at FROM news WHERE date = ?").bind(date).first();
+  if (lock && (lock.status === "ready" || (lock.status === "pending" && Date.now() - lock.created_at < 180000))) return;
+  /* (an error row is retried: by the next reader after 10 minutes, or by the admin) */
+  await env.DB.prepare("INSERT INTO news (date, status, created_at) VALUES (?, 'pending', ?) ON CONFLICT(date) DO UPDATE SET status = 'pending', err = NULL, created_at = excluded.created_at").bind(date, Date.now()).run();
+  try {
+    if (!env.GEMINI_KEY) throw new Error("伺服器還沒設定 GEMINI_KEY");
+    const recent = await env.DB.prepare("SELECT json FROM news WHERE status = 'ready' ORDER BY date DESC LIMIT 14").all();
+    const used = new Set((recent.results || []).map(r => { try { return JSON.parse(r.json).source.link; } catch (e) { return ""; } }));
+    const lists = await Promise.all(NEWS_FEEDS.map(readFeed));
+    const since = Date.now() - 3 * 86400000;
+    let items = lists.flat().filter(x => !used.has(x.link) && (!x.when || x.when > since));
+    if (!items.length) items = lists.flat().filter(x => !used.has(x.link));
+    if (!items.length) throw new Error("今天抓不到科技新聞");
+    items = items.sort((a, b) => b.when - a.when).slice(0, 24);
+    const pick = await gemini(env, [
+      "Pick the ONE story that is best for adult English learners in Taiwan: international, important or interesting to ordinary people, understandable without expert knowledge, not a deal/discount, not a product review, not a rumor, not violent.",
+      "Reply with only JSON: {\"i\": <index>}",
+      "",
+      items.map((x, i) => i + ". [" + x.site + "] " + x.title + " — " + x.summary.slice(0, 200)).join("\n")
+    ].join("\n"), true);
+    const story = items[Math.max(0, Math.min(items.length - 1, Number(pick.i) || 0))];
+    const tiers = await Promise.all(NEWS_LEVELS.map(async L => {
+      for (let tries = 0; tries < 2; tries++){
+        try {
+          const a = await gemini(env, levelPrompt(story, L), true);
+          if (a && a.title && a.body) return {title:String(a.title), title_zh:String(a.title_zh || ""), summary_zh:String(a.summary_zh || ""), body:String(a.body),
+            words:(Array.isArray(a.words) ? a.words : []).slice(0, 5).map(w => ({en:String(w.en || ""), zh:String(w.zh || "")}))};
+        } catch (e) { if (tries) throw e; }
+      }
+      throw new Error("文章格式不對");
+    }));
+    const data = {date, source:{site:story.site, title:story.title, link:story.link}, tiers};
+    await env.DB.prepare("UPDATE news SET status = 'ready', json = ?, err = NULL WHERE date = ?").bind(JSON.stringify(data), date).run();
+  } catch (e) {
+    await env.DB.prepare("UPDATE news SET status = 'error', err = ? WHERE date = ?").bind(String(e && e.message || e).slice(0, 300), date).run();
+  }
+}
+function newsFor(row, tier){
+  const d = JSON.parse(row.json), t = Math.max(0, Math.min(5, Number(tier) || 0));
+  return Object.assign({date:d.date, tier:t, level:NEWS_LEVELS[t].name, source:d.source}, d.tiers[t]);
+}
+async function newsRoute(req, env, ctx, path){
+  const url = new URL(req.url), tier = url.searchParams.get("tier");
+  if (path === "/news/list"){
+    const r = await env.DB.prepare("SELECT date, json FROM news WHERE status = 'ready' ORDER BY date DESC LIMIT 30").all();
+    return json(req, 200, {ok:true, items:(r.results || []).map(x => { const n = newsFor(x, tier); return {date:n.date, title:n.title, title_zh:n.title_zh, site:n.source.site}; })});
+  }
+  const today = taipeiDate(), date = /^\d{4}-\d{2}-\d{2}$/.test(url.searchParams.get("date") || "") ? url.searchParams.get("date") : today;
+  const row = await env.DB.prepare("SELECT * FROM news WHERE date = ?").bind(date).first();
+  if (row && row.status === "ready") return json(req, 200, {ok:true, news:newsFor(row, tier)});
+  if (date !== today) return json(req, 404, {ok:false, error:"那天沒有新聞"});
+  /* don't start again while it's being made, or for 10 minutes after it failed */
+  const busy = row && ((row.status === "pending" && Date.now() - row.created_at < 180000) || (row.status === "error" && Date.now() - row.created_at < 600000));
+  if (!busy) ctx.waitUntil(makeNews(env, date));
+  return json(req, 202, {ok:false, pending:true, error:row && row.status === "error" ? row.err : "今天的新聞正在準備中"});
+}
+
 /* ---------- account management (X-Admin-Key) ---------- */
 async function adminRoute(req, env, path){
   if (!env.ADMIN_KEY) return json(req, 503, {ok:false, error:"Worker 還沒設定 ADMIN_KEY"});
@@ -194,6 +327,13 @@ async function adminRoute(req, env, path){
     return json(req, 401, {ok:false, error:"管理員帳號或密碼不對"});
   }
   if (path === "/admin/check") return json(req, 200, {ok:true});
+  if (path === "/admin/news/regen"){
+    const date = taipeiDate();
+    await env.DB.prepare("DELETE FROM news WHERE date = ?").bind(date).run();
+    await makeNews(env, date);
+    const row = await env.DB.prepare("SELECT status, err FROM news WHERE date = ?").bind(date).first();
+    return json(req, 200, {ok:row && row.status === "ready", status:row && row.status, error:row && row.err});
+  }
   const b = req.method === "POST" ? await body(req) : {};
   if (path === "/admin/users" && req.method === "GET"){
     const r = await env.DB.prepare(
@@ -248,7 +388,11 @@ async function adminRoute(req, env, path){
 }
 
 export default {
-  async fetch(req, env){
+  async scheduled(event, env, ctx){
+    await ensure(env.DB);
+    ctx.waitUntil(makeNews(env, taipeiDate(event.scheduledTime + 3600000)));
+  },
+  async fetch(req, env, ctx){
     if (req.method === "OPTIONS") return new Response(null, {status:204, headers:cors(req)});
     if (!env.DB) return json(req, 503, {ok:false, error:"Worker 還沒綁定 D1 資料庫（變數名稱 DB）"});
     try {
@@ -264,6 +408,7 @@ export default {
       if (path === "/me") return json(req, 200, {ok:true, user:{email:me.email, name:me.name, voice:me.voice}});
       if (path === "/logout" && req.method === "POST"){ await env.DB.prepare("DELETE FROM sessions WHERE token = ?").bind(me.token).run(); return json(req, 200, {ok:true}); }
       if (path === "/password" && req.method === "POST") return changePw(req, env, me);
+      if (path === "/news" || path === "/news/list") return newsRoute(req, env, ctx, path);
       if (path === "/sync" && req.method === "GET") return pull(req, env, me);
       if (path === "/sync" && req.method === "POST") return push(req, env, me);
       return json(req, 404, {ok:false, error:"沒有這個功能"});
