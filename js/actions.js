@@ -147,35 +147,14 @@ const ACT = {
   },
   "city-answer": el => cityAnswer(el),
   "city-build": el => {
-    const c = city(), o = S.sheet, b = CITY_BUILDINGS[el.dataset.b]; if (!o || !b || b.fixed || c.tiles[o.k] || (b.unlock && !knowUnlocked(b.unlock)) || (b.hall && hallLv(c) < b.hall)) return;
-    if (el.dataset.b === "road" && !roadOk(c, o.k)){ toast("道路要貼著建築或其他道路。"); return; }
-    if (!spend(b.price, "城市：蓋" + b.name)){ toast("金幣不夠，多練習幾篇再來。"); return; }
-    c.tiles[o.k] = {b:el.dataset.b};
-    if (el.dataset.b !== "road") c.tiles[o.k].style = c.style || "west";
-    if (hasDoor(c.tiles[o.k])) c.tiles[o.k].face = autoFace(c, o.k);
-    if (el.dataset.b === "road"){
-      /* buildings next to a new road that had no way in turn their door toward it */
-      const L0 = cityLinked(c);
-        const L1 = cityLinked(c);
-      cityNear(o.k).forEach((n, i) => { const t = c.tiles[n]; if (hasDoor(t) && n !== "0,0" && !L1.has(n)) t.face = (i + 3) % 6; });
-    }
-    if (b.make) c.prod.store += shopMake(c, o.k);   /* the first day's batch is ready right away */
-    const used = new Set(c.residents.map(p => p.name));
-    for (let i = 0; i < b.residents; i++){
-      const free = CITY_NAMES.filter(n => !used.has(n)), name = free.length ? free[Math.floor(Math.random() * free.length)] : "Kai" + c.residents.length;
-      used.add(name); c.residents.push({name, color:CITY_COLORS[c.residents.length % CITY_COLORS.length], home:o.k});
-    }
-    const far = el.dataset.b !== "road" && !isLinked(c, o.k);
-    saveCity(); closeSheet(); render(); toast(b.name + "蓋好了" + (far ? "。記得用道路接上市中心！" : b.residents ? "，" + b.residents + " 位居民搬進來！" : "！"));
+    const o = S.sheet; if (!o) return;
+    const err = cityBuildAt(city(), o.k, el.dataset.b);
+    if (err){ toast(err); return; }
+    closeSheet(); render();
   },
   "talk-warn-x": () => { S.talk.warn = ""; render(); },
-  "city-style": el => { const c = city(); c.style = el.dataset.v === "cn" ? "cn" : "west"; saveCity(); drawSheet(); },
-  "city-ground": el => {
-    const c = city(), it = c.tiles[el.dataset.k], g = el.dataset.g; if (!it || !CITY_GROUNDS[g]) return;
-    if ((it.g || (it.b === "park" ? "grass" : "sand")) === g) return;
-    if (!spend(1, "城市：換地面")){ toast("金幣不夠。"); return; }
-    it.g = g; saveCity(); drawSheet(); render();
-  },
+  "city-style": el => { const c = city(); c.style = el.dataset.v === "cn" ? "cn" : "west"; saveCity(); if (S.sheet) drawSheet(); if (S.cityEdit) render(); },
+  "city-ground": el => { const err = cityGroundAt(city(), el.dataset.k, el.dataset.g); if (err) toast(err); drawSheet(); render(); },
   "dev-time": () => {
     const v = ($("#dev-time") || {}).value; if (!v){ toast("請選一個時間"); return; }
     const t = new Date(v).getTime(), real = Date.now() - (window.__timeOffset || 0);
@@ -193,22 +172,13 @@ const ACT = {
     const c = city(), it = c.tiles[el.dataset.k]; if (!hasDoor(it)) return;
     it.face = ((it.face >= 0 ? it.face : 5) + 1) % 6; saveCity(); drawSheet(); render();
   },
-  "city-deco": el => {
-    const c = city(), o = S.sheet, d = el.dataset.d, i = c.owned.deco.indexOf(d); if (!o || i < 0 || c.tiles[o.k]) return;
-    c.owned.deco.splice(i, 1); c.tiles[o.k] = {d}; saveCity(); closeSheet(); render();
-  },
-  "city-move": el => {
-    const c = city(), k = el.dataset.k, it = c.tiles[k]; if (!it || it.b === "hall") return;
-    if (it.d) c.owned.deco.push(it.d);
-    else if (it.b === "road") earn(CITY_BUILDINGS.road.price, "城市：移除道路");
-    else {
-      /* residents who lived here move out; requests pointing at them are dropped */
-      const gone = c.residents.map((p, i) => p.home === k ? i : -1).filter(i => i >= 0);
-      c.day.requests = c.day.requests.filter(q => !gone.includes(q.who)).map(q => Object.assign(q, {who:q.who - gone.filter(g => g < q.who).length}));
-      c.residents = c.residents.filter(p => p.home !== k);
-    }
-    delete c.tiles[k]; saveCity(); closeSheet(); render();
-  },
+  "city-deco": el => { const o = S.sheet; if (!o) return; const err = cityDecoAt(city(), o.k, el.dataset.d); if (err){ toast(err); return; } closeSheet(); render(); },
+  "city-move": el => { cityRemoveAt(city(), el.dataset.k); closeSheet(); render(); },
+  "city-edit": () => { S.cityEdit = {tab:"build", sel:null, min:false}; render(); },
+  "city-edit-done": () => { S.cityEdit = null; render(); },
+  "city-edit-fold": () => { S.cityEdit.min = !S.cityEdit.min; render(); },
+  "city-edit-tab": el => { const E = S.cityEdit; E.tab = E.tab === el.dataset.v ? null : el.dataset.v; E.sel = null; render(); },
+  "city-edit-pick": el => { const E = S.cityEdit; E.sel = E.sel === el.dataset.v ? null : el.dataset.v; render(); },
   "city-food": () => { const c = city(); if (!spend(CITY_FOOD.price, "城市：買糧食")){ toast("金幣不夠。"); return; } c.food += CITY_FOOD.n; saveCity(); drawSheet(); render(); toast("買了 " + CITY_FOOD.n + " 份糧食"); },
   "city-wear": el => { const c = city(); c.avatar[el.dataset.slot] = el.dataset.k; saveCity(); drawSheet(); render(); },
   "city-buypart": el => {

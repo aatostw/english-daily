@@ -526,12 +526,20 @@ const City3D = {
     cv.addEventListener("touchend", e => { if (e.cancelable) e.preventDefault(); }, {passive:false});
     cv.addEventListener("wheel", e => { e.preventDefault(); this.dist = Math.min(26, Math.max(5, this.dist * (e.deltaY > 0 ? 1.08 : .93))); this.draw(); }, {passive:false});
   },
-  tap(e){
-    if (S.cityChat) return;
+  /* the island tile under a screen point, or "" */
+  keyAt(x, y){
+    if (!this.r || !this.cam) return "";
     const T = this.T, rect = this.r.domElement.getBoundingClientRect();
-    const v = new T.Vector2((e.clientX - rect.left) / rect.width * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
+    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) return "";
+    const v = new T.Vector2((x - rect.left) / rect.width * 2 - 1, -((y - rect.top) / rect.height) * 2 + 1);
     const ray = new T.Raycaster(); ray.setFromCamera(v, this.cam);
     const hit = ray.intersectObjects(this.pick, false)[0];
-    if (hit && hit.object.userData.key) ACT["city-tile"]({dataset:{k:hit.object.userData.key}});
+    return (hit && hit.object.userData.key) || "";
+  },
+  tap(e){
+    if (S.cityChat) return;
+    const k = this.keyAt(e.clientX, e.clientY); if (!k) return;
+    if (S.cityEdit && S.cityEdit.sel) cityEditApply(k);
+    else ACT["city-tile"]({dataset:{k}});
   }
 };

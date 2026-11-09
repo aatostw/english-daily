@@ -166,7 +166,8 @@ function renderCity(){
   /* the 3D town draws into #city3d; until it's loaded (or if this device can't show 3D) a short note shows */
   const stage = '<div id="city3d" class="city3d"><div class="city-wait">' + (City3D.failed ? "這台裝置不能顯示 3D 城市。" : '<span class="spinner"></span>正在載入城市…') + "</div></div>";
   if (S.cityChat && curWeek()) return '<div class="city-stage chat">' + stage + cityChatHTML() + "</div>";
-  return '<div class="city-stage">' + stage + cityTopHTML(c) + citySideHTML(c) + "</div>";
+  return '<div class="city-stage' + (S.cityEdit ? " editing" : "") + '">' + stage + '<div class="city-hud">' + cityTopHTML(c) +
+    '<div class="hud-row">' + (S.cityEdit ? cityEditHTML(c) : "<span></span>") + citySideHTML(c) + "</div></div></div>";
 }
 /* the floating card at the top: today's resident requests */
 function cityTopHTML(c){
@@ -186,7 +187,7 @@ function cityTopHTML(c){
 /* the floating buttons down the right side */
 function citySideHTML(c){
   const st = c.prod.store, item = (act, s, ic, label, badge) => '<button class="cs-btn" data-act="' + act + '"' + (s ? ' data-s="' + s + '"' : "") + '><span class="cs-ic">' + ic + (badge ? '<i class="cs-badge">' + badge + "</i>" : "") + "</span><span>" + label + "</span></button>";
-  return '<div class="city-side">' + item("city-sheet", "shop", CITY_ICONS.shop, "商店") + item("city-sheet", "avatar", CITY_ICONS.outfit, "裝扮") + item("city-sheet", "bag", CITY_ICONS.bag, "背包") +
+  return '<div class="city-side">' + (S.cityEdit ? "" : item("city-edit", "", CITY_ICONS.edit, "編輯")) + item("city-sheet", "shop", CITY_ICONS.shop, "商店") + item("city-sheet", "avatar", CITY_ICONS.outfit, "裝扮") + item("city-sheet", "bag", CITY_ICONS.bag, "背包") +
     (st ? item("city-harvest", "", CITY_ICONS.harvest, "收成", st) : "") + "</div>";
 }
 /* chatting with Lisa right in town: the island shrinks to the top, focused on her, and the chat opens below */
@@ -202,10 +203,118 @@ const CITY_ICONS = {
   shop:'<svg viewBox="0 0 32 32"><rect x="5" y="14" width="22" height="14" rx="2" fill="#F6EAD3"/><path d="M3 8h26l-1.5 7H4.5z" fill="#E66B44"/><path d="M8.2 8l-1 7M13.4 8l-.5 7M18.6 8l.5 7M23.8 8l1 7" stroke="#fff" stroke-width="2.2"/><rect x="13" y="19" width="6" height="9" rx="1" fill="#4C8BE0"/><rect x="7.5" y="18" width="4" height="4" rx="1" fill="#9DD3F0"/><rect x="20.5" y="18" width="4" height="4" rx="1" fill="#9DD3F0"/><rect x="4" y="4" width="24" height="4" rx="2" fill="#B9502F"/></svg>',
   outfit:'<svg viewBox="0 0 32 32"><path d="M11 4l-8 5 3 6 3-1.5V28h14V13.5l3 1.5 3-6-8-5c-.6 2.4-2.6 4-5 4s-4.4-1.6-5-4z" fill="#4C8BE0"/><path d="M11 4c.6 2.4 2.6 4 5 4s4.4-1.6 5-4" fill="none" stroke="#2F6AB8" stroke-width="1.5"/><circle cx="16" cy="18" r="3" fill="#FFD873"/></svg>',
   bag:'<svg viewBox="0 0 32 32"><path d="M11 9V7a5 5 0 0 1 10 0v2" fill="none" stroke="#8A5A3A" stroke-width="2.4"/><rect x="5" y="9" width="22" height="19" rx="6" fill="#C98A55"/><rect x="9" y="17" width="14" height="8" rx="3" fill="#A86E3E"/><rect x="14" y="15" width="4" height="4" rx="1" fill="#FFD873"/></svg>',
+  edit:'<svg viewBox="0 0 32 32"><path d="M6 26l1.6-6.4L21.5 5.7a2.4 2.4 0 0 1 3.4 0l1.4 1.4a2.4 2.4 0 0 1 0 3.4L12.4 24.4z" fill="#F5C64F"/><path d="M21.5 5.7l4.8 4.8" stroke="#E57373" stroke-width="4" stroke-linecap="round"/><path d="M7.6 19.6l4.8 4.8L6 26z" fill="#F6EAD3"/><path d="M6 26l1.2-1.2" stroke="#4A4A4A" stroke-width="2" stroke-linecap="round"/><path d="M9.5 18l9.6-9.6" stroke="#E0A92E" stroke-width="1.6" stroke-linecap="round"/></svg>',
+  lib_build:'<svg viewBox="0 0 32 32"><path d="M4 15L16 5l12 10" fill="#E66B44"/><path d="M4 15L16 5l12 10" fill="none" stroke="#C4502D" stroke-width="2" stroke-linejoin="round"/><rect x="7" y="14" width="18" height="13" rx="1.5" fill="#F6EAD3"/><rect x="13.5" y="18.5" width="5" height="8.5" rx="1" fill="#8A5A3A"/><rect x="8.5" y="17" width="3.5" height="3.5" rx=".8" fill="#7FB3E8"/><rect x="20" y="17" width="3.5" height="3.5" rx=".8" fill="#7FB3E8"/></svg>',
+  lib_ground:'<svg viewBox="0 0 32 32"><path d="M10 4.5h8l4 7-4 7h-8l-4-7z" fill="#A8CF7C"/><path d="M19 13.5h8l4 7-4 7h-8l-4-7z" transform="translate(-3 -1)" fill="#E8D9B5"/><path d="M5 15.5h8l4 7-4 7H5l-4-7z" transform="translate(2 -1)" fill="#B9C1CB"/></svg>',
+  lib_other:'<svg viewBox="0 0 32 32"><path d="M16 4c-5 0-8 4-8 8 0 3 2 5 4 6h8c2-1 4-3 4-6 0-4-3-8-8-8z" fill="#5FB06A"/><rect x="14.5" y="17" width="3" height="10" rx="1.2" fill="#8A5A3A"/><circle cx="25" cy="7" r="2.2" fill="#F5C64F"/><circle cx="7" cy="23" r="1.8" fill="#F5C64F"/><ellipse cx="16" cy="27.5" rx="8" ry="2" fill="#000" opacity=".12"/></svg>',
   harvest:'<svg viewBox="0 0 32 32"><path d="M5 15h22l-2.5 11a3 3 0 0 1-3 2.3h-11a3 3 0 0 1-3-2.3z" fill="#C98A55"/><path d="M5 15h22" stroke="#A86E3E" stroke-width="2.4" stroke-linecap="round"/><circle cx="11" cy="11" r="4" fill="#F5B72E"/><circle cx="17" cy="9" r="4.5" fill="#E66B44"/><circle cx="22" cy="12" r="3.5" fill="#4DB892"/></svg>'
 };
 
 /* Lisa lives in town: tap her on the island or here, any time */
+
+/* ---------- changing the town (used by the tile sheet and by 編輯) — each returns "" or what went wrong ---------- */
+function cityBuildAt(c, k, key){
+  const b = CITY_BUILDINGS[key];
+  if (!b || b.fixed || c.tiles[k]) return "這格不能蓋";
+  if (b.unlock && !knowUnlocked(b.unlock)) return b.name + "還沒解鎖";
+  if (b.hall && hallLv(c) < b.hall) return "市中心升到 Lv" + b.hall + " 才能蓋" + b.name;
+  if (key === "road" && !roadOk(c, k)) return "道路要貼著建築或其他道路。";
+  if (!spend(b.price, "城市：蓋" + b.name)) return "金幣不夠，多練習幾篇再來。";
+  c.tiles[k] = {b:key};
+  if (key !== "road") c.tiles[k].style = c.style || "west";
+  if (hasDoor(c.tiles[k])) c.tiles[k].face = autoFace(c, k);
+  if (key === "road"){
+    /* buildings next to a new road that had no way in turn their door toward it */
+    const L1 = cityLinked(c);
+    cityNear(k).forEach((n, i) => { const t = c.tiles[n]; if (hasDoor(t) && n !== "0,0" && !L1.has(n)) t.face = (i + 3) % 6; });
+  }
+  if (b.make) c.prod.store += shopMake(c, k);   /* the first day's batch is ready right away */
+  const used = new Set(c.residents.map(p => p.name));
+  for (let i = 0; i < b.residents; i++){
+    const free = CITY_NAMES.filter(n => !used.has(n)), name = free.length ? free[Math.floor(Math.random() * free.length)] : "Kai" + c.residents.length;
+    used.add(name); c.residents.push({name, color:CITY_COLORS[c.residents.length % CITY_COLORS.length], home:k});
+  }
+  const far = key !== "road" && !isLinked(c, k);
+  saveCity();
+  if (key !== "road") toast(b.name + "蓋好了" + (far ? "。記得用道路接上市中心！" : b.residents ? "，" + b.residents + " 位居民搬進來！" : "！"));
+  return "";
+}
+function cityDecoAt(c, k, d){
+  const i = c.owned.deco.indexOf(d);
+  if (i < 0 || c.tiles[k]) return "這格不能放";
+  c.owned.deco.splice(i, 1); c.tiles[k] = {d}; saveCity(); return "";
+}
+function cityGroundAt(c, k, g){
+  const it = c.tiles[k]; if (!it || !CITY_GROUNDS[g]) return "這格不能換地面";
+  if ((it.g || (it.b === "park" ? "grass" : "sand")) === g) return "";
+  if (!spend(1, "城市：換地面")) return "金幣不夠。";
+  it.g = g; saveCity(); return "";
+}
+function cityRemoveAt(c, k){
+  const it = c.tiles[k]; if (!it || it.b === "hall") return;
+  if (it.d) c.owned.deco.push(it.d);
+  else if (it.b === "road") earn(CITY_BUILDINGS.road.price, "城市：移除道路");
+  else {
+    /* residents who lived here move out; requests pointing at them are dropped */
+    const gone = c.residents.map((p, i) => p.home === k ? i : -1).filter(i => i >= 0);
+    c.day.requests = c.day.requests.filter(q => !gone.includes(q.who)).map(q => Object.assign(q, {who:q.who - gone.filter(g => g < q.who).length}));
+    c.residents = c.residents.filter(p => p.home !== k);
+  }
+  delete c.tiles[k]; saveCity();
+}
+
+/* ---------- 編輯：choose from a library on the left, then tap (or drag onto) a tile ---------- */
+const CITY_TOOLS = {turn:"轉方向", remove:"移除"};
+function cityEditHTML(c){
+  const E = S.cityEdit, bal = wallet().balance;
+  const cat = (k, ic, label) => '<button class="ce-cat' + (E.tab === k ? " on" : "") + '" data-act="city-edit-tab" data-v="' + k + '" aria-pressed="' + (E.tab === k) + '"><span class="cs-ic">' + ic + "</span><span>" + label + "</span></button>";
+  const panel = '<div class="ce-panel"><button class="back-btn" data-act="city-edit-done" aria-label="結束編輯">' + GATE_ICON.back + "</button>" +
+    (E.min ? "" : cat("build", CITY_ICONS.lib_build, "建築") + cat("ground", CITY_ICONS.lib_ground, "土地") + cat("other", CITY_ICONS.lib_other, "其他")) +
+    '<button class="ce-fold" data-act="city-edit-fold" aria-label="' + (E.min ? "展開" : "收起") + '"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="' + (E.min ? "M6 9l6 6 6-6" : "M6 15l6-6 6 6") + '" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>';
+  let tray = "";
+  if (E.tab && !E.min){
+    const item = (key, name, sub, extra, ok) => '<button class="ce-item' + (E.sel === key ? " on" : "") + '" data-act="city-edit-pick" data-v="' + key + '"' + (ok === false ? " disabled" : "") + ">" + (extra || "") + '<span class="ce-name"><b>' + name + "</b>" + (sub ? "<small>" + sub + "</small>" : "") + "</span></button>";
+    const price = n => '<span class="ce-price"><img class="coin-icon" src="' + COIN_IMG + '" alt="">' + n + "</span>";
+    let rows = "";
+    if (E.tab === "build"){
+      const sty = c.style || "west";
+      rows = '<div class="seg style-seg">' + Object.entries(CITY_STYLES).map(([k, n]) => '<button class="' + (sty === k ? "on" : "") + '" aria-pressed="' + (sty === k) + '" data-act="city-style" data-v="' + k + '">' + n + "</button>").join("") + "</div>" +
+        Object.entries(CITY_BUILDINGS).filter(([k, b]) => !b.fixed).map(([k, b]) => {
+          const lock = b.hall && hallLv(c) < b.hall ? "市中心 Lv" + b.hall + " 解鎖" : b.unlock && !knowUnlocked(b.unlock) ? "知識 " + KNOW_UNLOCKS.find(x => x.key === b.unlock).at + " 解鎖" : "";
+          return item("b:" + k, b.name, lock, price(b.price), !lock && bal >= b.price);
+        }).join("");
+    } else if (E.tab === "ground"){
+      rows = Object.entries(CITY_GROUNDS).map(([k, v]) => item("g:" + k, v[0], "", '<span class="ce-swatch" style="background:' + v[2] + '"></span>' + price(1), bal >= 1)).join("") +
+        '<p class="ce-hint">換有東西的那格地面</p>';
+    } else {
+      const decos = c.owned.deco.reduce((m, d) => (m[d] = (m[d] || 0) + 1, m), {});
+      rows = item("t:turn", "轉方向", "門口轉到下一面") + item("t:remove", "移除", "道路退錢・裝飾收回") +
+        (Object.keys(decos).length ? '<div class="ce-sub">背包裡的裝飾</div>' + Object.entries(decos).map(([d, n]) => item("d:" + d, CITY_DECOS[d], n + " 個・免費")).join("") : "");
+    }
+    tray = '<div class="ce-tray">' + rows + '<p class="ce-hint">' + (E.sel ? "點島上的格子放置，或直接拖過去" : "選一個，再點島上的格子") + "</p></div>";
+  }
+  return '<div class="ce-wrap">' + panel + tray + "</div>";
+}
+/* do the chosen thing on tile k; returns a message when it can't */
+function cityEditApply(k){
+  const E = S.cityEdit, c = city(); if (!E || !E.sel || !k) return;
+  const [t, v] = E.sel.split(":"), it = c.tiles[k];
+  let err = "";
+  if (t === "b") err = it ? "這格已經有東西了" : cityBuildAt(c, k, v);
+  else if (t === "d") err = it ? "這格已經有東西了" : cityDecoAt(c, k, v);
+  else if (t === "g") err = !it ? "先在這格蓋東西，才能換地面" : cityGroundAt(c, k, v);
+  else if (t === "t" && v === "turn") err = !hasDoor(it) || it.b === "hall" ? "這格沒有可以轉的門" : (it.face = ((it.face >= 0 ? it.face : 5) + 1) % 6, saveCity(), "");
+  else if (t === "t" && v === "remove"){
+    if (!it || it.b === "hall") err = it ? "市中心不能移除" : "這格是空的";
+    else if (it.b && it.b !== "road"){
+      confirmBox("拆掉" + CITY_BUILDINGS[it.b].name + "？", "拆掉不會退金幣，住在裡面的居民會搬走。", "拆掉", true).then(ok => { if (ok){ cityRemoveAt(c, k); render(); } });
+      return;
+    } else cityRemoveAt(c, k);
+  }
+  if (err) toast(err);
+  if (E.sel && E.sel.startsWith("d:") && !c.owned.deco.includes(E.sel.slice(2))) E.sel = null;
+  render();
+}
 
 /* ---------- sheets ---------- */
 function cityOpen(o){ S.sheet = Object.assign({kind:"city"}, o); S.sheetAt = performance.now(); $("#sheet").hidden = false; drawSheet(); }
@@ -404,3 +513,38 @@ async function cityAnswer(el){
   saveCity(); S.sheet.msg = ""; drawSheet(); render();
   if (ok) toast("拿到禮物：" + q.gift);
 }
+
+/* 編輯: drag an item from the library onto the island */
+(() => {
+  let drag = null;
+  document.addEventListener("pointerdown", e => {
+    const it = e.target.closest && e.target.closest(".ce-item");
+    if (!it || it.disabled || !S.cityEdit) return;
+    drag = {key:it.dataset.v, x:e.clientX, y:e.clientY, ghost:null, label:it.querySelector("b") ? it.querySelector("b").textContent : ""};
+  });
+  document.addEventListener("pointermove", e => {
+    if (!drag) return;
+    if (!drag.ghost){
+      const dx = Math.abs(e.clientX - drag.x), dy = Math.abs(e.clientY - drag.y);
+      if (dx < 10 && dy < 10) return;
+      if (dy > dx){ drag = null; return; }   /* up/down scrolls the list; sideways drags the item out */
+      drag.ghost = document.createElement("div"); drag.ghost.className = "ce-ghost"; drag.ghost.textContent = drag.label;
+      document.body.appendChild(drag.ghost);
+    }
+    drag.ghost.style.transform = "translate(" + e.clientX + "px," + e.clientY + "px) translate(-50%,-120%)";
+    drag.ghost.classList.toggle("ok", !!City3D.keyAt(e.clientX, e.clientY));
+  });
+  const end = e => {
+    if (!drag) return;
+    const d = drag; drag = null;
+    if (!d.ghost) return;
+    d.ghost.remove();
+    /* the click that follows a drag shouldn't also toggle the item */
+    const stop = ev => { ev.stopPropagation(); ev.preventDefault(); };
+    document.addEventListener("click", stop, {capture:true, once:true}); setTimeout(() => document.removeEventListener("click", stop, {capture:true}), 300);
+    const k = e.type === "pointerup" ? City3D.keyAt(e.clientX, e.clientY) : "";
+    if (k && S.cityEdit){ S.cityEdit.sel = d.key; cityEditApply(k); }
+  };
+  document.addEventListener("pointerup", end);
+  document.addEventListener("pointercancel", end);
+})();
