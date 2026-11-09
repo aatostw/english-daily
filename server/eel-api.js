@@ -23,6 +23,7 @@ const SCHEMA = [
      PRIMARY KEY (user_id, id))`,
   `CREATE INDEX IF NOT EXISTS items_at ON items (user_id, at)`,
   `CREATE TABLE IF NOT EXISTS config (k TEXT PRIMARY KEY, v TEXT NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS ai_usage (user_id INTEGER NOT NULL, day TEXT NOT NULL, n INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user_id, day))`,
   `CREATE TABLE IF NOT EXISTS news (date TEXT PRIMARY KEY, status TEXT NOT NULL, json TEXT, err TEXT, created_at INTEGER NOT NULL)`
 ];
 const VOICE_URL = "https://voice.natursai.com";
@@ -232,18 +233,30 @@ async function readFeed(f){
     return out;
   } catch (e) { return []; }
 }
+/* Busy (429/5xx): wait 1.5 s and try again, then the backup models in order. */
 async function gemini(env, prompt, json){
-  const model = env.NEWS_MODEL || "gemini-3.5-flash-lite";
-  /* the key goes in a header: works for both the old AIza… keys and the new AQ.… auth keys */
-  const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent", {
-    method:"POST", headers:{"Content-Type":"application/json", "x-goog-api-key":String(env.GEMINI_KEY).trim()},
-    body:JSON.stringify({contents:[{role:"user", parts:[{text:prompt}]}], generationConfig:Object.assign({temperature:0.7}, json ? {responseMimeType:"application/json"} : {})})
-  });
-  const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error("Gemini " + r.status + ": " + ((j.error && j.error.message) || "").slice(0, 160));
-  const t = ((((j.candidates || [])[0] || {}).content || {}).parts || []).map(p => p.text || "").join("");
-  if (!t) throw new Error("Gemini 沒有回覆內容");
-  return json ? JSON.parse(t.replace(/^```(?:json)?\s*|\s*```$/g, "")) : t;
+  const models = [env.NEWS_MODEL || "gemini-3.5-flash-lite"].concat(String(env.NEWS_BACKUPS || "gemini-3.6-flash,gemini-3.8-flash").split(",").map(x => x.trim()).filter(Boolean));
+  let lastErr;
+  for (let i = 0; i < models.length; i++){
+    for (let t = 0; t < (i ? 1 : 2); t++){
+      const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + models[i] + ":generateContent", {
+        method:"POST", headers:{"Content-Type":"application/json", "x-goog-api-key":String(env.GEMINI_KEY).trim()},
+        body:JSON.stringify({contents:[{role:"user", parts:[{text:prompt}]}], generationConfig:Object.assign({temperature:0.7}, json ? {responseMimeType:"application/json"} : {})})
+      });
+      const j = await r.json().catch(() => ({}));
+      if (r.ok){
+        const txt = ((((j.candidates || [])[0] || {}).content || {}).parts || []).map(p => p.text || "").join("");
+        if (!txt) throw new Error("Gemini 沒有回覆內容");
+        return json ? JSON.parse(txt.replace(/^```(?:json)?\s*|\s*```$/g, "")) : txt;
+      }
+      lastErr = new Error("Gemini " + r.status + "（" + models[i] + "）: " + ((j.error && j.error.message) || "").slice(0, 160));
+      const busy = r.status === 429 || r.status >= 500;
+      if (!busy && i === 0) throw lastErr;
+      if (!busy) break;
+      if (t === 0 && i === 0) await new Promise(x => setTimeout(x, 1500));
+    }
+  }
+  throw lastErr;
 }
 function levelPrompt(story, L){
   return [
@@ -320,6 +333,36 @@ async function newsRoute(req, env, ctx, path){
   return json(req, 202, {ok:false, pending:true, error:row && row.status === "error" ? row.err : "今天的新聞正在準備中"});
 }
 
+
+/* ======================================================================
+   AI for everyone who is logged in, paid by the server's GEMINI_KEY.
+   The paths copy Gemini's own (/ai/models, /ai/models/<model>:streamGenerateContent),
+   so the app talks to it exactly like Gemini; ?key= carries the login instead of an API key.
+   Each person may make AI_DAILY requests a day (default 300).
+   ====================================================================== */
+async function aiRoute(req, env, path){
+  const u = new URL(req.url), tok = (u.searchParams.get("key") || "").match(/^[a-f0-9]{64}$/);
+  const me = tok ? await auth(new Request(req.url, {headers:{Authorization:"Bearer " + tok[0]}}), env) : await auth(req, env);
+  if (!me) return json(req, 401, {ok:false, error:{code:401, message:"請重新登入"}, relogin:true});
+  if (!env.GEMINI_KEY) return json(req, 503, {ok:false, error:{code:503, message:"伺服器還沒設定 GEMINI_KEY"}});
+  const base = "https://generativelanguage.googleapis.com/v1beta";
+  const fwd = new URLSearchParams(u.search); fwd.delete("key");
+  const hdr = {"x-goog-api-key":String(env.GEMINI_KEY).trim()};
+  if (path === "/ai/models" && req.method === "GET"){
+    const r = await fetch(base + "/models?" + fwd.toString(), {headers:hdr});
+    return new Response(r.body, {status:r.status, headers:Object.assign({"Content-Type":"application/json"}, cors(req))});
+  }
+  const m = path.match(/^\/ai\/models\/([A-Za-z0-9._-]+):(streamGenerateContent|generateContent)$/);
+  if (!m || req.method !== "POST") return json(req, 404, {ok:false, error:{code:404, message:"沒有這個功能"}});
+  if (!/^(gemini|gemma)/i.test(m[1])) return json(req, 400, {ok:false, error:{code:400, message:"只能用 Gemini 模型"}});
+  const day = taipeiDate(), limit = Number(env.AI_DAILY) || 300;
+  const used = await env.DB.prepare("SELECT n FROM ai_usage WHERE user_id = ? AND day = ?").bind(me.id, day).first();
+  if (used && used.n >= limit) return json(req, 429, {ok:false, error:{code:429, message:"今天的 AI 次數用完了（每天 " + limit + " 次），明天再來"}});
+  await env.DB.prepare("INSERT INTO ai_usage (user_id, day, n) VALUES (?, ?, 1) ON CONFLICT(user_id, day) DO UPDATE SET n = n + 1").bind(me.id, day).run();
+  const r = await fetch(base + "/models/" + m[1] + ":" + m[2] + "?" + fwd.toString(), {method:"POST", headers:Object.assign({"Content-Type":"application/json"}, hdr), body:await req.text()});
+  return new Response(r.body, {status:r.status, headers:Object.assign({"Content-Type":r.headers.get("Content-Type") || "application/json", "Cache-Control":"no-store"}, cors(req))});
+}
+
 /* ---------- account management (X-Admin-Key) ---------- */
 async function adminRoute(req, env, path){
   if (!env.ADMIN_KEY) return json(req, 503, {ok:false, error:"Worker 還沒設定 ADMIN_KEY"});
@@ -339,7 +382,8 @@ async function adminRoute(req, env, path){
   if (path === "/admin/users" && req.method === "GET"){
     const r = await env.DB.prepare(
       "SELECT u.email, u.name, u.created_at, u.reset_req, u.voice, (SELECT COUNT(*) FROM items i WHERE i.user_id = u.id AND i.del = 0) AS items, " +
-      "(SELECT MAX(last_seen) FROM sessions s WHERE s.user_id = u.id) AS last_seen FROM users u ORDER BY u.created_at").all();
+      "(SELECT MAX(last_seen) FROM sessions s WHERE s.user_id = u.id) AS last_seen, " +
+      "(SELECT n FROM ai_usage a WHERE a.user_id = u.id AND a.day = ?) AS ai_today FROM users u ORDER BY u.created_at").bind(taipeiDate()).all();
     return json(req, 200, {ok:true, users:r.results || []});
   }
   if (path === "/admin/config"){
@@ -401,6 +445,7 @@ export default {
       const path = new URL(req.url).pathname.replace(/\/+$/, "") || "/";
       if (path === "/" || path === "/ping") return json(req, 200, {ok:true, app:"everyday-english-api", version:1, admin:!!env.ADMIN_KEY});
       if (path.startsWith("/admin/")) return adminRoute(req, env, path);
+      if (path.startsWith("/ai/")) return aiRoute(req, env, path);
       if (path === "/voice" || path.startsWith("/voice/")) return voice(req, env, path);
       if (path === "/login" && req.method === "POST") return login(req, env);
       if (path === "/forgot" && req.method === "POST") return forgot(req, env);
