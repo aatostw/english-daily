@@ -412,7 +412,7 @@ function citySheetHTML(o){
   }
   if (o.s === "land"){
     const own = landOwned(c, o.k), who = (Cloud.cfg && (Cloud.cfg.name || Cloud.cfg.email)) || "你";
-    return head("土地") + '<div class="land-card"><span class="land-ic">' + CITY_ICONS.lib_ground + '</span><div><div class="small muted">土地所有人</div><b>' + (own ? esc(who) : "還沒有人") + "</b></div>" +
+    return head(own ? "我的土地（沙地）" : "未註冊的土地") + '<div class="land-card"><span class="land-ic">' + CITY_ICONS.lib_ground + '</span><div><div class="small muted">土地所有人</div><b>' + (own ? esc(who) : "還沒有人") + "</b></div>" +
       '<span class="pill' + (own ? " ok" : "") + '">' + (own ? "已購買" : "未擁有") + "</span></div>" +
       (own ? '<p class="small muted" style="margin:0">按左上的「編輯」就能在這裡蓋東西或鋪地面。</p>'
         : '<button class="btn block" data-act="city-buy-land" data-k="' + o.k + '"' + (bal < LAND_PRICE ? " disabled" : "") + '>買下這塊地 <img class="coin-icon" src="' + COIN_IMG + '" alt="">' + LAND_PRICE + "</button>");
