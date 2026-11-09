@@ -116,6 +116,7 @@ const City3D = {
       top.userData.key = key; g.add(top); this.pick.push(top);
       if (it && it.b === "road"){ this.road(g, c, q, r, x, z, pos); return; }
       if (it && it.part) return;
+      if (it && !it.b && !it.d) return;   /* only a ground laid on it */
       if (!it){
         /* an empty plot: a soft plus sign and a little bush on the edge */
         [[.36, .05], [.05, .36]].forEach(([w, d]) => { const m = new T.Mesh(new T.BoxGeometry(w, .02, d), this.mat(0xDCCBA8)); m.position.set(x, .06, z); g.add(m); });
@@ -377,7 +378,7 @@ const City3D = {
     });
     /* a narrower path from the road up to every door that faces it (and to the city center) */
     CITY_DIRS.forEach(([a, b]) => {
-      const nk = (q + a) + "," + (r + b), n = c.tiles[nk]; if (!n || n.b === "road" || n.d) return;
+      const nk = (q + a) + "," + (r + b), n = c.tiles[nk]; if (!n || !n.b || n.b === "road") return;
       if (n.b !== "hall" && doorKey(c, nk) !== q + "," + r) return;
       links++;
       const [nx, nz] = pos(q + a, r + b), dx = (nx - x) / 2, dz = (nz - z) / 2;

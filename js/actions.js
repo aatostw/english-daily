@@ -126,7 +126,7 @@ const ACT = {
   },
   "city-tile": el => {
     const c = city(), k = anchorOf(c, el.dataset.k), it = c.tiles[k];
-    if (!it){ cityOpen({s:"build", k}); return; }
+    if (tileEmpty(it)){ cityOpen({s:"build", k}); return; }
     /* roads and decorations have nothing to upgrade: change them in 編輯 */
     const b = it.b && CITY_BUILDINGS[it.b];
     if (!b || !(b.make || b.grow || b.fun || b.fixed)){ toast("要移動、轉向或移除，請按左上的「編輯」"); return; }
