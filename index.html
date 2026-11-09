@@ -92,6 +92,12 @@ h1,h2,h3{margin:0;text-wrap:balance;line-height:1.25}
 .gate .g-card{background:#fff;border-radius:28px;padding:32px 30px 30px;width:100%;max-width:340px;text-align:center;display:flex;flex-direction:column;gap:14px;align-items:center}
 .gate .g-ok{width:80px;height:80px;border-radius:50%;background:#E1EAF7;display:grid;place-items:center;color:var(--primary)}
 .gate .g-card .g-btn{align-self:stretch;margin-top:12px;border-radius:999px}
+.tip-btn{width:28px;height:28px;border-radius:50%;border:1.5px solid var(--line);background:var(--surface);color:var(--muted);font:inherit;font-weight:700;font-size:15px;display:grid;place-items:center;cursor:pointer;flex:none}
+.tip-btn[aria-expanded="true"]{background:var(--primary-soft);color:var(--primary);border-color:var(--primary)}
+.voice-tile{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1.5px solid var(--primary);border-radius:14px;background:var(--primary-soft);color:var(--primary)}
+.voice-tile .vt-name{flex:1;min-width:0;display:flex;flex-direction:column;color:var(--ink)}
+.voice-tile .vt-name .small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.voice-tile .btn{flex:none;background:#fff}
 .prefs-logout{display:block;margin:6px auto 0;border:0;background:none;font:inherit;font-size:16px;font-weight:700;color:#D93025;padding:12px 28px;cursor:pointer;border-radius:12px}
 .prefs-logout:active{background:#FBE9E7}
 .adm-u{border:1px solid var(--line);border-radius:14px;padding:12px}
@@ -1702,15 +1708,11 @@ const TTS = {
     }
   },
   pocketReset(){ this.pocketVoiceId = null; this.pocketVoiceKey = ""; this.pfQueue = []; },
-  /* Warm up on app start so the first word doesn't wait: load the model, clone the voice
-     and run one tiny silent generation. Only when the model is already saved on the phone,
-     so opening the app never starts a big download on mobile data by itself. */
+  /* Warm up on app start so the first word doesn't wait: download (first time) and load the model,
+     clone the voice and run one tiny silent generation. */
   async pocketWarm(){
     if (!this.pocketOn()) return;
     try {
-      if (!/^https?:$/.test(location.protocol) || typeof caches === "undefined") return;
-      const c = await caches.open("pocket-tts-js-v1");
-      if (!(await c.keys()).length) return;
       await this.pocketEngine(true);
       if (this.seq === this.warmSeq && !this.pfRunning) this.pocketPrefetch(["Hi."], false);
     } catch (e) {}
@@ -3741,27 +3743,20 @@ function prefsParts(){
     (TTS.ok ? "" : '<div class="err">這個瀏覽器不支援系統聲音。</div>');
   /* the Pocket TTS voice: default, or one the user uploaded; also used for words when sentences go to the computer */
   const pocketBox = '<div class="field"><label>Pocket TTS 的聲音</label>' +
-      (pkv.wavName
-        ? '<div class="row between" style="align-items:center"><span class="small">用你上傳的：' + esc(pkv.wavName) + '</span><button class="btn ghost sm" data-act="pocket-wav-clear">改回預設</button></div>'
-        : '<div class="row between" style="align-items:center"><span class="small">預設聲音</span><label class="btn ghost sm" for="pocket-wav" style="margin:0">換成自己的</label></div>') +
-      '<input type="file" id="pocket-wav" accept="audio/*" hidden data-act-change="pocket-wav">' +
-      '<div class="small muted">換自己的聲音：約 10-30 秒、清楚的單人錄音最好。</div></div>' +
-    (/^https?:$/.test(location.protocol)
-      ? '<button class="btn ghost block" data-act="pocket-prefetch"' + (S.busy.pocketPrefetch ? " disabled" : "") + ">" + (S.busy.pocketPrefetch ? '<span class="spinner"></span>下載中，請稍等…' : "先下載好，之後關網路也能唸") + "</button>"
-      : '<div class="small muted">現在是從檔案直接打開的，語音模型存不住，關網路就不能用。從 https 網址打開才能離線使用。</div>') +
-    '<div class="row between" style="align-items:center"><span class="small muted" id="audio-usage">已存的聲音：計算中…</span><button class="btn ghost sm" data-act="audio-clear">清除</button></div>';
-  parts.voice = '<section class="card"><h2 style="font-size:20px">朗讀</h2>' +
-    '<div class="field"><label>朗讀聲音</label><div class="seg" role="group">' + srcBtn("system", "系統聲音") + srcBtn("builtin", "Pocket TTS") + srcBtn("pc", "GPT-SoVITS") + "</div>" +
-      '<div class="small muted">' + (src === "system" ? "單字和句子都用手機或電腦內建的語音，不用下載，最省電。"
-        : src === "pc" ? "單字、文章和例句都用電腦上的 GPT-SoVITS 唸。電腦沒開或連不上時，會自動改回手機的 Pocket TTS。"
-        : "單字和句子都在手機上用 Pocket TTS 唸，聲音比較自然。聲音檔載入失敗時，才改用系統聲音。") +
-      (vOk ? "" : "GPT-SoVITS 要管理員幫你的帳號開通才能用。") + "</div></div>" +
+      '<div class="voice-tile">' + ICON.speaker.replace("<svg", '<svg width="20" height="20"') +
+        '<span class="vt-name">' + (pkv.wavName ? '<b>你上傳的聲音</b><span class="small muted en">' + esc(pkv.wavName) + "</span>" : "<b>預設聲音</b>") + "</span>" +
+        (pkv.wavName ? '<button class="btn soft sm" data-act="pocket-wav-clear">改回預設</button>' : '<label class="btn soft sm" for="pocket-wav" style="margin:0">換成自己的</label>') + "</div>" +
+      '<input type="file" id="pocket-wav" accept="audio/*" hidden data-act-change="pocket-wav"></div>' +
+    '<div class="row between" style="align-items:center"><span class="small muted" id="audio-usage">已存的聲音：計算中…</span><button class="btn ghost sm" style="flex:none;white-space:nowrap" data-act="audio-clear">清除</button></div>';
+  parts.voice = '<section class="card"><div class="row between" style="align-items:center"><h2 style="font-size:20px;margin:0">朗讀</h2>' +
+      '<button class="tip-btn" data-act="voice-tip" aria-expanded="' + !!S.voiceTip + '" aria-label="說明">?</button></div>' +
+    (S.voiceTip ? '<div class="note">唸不出來時會自動換下一個：GPT-SoVITS → Pocket TTS → 系統聲音。' + (vOk ? "" : "GPT-SoVITS 要管理員幫你的帳號開通才能用。") + "</div>" : "") +
+    '<div class="field"><label>朗讀聲音</label><div class="seg" role="group">' + srcBtn("system", "系統聲音") + srcBtn("builtin", "Pocket TTS") + srcBtn("pc", "GPT-SoVITS") + "</div></div>" +
     (src === "system" ? '<div class="field"><label for="voice">系統聲音</label>' + sysVoices + "</div>" : "") +
     (src === "builtin" ? pocketBox : "") +
-    '<div class="field asr-box"><label>跟讀評分（電腦的 Whisper）</label>' +
-      '<div class="small muted">按段落旁邊的麥克風唸一遍，電腦會聽寫並評分：說對了沒、流暢度、清楚度，還會指出哪個音可能沒發好。' + (vOk ? "" : "要管理員幫你的帳號開通電腦語音才能用。") + "</div>" +
-      (!vOk ? "" : '<div class="row between" style="align-items:center"><button class="btn soft sm" data-act="asr-ping"' + (S.asrPing === "checking" ? " disabled" : "") + ">" + (S.asrPing === "checking" ? '<span class="spinner"></span>測試中' : "測試連線") + "</button>" +
-      (S.asrPing && S.asrPing !== "checking" ? '<span class="small" style="color:' + (/^ok:/.test(S.asrPing) ? "#3E9C7A" : "#C97A00") + '">' + esc(S.asrPing.replace(/^ok:/, "")) + "</span>" : "") + "</div>") + "</div>" +
+    (!vOk ? "" : '<div class="field asr-box"><label>跟讀評分（電腦的 Whisper）</label>' +
+      '<div class="row between" style="align-items:center"><button class="btn soft sm" data-act="asr-ping"' + (S.asrPing === "checking" ? " disabled" : "") + ">" + (S.asrPing === "checking" ? '<span class="spinner"></span>測試中' : "測試連線") + "</button>" +
+      (S.asrPing && S.asrPing !== "checking" ? '<span class="small" style="color:' + (/^ok:/.test(S.asrPing) ? "#3E9C7A" : "#C97A00") + '">' + esc(S.asrPing.replace(/^ok:/, "")) + "</span>" : "") + "</div></div>") +
     '<div class="row" style="gap:8px"><button class="btn soft" style="flex:1" data-act="say" data-text="magic">' + spk + '試聽單字</button>' +
       '<button class="btn soft" style="flex:1" data-act="say" data-text="Small steps. Every day. That is how you get better.">' + spk + "試聽句子</button></div>" +
     '<div class="field"><label for="rate">速度：<span id="rate-v">' + st.rate.toFixed(1) + '×</span></label><input type="range" id="rate" min="0.5" max="1.2" step="0.1" value="' + st.rate + '" data-act-change="rate"></div>' +
@@ -4742,8 +4737,8 @@ const ACT = {
     S.asrPing = "checking"; render();
     try {
       const r = await fetch(base + "/ping?k=" + asrKey(), {cache:"no-store"}); const j = await r.json();
-      S.asrPing = voiceProblem(j) ? voiceProblem(j) : !j.ok ? "連得到，但回應怪怪的" : j.asr === "ready" ? "ok:連線成功，跟讀評分可以用（" + (j.asr_model || "Whisper") + "）" : j.asr === "loading" ? "連線成功，Whisper 還在載入（第一次會下載模型，請等幾分鐘）" : j.asr ? "連線成功，但跟讀評分沒開啟：" + j.asr : "連線成功，但電腦上的 voice_server.py 是舊版，還沒有跟讀評分";
-    } catch (e) { S.asrPing = "連不到伺服器，確認網路正常"; }
+      S.asrPing = j.ok && !voiceProblem(j) ? "ok:連線成功" : "連線失敗";
+    } catch (e) { S.asrPing = "連線失敗"; }
     render();
   },
   "city-chat-close": () => { S.cityChat = false; City3D.focusLisa(false); render(); },
@@ -4763,6 +4758,7 @@ const ACT = {
     try { await AudioDB.clear(); } catch (e) {}
     TTS.pocketClips.clear(); toast("已清除存在手機裡的聲音，之後用到會再重新產生。"); render();
   },
+  "voice-tip": () => { S.voiceTip = !S.voiceTip; render(); },
   "pocket-prefetch": async () => {
     if (S.busy.pocketPrefetch) return;
     S.busy.pocketPrefetch = true; render();
