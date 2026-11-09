@@ -112,7 +112,9 @@ const City3D = {
       const base = new T.Mesh(new T.CylinderGeometry(.95, 1, H, 6), this.mat(0xD7C09B)); base.position.set(x, -H / 2 - .02, z); base.castShadow = base.receiveShadow = true; g.add(base);
       const host = it && it.part ? c.tiles[it.part] : it;
       const ground = host && host.g && CITY_GROUNDS[host.g] ? CITY_GROUNDS[host.g][1] : null;   /* buildings, roads and the center can each have their own ground */
-      const top = new T.Mesh(new T.CylinderGeometry(.93, .95, .07, 6), this.mat(ground || (host && host.b === "park" ? 0xA8CF7C : host && host.b === "road" ? 0xE4D8C2 : host && host.b === "hall" ? 0xE6DCCB : 0xF2E6CE))); top.position.set(x, .015, z); top.receiveShadow = true;
+      /* land nobody has bought yet looks wild (grey-green, a plus sign and a bush); bought land is plain sand, the same as the 沙地 ground */
+      const wild = !it && !landOwned(c, key);
+      const top = new T.Mesh(new T.CylinderGeometry(.93, .95, .07, 6), this.mat(wild ? 0xC3C9AE : ground || (host && host.b === "park" ? 0xA8CF7C : host && host.b === "road" ? 0xE4D8C2 : host && host.b === "hall" ? 0xE6DCCB : 0xF2E6CE))); top.position.set(x, .015, z); top.receiveShadow = true;
       top.userData.key = key; g.add(top); this.pick.push(top);
       if (it && it.b === "road"){ this.road(g, c, q, r, x, z, pos); return; }
       if (it && it.part) return;
@@ -120,7 +122,7 @@ const City3D = {
       if (!it && landOwned(c, key)) return;   /* a bought plot: plain sand */
       if (!it){
         /* an empty plot: a soft plus sign and a little bush on the edge */
-        [[.36, .05], [.05, .36]].forEach(([w, d]) => { const m = new T.Mesh(new T.BoxGeometry(w, .02, d), this.mat(0xDCCBA8)); m.position.set(x, .06, z); g.add(m); });
+        [[.36, .05], [.05, .36]].forEach(([w, d]) => { const m = new T.Mesh(new T.BoxGeometry(w, .02, d), this.mat(0xA4AC8C)); m.position.set(x, .06, z); g.add(m); });
         this.tree(g, x + .55, .05, z + .3, .6, 0x9ACB78);
         return;
       }
