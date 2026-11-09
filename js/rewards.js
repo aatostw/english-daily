@@ -19,6 +19,13 @@ function earn(amount, reason){
   if (S.reader || S.view === "talk" || S.cityChat) toast("+" + give + " 金幣・" + reason);
   return give;
 }
+/* Money back (e.g. tearing a building down): not a reward, so the daily cap doesn't apply. */
+function refund(amount, reason){
+  amount = Math.floor(amount); if (amount <= 0) return 0;
+  const W = wallet(); W.balance += amount; W.spent = Math.max(0, W.spent - amount);
+  W.ledger.push({at:Date.now(), amount, reason}); if (W.ledger.length > 500) W.ledger = W.ledger.slice(-500);
+  Store.set("wallet", W).catch(() => {}); coinPop(amount); renderCoins(); return amount;
+}
 /* For the mini game: spends coins if there are enough. */
 function spend(amount, reason, item){
   const W = wallet();

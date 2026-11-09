@@ -119,6 +119,15 @@ function shopMake(c, k, L){
   return b && b.make && isLinked(c, k, L) ? b.make[tileLv(it) - 1] : 0;
 }
 function cityDaily(c){ const L = cityLinked(c); return Object.keys(c.tiles).reduce((n, k) => n + shopMake(c, k, L), 0); }
+/* removing a building or road gives back half of everything paid for it (building + upgrades) */
+function cityRefund(it){
+  const b = it && it.b && CITY_BUILDINGS[it.b]; if (!b || b.fixed) return 0;
+  let paid = b.price;
+  for (let l = 1; l < tileLv(it); l++) paid += upgradeCost(Object.assign({}, it, {lv:l}));
+  return Math.floor(paid / 2);
+}
+const GROUND_PRICE = {sand:0, grass:0};
+function groundPrice(g){ return g in GROUND_PRICE ? GROUND_PRICE[g] : 2; }
 function upgradeCost(it){
   const b = CITY_BUILDINGS[it.b], lv = tileLv(it); if (lv >= 3) return 0;
   if (it.b === "hall") return HALL.cost[lv];
@@ -169,7 +178,7 @@ function renderCity(){
   const stage = '<div id="city3d" class="city3d"><div class="city-wait">' + (City3D.failed ? "這台裝置不能顯示 3D 城市。" : '<span class="spinner"></span>正在載入城市…') + "</div></div>";
   if (S.cityChat && curWeek()) return '<div class="city-stage chat">' + stage + cityChatHTML() + "</div>";
   return '<div class="city-stage' + (S.cityEdit ? " editing" : "") + '">' + stage + '<div class="city-hud">' + cityTopHTML(c) +
-    '<div class="hud-row">' + cityEditBtnHTML() + (S.cityEdit ? cityEditHTML(c) : citySideHTML(c)) + "</div>" + cityModeBarHTML(c) + "</div></div>";
+    '<div class="hud-row">' + cityEditBtnHTML() + (S.cityEdit ? cityEditHTML(c) : citySideHTML(c)) + "</div>" + "</div></div>";
 }
 /* the floating card at the top: today's resident requests */
 function cityTopHTML(c){
@@ -260,7 +269,8 @@ function cityGroundAt(c, k, g){
   if (!CITY_GROUNDS[g]) return "這格不能換地面";
   const it = c.tiles[k] || {};
   if ((it.g || (it.b === "park" ? "grass" : "sand")) === g) return "";
-  if (!spend(1, "城市：換地面")) return "金幣不夠。";
+  const price = groundPrice(g);
+  if (price && !spend(price, "城市：鋪" + CITY_GROUNDS[g][0])) return "金幣不夠。";
   it.g = g; c.tiles[k] = it; saveCity(); return "";
 }
 function cityRemoveAt(c, k){
@@ -268,8 +278,8 @@ function cityRemoveAt(c, k){
   /* a building or decoration goes, its ground stays; a bare ground is taken up */
   const keepG = (it.b || it.d) && it.g;
   if (it.d) c.owned.deco.push(it.d);
-  else if (it.b === "road") earn(CITY_BUILDINGS.road.price, "城市：移除道路");
   else {
+    refund(cityRefund(it), "城市：移除" + CITY_BUILDINGS[it.b].name + "（退 50%）");
     /* residents who lived here move out; requests pointing at them are dropped */
     const gone = c.residents.map((p, i) => p.home === k ? i : -1).filter(i => i >= 0);
     c.day.requests = c.day.requests.filter(q => !gone.includes(q.who)).map(q => Object.assign(q, {who:q.who - gone.filter(g => g < q.who).length}));
@@ -307,9 +317,9 @@ function cityEditHTML(c){
         return item("b:" + k, b.name, lock ? lock + " 解鎖" : price(b.price), '<span class="ce-pic">' + (k === "road" ? CITY_ICONS.lib_road : k === "park" ? CITY_ICONS.lib_deco : CITY_ICONS.lib_build) + "</span>", !lock && bal >= b.price);
       }).join("");
   } else if (E.tab === "ground"){
-    rows = Object.entries(CITY_GROUNDS).map(([k, v]) => item("g:" + k, v[0], price(1), '<span class="ce-swatch" style="background:' + v[2] + '"></span>', bal >= 1)).join("");
+    rows = Object.entries(CITY_GROUNDS).map(([k, v]) => item("g:" + k, v[0], groundPrice(k) ? price(groundPrice(k)) : '<span class="ce-free">免費</span>', '<span class="ce-swatch" style="background:' + v[2] + '"></span>', bal >= groundPrice(k))).join("");
   } else if (E.tab === "tools"){
-    rows = item("t:move", "移動", "整棟搬走", '<span class="ce-pic">' + CITY_ICONS.move + "</span>") + item("t:turn", "轉方向", "門口換一面", '<span class="ce-pic">' + CITY_ICONS.turn + "</span>") + item("t:remove", "移除", "道路退錢", '<span class="ce-pic">' + CITY_ICONS.remove + "</span>");
+    rows = item("t:move", "移動", "", '<span class="ce-pic">' + CITY_ICONS.move + "</span>") + item("t:turn", "轉方向", "", '<span class="ce-pic">' + CITY_ICONS.turn + "</span>") + item("t:remove", "移除", "", '<span class="ce-pic">' + CITY_ICONS.remove + "</span>");
   } else {
     const decos = c.owned.deco.reduce((m, d) => (m[d] = (m[d] || 0) + 1, m), {});
     rows = Object.keys(decos).length ? Object.entries(decos).map(([d, n]) => item("d:" + d, CITY_DECOS[d], "× " + n, '<span class="ce-pic">' + CITY_ICONS.lib_deco + "</span>")).join("")
@@ -317,15 +327,6 @@ function cityEditHTML(c){
   }
   return '<div class="ce-col"><button class="back-btn" data-act="city-edit-back" aria-label="回到建築、土地、其他">' + GATE_ICON.back + "</button>" +
     '<div class="ce-list">' + rows + "</div></div>";
-}
-/* while something is chosen in 編輯: a bar at the bottom says what tapping a tile will do, with ✕ to stop */
-function cityModeBarHTML(c){
-  const E = S.cityEdit; if (!E || !E.sel) return "";
-  const [t, v] = E.sel.split(":");
-  const what = t === "b" ? "蓋" + CITY_BUILDINGS[v].name : t === "g" ? "鋪" + CITY_GROUNDS[v][0] : t === "d" ? "放" + CITY_DECOS[v]
-    : v === "turn" ? "轉方向" : v === "remove" ? "移除" : E.moveFrom ? "移動" + cityName(c.tiles[E.moveFrom] || {}) : "移動";
-  const how = t === "t" && v === "move" ? (E.moveFrom ? "點一塊空地放過去" : "點要搬的建築或裝飾") : "點島上的格子";
-  return '<div class="ce-bar' + (v === "remove" ? " warn" : "") + '"><span><b>' + esc(what) + "中</b>・" + how + '</span><button data-act="city-edit-clear" aria-label="取消">×</button></div>';
 }
 /* 移動: the building (or decoration) keeps its level and residents; each tile keeps its own ground */
 function cityMoveAt(c, from, to){
@@ -366,7 +367,7 @@ function cityEditApply(k){
     if (!it || it.b === "hall") err = it ? "市中心不能移除" : "這格是空的";
     else if (!it.b && !it.d){ cityRemoveAt(c, k); }
     else if (it.b && it.b !== "road" && it.b){
-      confirmBox("拆掉" + CITY_BUILDINGS[it.b].name + "？", "拆掉不會退金幣，住在裡面的居民會搬走。", "拆掉", true).then(ok => { if (ok){ cityRemoveAt(c, k); render(); } });
+      confirmBox("拆掉" + CITY_BUILDINGS[it.b].name + "？", "退回 " + cityRefund(it) + " 金幣（一半），住在裡面的居民會搬走。", "拆掉", true).then(ok => { if (ok){ cityRemoveAt(c, k); render(); } });
       return;
     } else cityRemoveAt(c, k);
   }
@@ -424,14 +425,6 @@ function citySheetHTML(o){
     if (b && b.make && !b.fixed && lv < 3) next = "換上更大的店面・每天產 " + b.make[lv] + " 份糧食";
     if (b && b.grow && lv < 3) next = (lv === 1 ? "加蓋成兩層樓" : "改建成公寓") + "・多 1 位居民搬進來";
     if (b && b.fun){ info = "每天多 <b>" + (linked ? b.fun[lv - 1] : 0) + "</b> 個居民請求" + (lv === 1 ? "（升級後才有）" : ""); if (lv < 3) next = (lv === 1 ? "加噴水池和花圃" : "蓋涼亭和小池塘") + "・每天多 " + b.fun[lv] + " 個請求"; }
-    const warn = hasDoor(it) && it.b !== "hall" && !linked && (b.make || b.residents || b.fun)
-      ? '<div class="err">還沒接上市中心：' + (b.make ? "不會產糧" : b.fun ? "不會多出請求" : "居民不會出來") + "。門口要正對道路，可以轉方向或在門口蓋路。</div>" : "";
-    const doorOk = linked;
-    const turn = hasDoor(it) && it.b !== "hall" ? '<button class="btn soft block" data-act="city-turn" data-k="' + o.k + '">轉方向（門口現在' + (doorOk ? "對著道路" : "沒有路") + "）</button>" : "";
-    const gr = it.g || (it.b === "park" ? "grass" : "sand");
-    const ground = it.b ? '<div class="label" style="margin-top:4px">地面<span class="small muted">（換一次 1 金幣）</span></div><div class="ground-row">' + Object.entries(CITY_GROUNDS).map(([k, v]) =>
-      '<button class="ground-btn' + (gr === k ? " on" : "") + '" data-act="city-ground" data-k="' + o.k + '" data-g="' + k + '" aria-pressed="' + (gr === k) + '"><span style="background:' + v[2] + '"></span>' + v[0] + "</button>").join("") + "</div>" : "";
-    const restyle = "";
     const up = cost ? (lock ? '<div class="up-row max"><span class="up-ic">' + CITY_ICONS.upgrade + '</span><span class="up-txt"><b>升到 Lv' + (lv + 1) + '</b><span class="small muted">' + next + '</span><span class="small" style="color:#C97A00">' + lock + "</span></span></div>"
       : '<button class="up-row" data-act="city-upgrade" data-k="' + o.k + '"' + (bal < cost ? " disabled" : "") + '><span class="up-ic">' + CITY_ICONS.upgrade + '</span><span class="up-txt"><b>升到 Lv' + (lv + 1) + '</b><span class="small muted">' + next +
         '</span></span><span class="price"><img class="coin-icon" src="' + COIN_IMG + '" alt="">' + cost + "</span></button>")
