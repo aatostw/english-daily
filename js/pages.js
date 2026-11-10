@@ -209,6 +209,7 @@ function renderLearn(){
     '<button class="word-row" data-act="week-word" data-n="' + w.n + '" data-i="' + i + '"><span class="w-main"><span class="w-en">' + esc(x.en) + '</span><span class="w-ipa">' + esc(x.ipa) + '</span><div class="w-zh">' + esc(x.zh) + '</div></span><span class="icon-btn" data-act="say" data-text="' + esc(x.en) + '" role="button" aria-label="朗讀 ' + esc(x.en) + '">' + ICON.speaker + "</span></button>").join("") + "</div></section>";
   html += '<section class="card"><div class="label">句型</div>' + patternCardHTML("A", P.A) + patternCardHTML("B", P.B) +
     (w.review && w.review.length ? '<div class="label" style="margin-top:4px">複習句型（上週總複習沒用好的）</div>' + w.review.map((pid, i) => patternCardHTML("R" + (i + 1), PATTERNS[pid])).join("") : "") + "</section>";
+  html += historyHTML();
   return html;
 }
 
@@ -334,7 +335,7 @@ function renderWords(){
   const total = weeks.reduce((s, w) => s + w.words.length, 0);
   let html = '<section class="card"><div class="row between"><div><div class="label">單字庫</div><b>' + total + " 個本週單字 · " + starred.length + ' 個收藏</b></div></div>' +
     '<div class="seg" role="group" aria-label="篩選"><button data-act="word-filter" data-f="all" aria-pressed="' + (f === "all") + '">每週單字</button><button data-act="word-filter" data-f="star" aria-pressed="' + (f === "star") + '">我的收藏</button></div></section>';
-  const row = (x, data) => '<button class="word-row" ' + data + '><span class="w-main"><span class="w-en">' + esc(x.en || x.lemma || x.word) + '</span><span class="w-ipa">' + esc(x.ipa || "") + '</span><div class="w-zh">' + esc(x.zh || "") + "</div></span>" + (S.bank[slug(x.en || x.lemma || x.word)] ? '<span class="star" aria-label="已收藏">' + ICON.starOn.replace("<svg", '<svg width="18" height="18"') + "</span>" : "") + '<span class="icon-btn" data-act="say" data-text="' + esc(x.en || x.lemma || x.word) + '" role="button" aria-label="朗讀">' + ICON.speaker + "</span></button>";
+  const row = (x, data) => '<button class="word-row" ' + data + '><span class="w-main"><span class="w-en">' + (data.includes("week-word") ? '<i class="m-dot ' + mastery("w", x.en) + '" title="' + MASTERY[mastery("w", x.en)] + '"></i>' : "") + esc(x.en || x.lemma || x.word) + '</span><span class="w-ipa">' + esc(x.ipa || "") + '</span><div class="w-zh">' + esc(x.zh || "") + "</div></span>" + (S.bank[slug(x.en || x.lemma || x.word)] ? '<span class="star" aria-label="已收藏">' + ICON.starOn.replace("<svg", '<svg width="18" height="18"') + "</span>" : "") + '<span class="icon-btn" data-act="say" data-text="' + esc(x.en || x.lemma || x.word) + '" role="button" aria-label="朗讀">' + ICON.speaker + "</span></button>";
   if (f === "star"){
     html += '<section class="card">' + (starred.length ? "<div>" + starred.map(x => row(x, 'data-act="bank-word" data-id="' + esc(slug(x.en)) + '"')).join("") + "</div>" : '<p class="muted" style="margin:0">讀文章時點單字，再按星號，就會收進這裡。</p>') + "</section>";
     return html;
