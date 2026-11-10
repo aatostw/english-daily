@@ -115,23 +115,27 @@ function practiceHTML(a, w){
 /* ---------- word sheet ---------- */
 const LOOKUP = new Map((() => { try { return Object.entries(JSON.parse(localStorage.getItem(LS + "lookup") || "{}")); } catch (e) { return []; } })());
 function saveLookup(){ try { localStorage.setItem(LS + "lookup", JSON.stringify(Object.fromEntries([...LOOKUP].slice(-400)))); } catch (e) {} }
-/* Open an outside page in a new browser tab. In the installed app on Android a normal link opens in a
-   small viewer inside the app, so ask Chrome to open it as its own tab (googlechrome://); if Chrome
-   doesn't take it within a second, fall back to a normal new window. */
+/* Open an outside page in a new browser tab, leaving this one where it is.
+   (window.open with "noopener" always returns null, so it must not be used to detect a blocked pop-up.)
+   In the installed app on Android, a link would open in a small viewer inside the app, so ask Chrome
+   to open it as its own tab instead; only if Chrome never takes over, open it normally. */
 function openExternal(url){
   const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
   if (standalone && /Android/i.test(navigator.userAgent)){
     let left = false;
     const away = () => { left = true; };
+    window.addEventListener("blur", away, {once:true});
     document.addEventListener("visibilitychange", away, {once:true});
     location.href = "googlechrome://navigate?url=" + encodeURIComponent(url);
-    setTimeout(() => { document.removeEventListener("visibilitychange", away); if (!left && !document.hidden) window.open(url, "_blank", "noopener"); }, 1200);
+    setTimeout(() => {
+      window.removeEventListener("blur", away); document.removeEventListener("visibilitychange", away);
+      if (!left && !document.hidden && document.hasFocus()) { const w = window.open(url, "_blank"); if (w) w.opener = null; }
+    }, 2000);
     return;
   }
-  const w = window.open(url, "_blank", "noopener");
-  if (!w) location.href = url;
+  const w = window.open(url, "_blank");
+  if (w) w.opener = null;
 }
-function cambridge(w){ return "https://dictionary.cambridge.org/dictionary/english-chinese-traditional/" + encodeURIComponent(String(w).toLowerCase().trim().replace(/\s+/g, "-")); }
 /* Google's translate box on the search page: unlike translate.google.com links, the Translate app
    doesn't take these over (it opened without the word), so the word is always filled in */
 function gtrans(w){ return "https://www.google.com/search?hl=zh-TW&q=" + encodeURIComponent(String(w).trim() + " 中文翻譯"); }
