@@ -16,6 +16,16 @@ const CITY_BUILDINGS = {
   clinic:{name:"診所", price:180, residents:1, desc:"醫生 1 位・全城產量 +5%", boost:true, tier:3},
   landmark:{name:"地標", price:2000, residents:0, desc:"每座城一棟・全城產量 +20%", boost:true, one:true, tier:5}
 };
+/* what each building is called at each tier (its look changes with it); the last name carries on */
+const CITY_LOOKS = {
+  house:["小屋", "磚房", "公寓", "大樓", "未來住宅"],
+  farm:["農田", "溫室", "室內農場", "垂直農場", "科技農場"],
+  park:["小公園", "廣場", "中央公園", "空中花園", "生態穹頂"],
+  cafe:["咖啡店", "咖啡館", "咖啡大樓", "美食商場", "未來咖啡站"],
+  books:["書店", "圖書館", "學院", "大學", "知識塔"],
+  clinic:["診所", "醫院", "醫療中心", "生技中心"]
+};
+function lookName(key, lv){ const L = CITY_LOOKS[key]; return L ? L[Math.min(tierOf(lv), L.length) - 1] : CITY_BUILDINGS[key].name; }
 /* the city center's six tiers */
 const HALL_TIERS = ["農寮", "村公所", "鎮公所", "市政廳", "都市中心", "宇宙文明中心"];
 const HALL_MAX = HALL_TIERS.length * 3;
@@ -191,12 +201,12 @@ function upgradeLock(c, it){
   const lv = tileLv(it); if (!upgradeCost(it)) return "max";
   if (lv % 3 !== 0) return "";
   if (it.b === "hall") return evolveReady(c) ? "" : "tasks";
-  return tierOf(lv) + 1 > hallTier(c) ? "市中心進化成「" + HALL_TIERS[tierOf(lv)] + "」後才能翻新" : "";
+  return tierOf(lv) + 1 > hallTier(c) ? "市中心進化成「" + HALL_TIERS[tierOf(lv)] + "」後才能翻新成「" + lookName(it.b, lv + 1) + "」" : "";
 }
 function cityName(it){
   const b = it.b && CITY_BUILDINGS[it.b]; if (!b) return CITY_DECOS[it.d];
   if (it.b === "hall") return hallName(tileLv(it)) + " Lv" + tileLv(it);
-  return b.name + (it.b === "road" || it.b === "landmark" ? "" : " Lv" + tileLv(it));
+  return lookName(it.b, tileLv(it)) + (it.b === "road" || it.b === "landmark" ? "" : " Lv" + tileLv(it));
 }
 /* one line about what a building does now, and what the next level brings */
 function cityStatText(key, lv, made, linked){
@@ -562,7 +572,7 @@ function citySheetHTML(o){
     const tag = renovated(c, it) ? '<span class="pill ok">已翻新・產量 +20%</span>' : "";
     const nextTxt = it.b ? cityNextText(c, it, o.k) : "";
     const icon = '<span class="up-ic">' + CITY_ICONS.upgrade + "</span>";
-    const title = it.b === "hall" && evolve ? "進化成「" + HALL_TIERS[tierOf(lv)] + "」" : evolve ? "翻新成第 " + (tierOf(lv) + 1) + " 階・Lv" + (lv + 1) : "升到 Lv" + (lv + 1);
+    const title = it.b === "hall" && evolve ? "進化成「" + HALL_TIERS[tierOf(lv)] + "」" : evolve ? "翻新成「" + lookName(it.b, lv + 1) + "」・Lv" + (lv + 1) : "升到 Lv" + (lv + 1);
     let up;
     if (lock === "max") up = '<div class="up-row max">' + icon + '<span class="up-txt"><b>已經是最高等級</b></span></div>';
     else if (lock === "tasks" || (it.b === "hall" && evolve)) up = '<button class="up-row" data-act="city-sheet" data-s="evo">' + icon + '<span class="up-txt"><b>' + title + '</b><span class="small muted">' + (evolveReady(c) ? "進化任務都完成了！" : "先完成進化任務") + '</span></span><span class="price">任務 ›</span></button>';

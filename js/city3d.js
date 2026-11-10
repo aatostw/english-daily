@@ -135,11 +135,10 @@ const City3D = {
       const lv = tileLv(it), linked = !it.b || L.has(key), b = it.b && CITY_BUILDINGS[it.b];
       const bg = new T.Group(); bg.position.set(gx, .05, gz); bg.rotation.y = rot; bg.userData.key = key;
       this.sty = it.style === "cn" ? "cn" : "west";
-      /* looks for now: inside the first tier as before; later tiers keep growing up to the biggest model (new looks per tier come next) */
-      const vlv = it.b === "hall" ? Math.min(3, tierOf(lv)) : Math.min(3, lv - 2 * (tierOf(lv) - 1));
-      this.building(bg, it.b || it.d, win, (it.b && it.b !== "park" && it.b !== "hall" && !c.day.fed) || !linked, vlv, spots);
-      if (it.b === "hall") bg.scale.setScalar(1 + ((lv - 1) % 3) * .07 + (tierOf(lv) - 1) * .05);
-      else if (tierOf(lv) > 1) bg.scale.setScalar(1 + Math.min(.3, (tierOf(lv) - 1) * .1));
+      /* the landmark grows with the town: it takes the center's level */
+      this.building(bg, it.b || it.d, win, (it.b && it.b !== "park" && it.b !== "hall" && !c.day.fed) || !linked, it.b === "landmark" ? hallLv(c) : lv, spots);
+      /* the center grows a little with each level inside its tier (2nd–4th tiers reuse one model each) */
+      if (it.b === "hall" && tierOf(lv) >= 2 && tierOf(lv) <= 4) bg.scale.setScalar(1 + ((lv - 1) % 3) * .07);
       this.sty = "west";
       bg.traverse(m => { if (m.isMesh){ m.castShadow = true; m.receiveShadow = true; m.userData.key = key; this.pick.push(m); } });
       const top3 = new T.Box3().setFromObject(bg).max.y;
@@ -243,12 +242,17 @@ const City3D = {
     geo.translate(0, 0, -w / 2); geo.rotateY(Math.PI / 2);
     const m = new T.Mesh(geo, this.mat(col)); m.position.y = y; parent.add(m); return m;
   },
-  building(g, type, win, dim, lv, spots){
+  /* lv is the building's real level; each tier has its own look (city3d-tiers.js), and where a tier keeps a classic model
+     below, lv becomes that model's 1–3. classic = draw the classic model lv as is (used from inside a tier model). */
+  building(g, type, win, dim, lv, spots, classic){
     const T = this.T, w = (x, y, z) => this.box(g, .1, .1, .02, win, x, y, z);
     const shade = dim ? {color:0xbbbbbb} : null;
     lv = lv || 1; spots = spots || [[0, 0]];
     const B = CITY_BUILDINGS[type], cyl = (r, h, col, x, y, z) => { const m = new T.Mesh(new T.CylinderGeometry(r, r, h, 10), this.mat(col)); m.position.set(x, y, z); g.add(m); return m; };
-    if (B && (B.coins || B.know) && lv > 1){
+    const t = tierOf(lv), ti = (lv - 1) % 3;
+    if (!classic && B && this.tierModel(g, type, t, ti, win)){
+      /* drawn by its tier */
+    } else if ((classic || (lv = type === "hall" ? Math.max(1, t - 1) : type === "house" && t === 3 ? 3 : ti + 1)) && B && (B.coins || B.know) && lv > 1){
       /* bigger shops: Lv2 stretches over two plots with a big sign; Lv3 is a two-tier store with a little plaza in each plot */
       const sub = new T.Group(); g.add(sub); this.building(sub, type, win, false, 1);
       const col = {cafe:0xE8945A, bakery:0xC9574A, books:0x6E8FB0, market:0x6DB4A0}[type] || 0xE8945A, h1 = {cafe:.45, bakery:.74, books:1.0, market:.4}[type] || .5;
@@ -413,6 +417,7 @@ const City3D = {
       [.25, .65].forEach(y => { const s = new T.Mesh(new T.CylinderGeometry(.18 - y * .04, .19 - y * .04, .16, 10), this.mat(0xDB6A41)); s.position.y = y; g.add(s); });
       this.box(g, .24, .16, .24, win, 0, 1.28, 0); const cap = new T.Mesh(new T.ConeGeometry(.2, .2, 8), this.mat(0xDB6A41)); cap.position.y = 1.46; g.add(cap);
     }
+    if (classic) return;
     if (this.sty === "cn" && type !== "park"){
       /* red lanterns on both sides of every red door */
       g.updateMatrixWorld(true);

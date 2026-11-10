@@ -157,7 +157,7 @@ const ACT = {
       }
     }
     saveCity(); drawSheet(); render();
-    toast(b.name + (evolve ? "翻新到第 " + tierOf(it.lv) + " 階" : "升到 Lv" + it.lv) + (moved ? "，" + moved + " 搬進來了！" : "！"));
+    toast((evolve ? lookName(it.b, it.lv - 1) + "翻新成「" + lookName(it.b, it.lv) + "」" : lookName(it.b, it.lv) + "升到 Lv" + it.lv) + (moved ? "，" + moved + " 搬進來了！" : "！"));
   },
   "city-evolve": () => {
     const c = city(), h = c.tiles["0,0"], cost = 300 * hallTier(c); if (!evolveReady(c)) return;
