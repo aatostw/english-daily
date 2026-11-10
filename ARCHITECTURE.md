@@ -33,7 +33,8 @@
 | `js/reader.js` | 閱讀頁、單字解釋、選取解釋、跟讀評分 |
 | `js/course.js` | 產生每週內容和每日文章（呼叫 AI） |
 | `js/news.js` | 每日新聞卡片與閱讀頁 |
-| `js/rewards.js` | 學習紀錄、金幣、知識 |
+| `js/rewards.js` | 學習紀錄、金幣、知識、學習歷程的資料（`logResult`、`logScore`） |
+| `js/progress.js` | 學習歷程（時間軸、趨勢、掌握度、預估）和月考 |
 | `js/actions.js` | `ACT`：所有 `data-act` 按鈕的動作，和事件監聽 |
 | `js/boot.js` | 啟動：同步 → 載入資料 → 畫面 |
 | `css/app.css` | 全部樣式 |
