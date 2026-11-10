@@ -401,13 +401,9 @@ function cityBuildAt(c, k, key){
   if (key !== "road") toast(nm + "蓋好了" + (far ? "。記得用道路接上市中心！" : people ? "，" + people + " 位居民搬進來！" : "！"));
   return "";
 }
-/* a new building starts at the first level of the town's current era; it costs half of what climbing there would have */
+/* a new building starts at the first level of the town's current era, always at its fixed price */
 function buildLv(c, key){ return key === "road" || key === "landmark" ? 1 : (hallTier(c) - 1) * 3 + 1; }
-function buildCost(c, key){
-  const b = CITY_BUILDINGS[key], lv0 = buildLv(c, key); if (lv0 === 1) return b.price;
-  let sum = b.price; for (let l = 1; l < lv0; l++) sum += upgradeCost({b:key, lv:l});
-  return Math.max(b.price, Math.round(sum / 2 / 10) * 10);
-}
+function buildCost(c, key){ return CITY_BUILDINGS[key].price; }
 /* why this kind of building can't be built yet ("" = it can) */
 function buildLock(c, key){
   const b = CITY_BUILDINGS[key];
