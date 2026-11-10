@@ -200,7 +200,7 @@ function upgradeCost(it){
   const t = tierOf(lv), evolve = lv % 3 === 0;
   if (it.b === "hall") return lv >= HALL_MAX ? 0 : evolve ? 300 * t : 100 * t * (lv - (t - 1) * 3);
   if (it.b === "landmark") return 0;
-  return Math.round(b.price * (evolve ? 3 * t : (lv % 3 === 1 ? 1.5 : 2.5) * t) / 10) * 10;
+  return b.price;   /* every upgrade and renovation costs the same as buying the building */
 }
 /* why a building can't go up a level yet ("" = it can) */
 function upgradeLock(c, it){
