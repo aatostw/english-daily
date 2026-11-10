@@ -28,6 +28,7 @@
 | `js/render.js` | `render()`：依 `S.view` 畫出目前頁面 |
 | `js/city.js` | 我的城市：資料、規則（道路、門、居民）；v2 升級：每 3 級一階（`tierOf`、`bStat`），市中心 6 階（`HALL_TIERS`、`EVOLVE`、`evolveTasks`），農田/咖啡店/書店/診所/地標的產出（`cityDaily`、`cityStudied`） |
 | `js/city3d.js` | `City3D`：Three.js 3D 城市 |
+| `js/city3d-tiers.js` | 各建築每一階的 3D 外觀（`City3D.tierModel`）；預覽頁 `tools/models.html` |
 | `js/pages.js` | 首次設定、首頁、學習進度、對話、收藏 |
 | `js/settings.js` | 設定各頁、登入畫面、帳號與帳號管理 |
 | `js/reader.js` | 閱讀頁、單字解釋、選取解釋、跟讀評分 |
