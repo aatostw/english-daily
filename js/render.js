@@ -19,10 +19,11 @@ function render(){
   if (draftEl) S.talk.draft = draftEl.value;
   if (!S.profile){
     tabs.hidden = true; main.innerHTML = renderOnboarding();
-    const st = S.onb.step, last = st === 2;
+    const st = S.onb.step, last = st === ONB_LAST, a = S.onb.about || {};
+    const answered = st < 2 || (st === 2 ? !!a.age : st === 3 ? !!a.gender : (a.interests || []).length > 0);
     dock.className = "dock onb-nav" + (S.onb.step === 0 ? " solo" : ""); dock.hidden = false;
     dock.innerHTML = (st > 0 ? '<button class="back-btn" data-act="onb-back" aria-label="上一步">' + GATE_ICON.back + "</button>" : "") +
-      '<button class="btn next" data-act="' + (last ? "onb-finish" : "onb-next") + '">' + (last ? (provReady(aiState().provider) ? "開始使用" : "先跳過") : "繼續") + ' <span aria-hidden="true">→</span></button>';
+      '<button class="btn next" data-act="' + (last ? "onb-finish" : "onb-next") + '">' + (last ? (answered ? "開始使用" : "略過，開始使用") : answered ? "繼續" : "略過") + ' <span aria-hidden="true">→</span></button>';
     return;
   }
   dock.className = "dock";

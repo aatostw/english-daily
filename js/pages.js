@@ -6,6 +6,9 @@ function themeChoices(){
     const src = pool.length >= 3 ? pool : THEMES;
     const picks = [];
     const copy = src.slice();
+    /* one pick comes from the learner's interests, when they told us */
+    const mine = interestThemes().filter(t => !used.has(t.zh));
+    if (mine.length) picks.push(mine[Math.floor(Math.random() * mine.length)]);
     while (picks.length < 3 && copy.length) picks.push(copy.splice(Math.floor(Math.random() * copy.length), 1)[0]);
     S.pick = {themes:picks, sel:-1, custom:""};
   }
@@ -24,9 +27,10 @@ function pickedTheme(){
   if (c) return {zh:c, en:c};
   return pk.sel >= 0 ? pk.themes[pk.sel] : null;
 }
+const ONB_ABOUT = ["age", "gender", "interests"], ONB_LAST = 4;
 function renderOnboarding(){
   const o = S.onb;
-  const steps = '<div class="steps" aria-hidden="true"><i class="on"></i><i class="' + (o.step >= 1 ? "on" : "") + '"></i><i class="' + (o.step >= 2 ? "on" : "") + '"></i></div>';
+  const steps = '<div class="steps" aria-hidden="true">' + [0, 1, 2, 3, 4].map(i => '<i class="' + (o.step >= i ? "on" : "") + '"></i>').join("") + "</div>";
   if (o.step === 0){
     return steps +
       '<section class="card onb"><h1>每天幾分鐘，讀一篇、唸一遍</h1>' +
@@ -49,11 +53,11 @@ function renderOnboarding(){
         "</button>";
       }).join("") + "</div>";
   }
+  /* 關於我: age, gender, interests (each can be skipped) */
+  const part = ONB_ABOUT[o.step - 2], [h, why] = ABOUT_STEPS[part];
   return steps +
-    '<section class="card onb"><h1>連接 AI</h1>' +
-    '<p class="muted" style="margin:0">文章、單字解釋和對話都由 AI 產生。</p></section>' +
-    aiCardHTML() +
- "";
+    '<section class="card onb"><h1>' + h + '</h1><p class="muted" style="margin:0">' + why + "可以略過，之後在「設定 → 關於我」也能改。</p></section>" +
+    '<section class="card">' + aboutPartHTML(part) + "</section>";
 }
 
 /* ---------- today ---------- */
@@ -157,7 +161,7 @@ function secTitle(t){ return '<h2 class="sec-title">' + t + "</h2>"; }
 function renderHome(){
   if (Cloud.on() && NEWS.status === "idle") setTimeout(() => loadNews(), 0);
   const need = themeNeed(), w = curWeek();
-  let html = aiBannerHTML() + bannerHTML(need);
+  let html = aiBannerHTML() + aboutBannerHTML() + bannerHTML(need);
   if (!w) html += previewHTML(need);
   else {
     html += heroHTML(w);

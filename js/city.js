@@ -332,9 +332,11 @@ function cityTopCard(c){
   const card = (inner, btn) => '<div class="city-top"><div class="ct-body">' + inner + "</div>" + (btn || "") + (S.err.city ? '<div class="err ct-err">' + esc(S.err.city) + "</div>" : "") + "</div>";
   const go = (act, label, extra) => '<button class="ct-go" data-act="' + act + '"' + (extra || "") + ">" + label + "</button>";
   if (!n) return card('<div class="ct-l1">' + (away ? "居民還出不了門" : "還沒有居民") + '</div><div class="ct-sub">' + (away ? "房子的門口要對著接上市中心的道路" : "點一塊地買下來，再按「編輯」蓋小屋，就會有人搬進來") + "</div>");
+  if (!c.day.fed && S.busy.city)   /* 發放中: a moving bar on the left, the button stays as it is */
+    return card('<div class="ct-l1">發放中…</div><div class="ct-sub">居民正在想今天要請你幫什麼忙</div><div class="ct-bar ct-load" role="progressbar" aria-label="發放中"><span></span></div>',
+      '<button class="ct-go" aria-disabled="true" tabindex="-1">發放</button>');
   if (!c.day.fed)
-    return card('<div class="ct-l1">居民肚子餓了，需要「<em>糧食</em>」</div><div class="ct-l2">發放 <big>' + n + "</big> 份</div>",
-      S.busy.city ? '<button class="ct-go pressing" disabled aria-busy="true">發放</button>' : food >= n ? go("city-feed", "發放") : go("city-sheet", "買糧食", ' data-s="shop"'));
+    return card('<div class="ct-l1">居民肚子餓了，需要「<em>糧食</em>」</div><div class="ct-l2">發放 <big>' + n + "</big> 份</div>", food >= n ? go("city-feed", "發放") : go("city-sheet", "買糧食", ' data-s="shop"'));
   if (!total || done >= total) return card('<div class="ct-l1 ct-none">居民目前無請求</div>');
   const pct = Math.round(done / total * 100);
   return card('<div class="ct-l1">今天的「<em>居民請求</em>」進度</div><div class="ct-l2">已經完成 <big>' + pct + '%</big></div><div class="ct-bar"><span style="width:' + Math.max(6, pct) + '%"></span></div>',
@@ -643,7 +645,8 @@ function cityReqPrompt(n){
   const w = curWeek(), words = w ? w.words.map(x => x.en).join(", ") : "";
   return [
     "You write tiny English tasks for a cozy island town game. Residents ask the player for help in English.",
-    "The player is an adult learner in Taiwan at level " + levelText() + ". Match that level.",
+    "The player is " + learnerNoun(true) + " at level " + levelText() + ". Match that level.",
+    aboutPrompt(),
     words ? "When it fits naturally, use some of these words the player is studying: " + words + "." : "",
     "Write " + n + " requests, mixing two kinds:",
     '- "choice": the resident says one everyday line; the player picks the one grammatically correct sentence out of 3 (the other two have one typical learner mistake each, e.g. "I standardly need a cup of coffee." vs "I usually need a cup of coffee.").',

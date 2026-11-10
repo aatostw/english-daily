@@ -417,6 +417,19 @@ async function adminRoute(req, env, path){
     ]);
     return json(req, 200, {ok:true});
   }
+  if (path === "/admin/users/detail"){
+    /* one person's 關於我 and a short picture of their progress, read from their synced data */
+    const user = await env.DB.prepare("SELECT email, name, created_at, voice, (SELECT MAX(last_seen) FROM sessions s WHERE s.user_id = users.id) AS last_seen FROM users WHERE id = ?").bind(u.id).first();
+    const r = await env.DB.prepare("SELECT id, json FROM items WHERE user_id = ? AND del = 0 AND id IN ('profile', 'wallet', 'city', 'log')").bind(u.id).all();
+    const d = {}; for (const x of r.results || []){ try { d[x.id] = JSON.parse(x.json); } catch (e) {} }
+    const ai = await env.DB.prepare("SELECT day, n FROM ai_usage WHERE user_id = ? ORDER BY day DESC LIMIT 7").bind(u.id).all();
+    const p = d.profile || {}, w = d.wallet || {}, c = d.city || {}, lg = d.log || {}, days = Object.keys(lg.days || {}).sort();
+    const tiles = Object.values(c.tiles || {}), hall = tiles.find(t => t && t.b === "hall");
+    return json(req, 200, {ok:true, user, about:p.about || null, tier:p.tier, currentWeek:p.currentWeek, createdAt:p.createdAt,
+      coins:{balance:w.balance || 0, earned:w.earned || 0},
+      city:{hallLv:(hall && hall.lv) || 1, knowledge:c.knowledge || 0, residents:(c.residents || []).length, buildings:tiles.filter(t => t && t.b && t.b !== "road" && t.b !== "hall").length},
+      study:{days:days.length, last:days[days.length - 1] || ""}, ai:ai.results || []});
+  }
   if (path === "/admin/users/voice"){
     await env.DB.prepare("UPDATE users SET voice = ? WHERE id = ?").bind(b.on ? 1 : 0, u.id).run();
     return json(req, 200, {ok:true});

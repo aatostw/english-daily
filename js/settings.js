@@ -128,7 +128,7 @@ function adminHTML(){
   let list = "";
   if (users) list = users.length ? '<div class="stack">' + users.map(u =>
       '<div class="adm-u"><div class="row between" style="align-items:center"><div style="min-width:0"><b>' + esc(u.name || "（沒有名字）") + '</b><div class="small muted en" style="overflow-wrap:anywhere">' + esc(u.email) + "</div>" + (u.reset_req ? '<div><span class="pill bad" style="margin-top:4px">要求重設密碼</span></div>' : "") + '<div class="small muted">' + u.items + " 項進度・" + (u.last_seen ? "最近登入 " + new Date(u.last_seen).toLocaleDateString() : "還沒登入過") + "</div></div>" +
-        '<div class="row" style="gap:6px;flex:none;flex-wrap:wrap;justify-content:flex-end"><button class="btn soft sm" data-act="adm-reset" data-email="' + esc(u.email) + '">重設密碼</button><button class="btn danger sm" data-act="adm-del" data-email="' + esc(u.email) + '">刪除</button></div></div>' +
+        '<div class="row" style="gap:6px;flex:none;flex-wrap:wrap;justify-content:flex-end"><button class="btn soft sm" data-act="adm-detail" data-email="' + esc(u.email) + '">詳細資訊</button><button class="btn soft sm" data-act="adm-reset" data-email="' + esc(u.email) + '">重設密碼</button><button class="btn danger sm" data-act="adm-del" data-email="' + esc(u.email) + '">刪除</button></div></div>' +
         '<div class="row between" style="align-items:center;margin-top:8px"><span class="small"><b>電腦語音</b><span class="muted">（GPT-SoVITS、跟讀評分）</span></span><button class="switch" role="switch" aria-checked="' + !!u.voice + '" data-act="adm-voice" data-email="' + esc(u.email) + '" data-on="' + (u.voice ? 0 : 1) + '" aria-label="電腦語音"><span></span></button></div>' +
         (a.reset === u.email ? '<div class="row" style="margin-top:8px"><input class="input" id="adm-rp" type="text" autocomplete="off" placeholder="新密碼（至少 6 個字）" aria-label="新密碼"><button class="btn sm" data-act="adm-reset-go" data-email="' + esc(u.email) + '">確定</button></div>' : "") +
       "</div>").join("") + "</div>" : '<p class="muted small" style="margin:0">還沒有帳號。</p>';
@@ -184,6 +184,7 @@ function admLoginBox(){
 }
 function renderPrefs(){
   const items = [
+    ["about", "關於我", hasAbout() ? aboutSummary() : "年齡、性別、興趣（選填）"],
     ["account", "帳號", Cloud.on() ? (Cloud.cfg.name || Cloud.cfg.email) + "・" + (Cloud.err ? "同步失敗" : cloudAgo(Cloud.cfg.lastSync)) : "登入後可以在其他裝置接著學"],
     ["ai", "AI 模型", PROVIDERS[aiState().provider].name + " · " + (aiState().model || "未選模型")],
     ["voice", "朗讀", set().voiceSource === "system" ? "系統聲音" : set().voiceSource === "pc" && Cloud.voiceOk() ? "GPT-SoVITS" : "Pocket TTS" + ((set().pocketVoice || {}).wavName ? "・你上傳的聲音" : "")],
@@ -199,7 +200,7 @@ function renderPrefs(){
 function prefsParts(){
   setTimeout(fillAudioUsage, 0);
   const st = set();
-  const parts = {ai:aiCardHTML(), account:accountCardHTML()};
+  const parts = {ai:aiCardHTML(), account:accountCardHTML(), about:aboutCardHTML()};
   let html = "";
   const voices = TTS.voices;
   const pv = st.pcVoice || {}, pc = st.voiceSource === "pc";
@@ -267,4 +268,21 @@ function prefsParts(){
       '<button class="btn block" data-act="dev-apply">套用</button>'+ adminHTML() : "") +
     '<div class="divider"></div><div class="row"><button class="btn danger" data-act="reset">全部重來</button></div></section>';
   return parts;
+}
+/* 詳細資訊: one person's 關於我 and progress, for the admin */
+function admDetailHTML(o){
+  const head = '<div class="grab" aria-hidden="true"></div><div class="sh-head"><div class="sh-word phrase" style="flex:1;min-width:0">' + esc(o.name || o.email) + '</div><button class="icon-btn" data-act="close-sheet" aria-label="關閉">×</button></div>';
+  if (o.err) return head + '<div class="err">' + esc(o.err) + "</div>";
+  const d = o.data; if (!d) return head + '<p class="muted"><span class="spinner"></span> 讀取中…</p>';
+  const a = d.about || {}, row = (k, v) => '<div class="ad-row"><span>' + k + "</span><b>" + (v === "" || v == null ? '<span class="muted">—</span>' : esc(String(v))) + "</b></div>";
+  const age = (AGE_RANGES.find(x => x[0] === a.age) || [])[1], g = (GENDERS.find(x => x[0] === a.gender) || [])[1];
+  const ints = (a.interests || []).map(k => (INTERESTS.find(x => x[0] === k) || [])[1]).filter(Boolean).join("、");
+  const day = t => t ? new Date(t).toLocaleDateString("zh-TW") : "";
+  return head + '<div class="small muted en" style="margin:-6px 0 6px;overflow-wrap:anywhere">' + esc(o.email) + "</div>" +
+    '<div class="ad-sec">關於我</div>' + row("年齡", age) + row("性別", a.gender === "x" && a.genderText ? "其他：" + a.genderText : g) + row("興趣", ints) +
+    '<div class="ad-sec">學習</div>' + row("排位", Number.isInteger(d.tier) && TIERS[d.tier] ? TIERS[d.tier].name : "") + row("目前週數", d.currentWeek != null ? "第 " + (d.currentWeek + 1) + " 週" : "") +
+      row("學習天數", d.study.days + " 天") + row("最後學習", d.study.last) + row("開始使用", day(d.createdAt || (d.user || {}).created_at)) + row("最後上線", day((d.user || {}).last_seen)) +
+    '<div class="ad-sec">金幣與城市</div>' + row("金幣", d.coins.balance + "（共賺 " + d.coins.earned + "）") + row("市中心", (HALL_TIERS[Math.ceil(d.city.hallLv / 3) - 1] || "") + " Lv" + d.city.hallLv) +
+      row("知識", d.city.knowledge) + row("居民 / 建築", d.city.residents + " 位 / " + d.city.buildings + " 棟") +
+    '<div class="ad-sec">AI 用量（最近 7 天）</div>' + (d.ai.length ? d.ai.map(x => row(x.day, x.n + " 次")).join("") : row("—", ""));
 }

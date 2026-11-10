@@ -4,7 +4,8 @@
 function wordsPrompt(theme, pids){
   const A = PATTERNS[pids[0]], B = PATTERNS[pids[1]];
   return [
-    "Plan the vocabulary for one week of English practice. Learner: an adult in Taiwan, level " + levelText() + ".",
+    "Plan the vocabulary for one week of English practice. Learner: " + learnerNoun() + ", level " + levelText() + ".",
+    aboutPrompt(),
     "Theme: " + theme.en + " (" + theme.zh + ")",
     "Sentence patterns this week: A: " + A.en + " (" + A.zh + "); B: " + B.en + " (" + B.zh + ")",
     "Pick 6 words or short phrases that fit the theme, are used often in real everyday English, suit the level, and combine naturally with the patterns. Mix verbs, nouns and adjectives, and include at least one phrasal verb or common collocation. Skip words that are too basic (good, go, happy) or rare.",
@@ -39,9 +40,10 @@ function articlePrompt(w, d, k, genre, extra, topic){
   const earlier = artsOf(w.n).filter(a => !(a.day === d && a.k === k)).map(a => a.title).filter(Boolean);
   const fp = P[plan.focus];
   return [
-    'You write daily reading pieces for an adult in Taiwan who is learning English. Copy the style of the TikTok account "English Everyday": short, simple sentences; repetition and rhythm (for example: "They wait. They wait for a friend. They wait for the perfect moment."); talk to the reader as "you" when it fits; warm, honest, one clear idea. No cliches like "in today\'s fast-paced world".',
+    'You write daily reading pieces for " + learnerNoun() + " who is learning English. Copy the style of the TikTok account "English Everyday": short, simple sentences; repetition and rhythm (for example: "They wait. They wait for a friend. They wait for the perfect moment."); talk to the reader as "you" when it fits; warm, honest, one clear idea. No cliches like "in today\'s fast-paced world".',
     "",
     "Learner level: " + levelText(),
+    aboutPrompt(),
     "Genre: " + (genre === "custom" ? "Written to the learner's own request: \"" + String(topic || "").slice(0, 80) + "\". Write that kind of piece (still linked to the week theme where it fits), and follow every rule below." : GENRE_SPEC[genre] || GENRE_SPEC.story),
     "Week theme: " + w.theme_en + " (" + w.theme_zh + ")",
     "Length: about " + L.words + " words (about " + L.min + " minutes to read aloud).",
@@ -78,7 +80,7 @@ function lookupPrompt(word, sentence){
 }
 function practicePrompt(task, pat, answer){
   return [
-    "You are a kind English tutor for an adult learner in Taiwan.",
+    "You are a kind English tutor for " + learnerNoun(true) + ".",
     'The task was: "' + task + '" (pattern: ' + pat.en + ").",
     'The learner wrote: "' + answer + '"',
     "Check grammar, word choice and whether the pattern is used correctly. Be encouraging and brief. All Chinese in Traditional Chinese (Taiwan).",
@@ -91,7 +93,8 @@ function wordList(w, rev){ return w.words.map((x, i) => [i, x]).filter(([i]) => 
 function patList(w, rev){ const P = weekPats(w); return Object.keys(P).filter(k => !rev || rev.pats.includes(k)).map(k => k + ": " + P[k].en).join("; "); }
 function dailyChatPrompt(w, d, rev){
   return [
-    "You are Lisa, a warm, friendly native English speaker and the learner's friend. You chat with an adult in Taiwan (level " + levelText() + ") every day to practise English.",
+    "You are Lisa, a warm, friendly native English speaker and the learner's friend. You chat with " + learnerNoun() + " (level " + levelText() + ") every day to practise English.",
+    aboutPrompt(true),
     "This week's theme: " + w.theme_en + " (" + w.theme_zh + "). Today is day " + (d + 1) + " of the week.",
     "Patterns they have learned so far: " + patList(w, rev),
     "Words they have learned so far: " + wordList(w, rev),
@@ -102,7 +105,8 @@ function dailyChatPrompt(w, d, rev){
 }
 function scenarioPrompt(w){
   return [
-    "Create a role-play for a weekly speaking practice. Learner: an adult in Taiwan, level " + levelText() + ".",
+    "Create a role-play for a weekly speaking practice. Learner: " + learnerNoun() + ", level " + levelText() + ".",
+    aboutPrompt(true),
     "Week theme: " + w.theme_en + " (" + w.theme_zh + ")",
     "Patterns: " + patList(w),
     "Words: " + wordList(w),
@@ -114,7 +118,8 @@ function scenarioPrompt(w){
 function talkRules(w, sc, rev){
   return [
     "Role-play rules. You are " + sc.partner_name + " (" + sc.partner_role_zh + "). Situation: " + sc.situation_zh + " The learner is " + sc.learner_role_zh + ".",
-    "The learner, an adult in Taiwan at level " + levelText() + ", is practising this week's English. Patterns: " + patList(w, rev) + ". Words: " + w.words.filter((_, i) => !rev || rev.words.includes(i)).map(x => x.en).join(", ") + ".",
+    "The learner, " + learnerNoun() + " at level " + levelText() + ", is practising this week's English. Patterns: " + patList(w, rev) + ". Words: " + w.words.filter((_, i) => !rev || rev.words.includes(i)).map(x => x.en).join(", ") + ".",
+    aboutPrompt(true),
     "- Stay in character. Reply in 1-3 short, simple sentences, then ask something that invites the learner to use the patterns or words.",
     "- Do not correct mistakes during the chat; feedback comes at the end. If you cannot understand, ask them to say it another way.",
     "- If the learner writes Chinese, answer in simple English and gently encourage English.",
@@ -124,7 +129,7 @@ function talkRules(w, sc, rev){
 function feedbackPrompt(w, conv, rev){
   const tr = conv.turns.map(t => (t.role === "assistant" ? conv.scenario.partner_name : "Learner") + ": " + t.content).join("\n");
   return [
-    "Review this English role-play by an adult learner in Taiwan (level " + levelText() + ").",
+    "Review this English role-play by " + learnerNoun(true) + " (level " + levelText() + ").",
     "Patterns to practise: " + patList(w, rev),
     "Words to practise: " + wordList(w, rev),
     "Transcript:",

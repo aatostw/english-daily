@@ -366,6 +366,7 @@ function drawSheet(){
   if (o.kind === "shadow"){ $("#sheet-card").setAttribute("aria-label", "跟讀評分"); $("#sheet-card").innerHTML = shadowHTML(o); return; }
   if (o.kind === "genpick"){ $("#sheet-card").setAttribute("aria-label", "再讀一篇"); $("#sheet-card").innerHTML = genPickHTML(o); return; }
   if (o.kind === "quiz"){ $("#sheet-card").setAttribute("aria-label", "月考"); $("#sheet-card").innerHTML = '<div class="sh-head"><div class="sh-word phrase" style="flex:1;min-width:0">月考</div>' + (S.quiz && S.quiz.done ? "" : '<button class="icon-btn" data-act="quiz-close" aria-label="離開">×</button>') + "</div>" + quizSheetHTML(); return; }
+  if (o.kind === "admdetail"){ $("#sheet-card").setAttribute("aria-label", "詳細資訊"); $("#sheet-card").innerHTML = admDetailHTML(o); return; }
   if (o.kind === "city"){ $("#sheet-card").setAttribute("aria-label", "我的城市"); $("#sheet-card").innerHTML = citySheetHTML(o); return; }
 
   const d = o.data;

@@ -30,6 +30,7 @@
 | `js/city3d.js` | `City3D`：Three.js 3D 城市 |
 | `js/city3d-tiers.js` | 7 個時代 × 每個時代 3 級的建築 3D 外觀（`City3D.tierModel`）；預覽頁 `tools/models.html` |
 | `js/pages.js` | 首次設定、首頁、學習進度、對話、收藏 |
+| `js/about.js` | 關於我：年齡區間、性別、興趣（新手引導第 3–5 步、設定頁、給 AI 的學習者描述、興趣主題）|
 | `js/settings.js` | 設定各頁、登入畫面、帳號與帳號管理 |
 | `js/reader.js` | 閱讀頁、單字解釋、選取解釋、跟讀評分 |
 | `js/course.js` | 產生每週內容和每日文章（呼叫 AI） |
