@@ -92,6 +92,8 @@ function city(){
     c.v2 = 1; c.minR = hallLv(c) + 1;
     Object.values(c.tiles).forEach(it => { if (it.b === "bakery" || it.b === "market") it.b = "farm"; });
   }
+  /* bought land with nothing on it is 沙地 */
+  (c.land || []).forEach(k => { if (!c.tiles[k] && k !== "0,0") c.tiles[k] = {g:"sand"}; });
   /* farms, cafés and the center make things once a day; it waits (up to 2 days' worth) until you harvest */
   if (!c.prod) c.prod = {date:t, store:0};
   if (c.prod.date !== t){
@@ -269,7 +271,9 @@ function landOwned(c, k){ return k === "0,0" || (c.land || []).includes(k); }
 function cityBuyLand(c, k){
   if (landOwned(c, k)) return "";
   if (!spend(LAND_PRICE, "城市：買土地")) return "金幣不夠。";
-  c.land.push(k); saveCity(); return "";
+  c.land.push(k);
+  if (!c.tiles[k]) c.tiles[k] = {g:"sand"};   /* new land starts as 沙地 */
+  saveCity(); return "";
 }
 function saveCity(){ Store.set("city", S.city).catch(() => {}); if (typeof renderCoins === "function") renderCoins(); }
 function cityRadius(c){ return Math.max(hallTier(c) + 1, c.minR || 0); }
@@ -330,7 +334,7 @@ function cityTopCard(c){
   if (!n) return card('<div class="ct-l1">' + (away ? "居民還出不了門" : "還沒有居民") + '</div><div class="ct-sub">' + (away ? "房子的門口要對著接上市中心的道路" : "點一塊地買下來，再按「編輯」蓋小屋，就會有人搬進來") + "</div>");
   if (!c.day.fed)
     return card('<div class="ct-l1">居民肚子餓了，需要「<em>糧食</em>」</div><div class="ct-l2">發放 <big>' + n + "</big> 份</div>",
-      S.busy.city ? '<button class="ct-go" disabled><span class="spinner"></span></button>' : food >= n ? go("city-feed", "發放") : go("city-sheet", "買糧食", ' data-s="shop"'));
+      S.busy.city ? '<button class="ct-go pressing" disabled aria-busy="true">發放</button>' : food >= n ? go("city-feed", "發放") : go("city-sheet", "買糧食", ' data-s="shop"'));
   if (!total || done >= total) return card('<div class="ct-l1 ct-none">居民目前無請求</div>');
   const pct = Math.round(done / total * 100);
   return card('<div class="ct-l1">今天的「<em>居民請求</em>」進度</div><div class="ct-l2">已經完成 <big>' + pct + '%</big></div><div class="ct-bar"><span style="width:' + Math.max(6, pct) + '%"></span></div>',
@@ -437,7 +441,7 @@ function cityRemoveAt(c, k){
     c.day.requests = c.day.requests.filter(q => !gone.includes(q.who)).map(q => Object.assign(q, {who:q.who - gone.filter(g => g < q.who).length}));
     c.residents = c.residents.filter(p => p.home !== k);
   }
-  if (keepG) c.tiles[k] = {g:it.g}; else delete c.tiles[k];
+  if (keepG) c.tiles[k] = {g:it.g}; else if (landOwned(c, k) && it.b) c.tiles[k] = {g:"sand"}; else delete c.tiles[k];
   saveCity();
 }
 
@@ -658,6 +662,32 @@ function cityJudgePrompt(q, answer){
     'Reply with only JSON, Chinese in Traditional Chinese (Taiwan): {"ok":true,"better":"<a natural way to say it>","explain_zh":"<one short sentence>"}'
   ].join("\n");
 }
+/* turn whatever shape the AI replied in into clean requests (drops the ones that can't be played) */
+function cityReqList(r){
+  let arr = Array.isArray(r) ? r : r && typeof r === "object" ? (r.requests || r.tasks || r.items || Object.values(r).find(Array.isArray) || []) : [];
+  if (arr.length === 1 && arr[0] && Array.isArray(arr[0].requests)) arr = arr[0].requests;
+  const str = v => v == null ? "" : typeof v === "object" ? String(v.text || v.en || v.sentence || Object.values(v)[0] || "") : String(v);
+  return arr.map(q => {
+    if (!q || typeof q !== "object") return null;
+    const say = str(q.say || q.line || q.text || q.resident_says).trim();
+    const options = Array.isArray(q.options) ? q.options.map(str).map(x => x.replace(/^\s*[A-Ca-c1-3][.)、]\s*/, "").trim()).filter(Boolean) : [];
+    const type = q.type === "free" ? "free" : options.length >= 2 ? "choice" : "free";
+    let answer = q.answer;
+    if (type === "choice"){
+      if (typeof answer === "string"){
+        const a = answer.trim(), L = "ABC".indexOf(a.toUpperCase());
+        answer = /^\d+$/.test(a) ? Number(a) : a.length === 1 && L >= 0 ? L : options.findIndex(o => o.toLowerCase() === a.toLowerCase());
+      }
+      answer = Number(answer);
+      if (answer === options.length) answer = options.length - 1;   /* counted from 1 */
+      if (!(answer >= 0 && answer < options.length)) return null;
+    }
+    let answers = Array.isArray(q.answers) ? q.answers.map(str).filter(Boolean) : [];
+    if (type === "free" && !answers.length && q.answer != null) answers = [str(q.answer)];
+    if (!say || (type === "free" && !answers.length)) return null;
+    return {type, say, question_zh:str(q.question_zh || q.task_zh), options:type === "choice" ? options : [], answer:type === "choice" ? answer : 0, answers, explain_zh:str(q.explain_zh || q.explain)};
+  }).filter(Boolean);
+}
 async function cityFeed(){
   const c = city(), act = activeResidents(c), n = act.length;
   if (!n || c.day.fed || S.busy.city) return;
@@ -665,14 +695,19 @@ async function cityFeed(){
   S.busy.city = true; S.err.city = ""; render();
   try {
     const want = Math.min(n, reqCap(c));
-    const r = await aiJson("talk", cityReqPrompt(want), {cache:false});
-    const list = (r && Array.isArray(r.requests) ? r.requests : []).filter(q => q && q.say && (q.type === "choice" ? Array.isArray(q.options) && q.options.length >= 2 : true)).slice(0, want);
+    /* ask once more if the reply can't be used; keep the last bad reply so it can be looked at (localStorage "eel-aifail") */
+    let list = [];
+    for (let t = 0; t < 2 && !list.length; t++){
+      const res = await callAI("city", cityReqPrompt(want), {cache:false, json:true});
+      try { list = cityReqList(parseLoose(res.text)).slice(0, want); } catch (e) {}
+      if (!list.length) try { localStorage.setItem(LS + "aifail", JSON.stringify({at:new Date().toISOString(), task:"city", model:taskCfg("city").model, text:String(res.text).slice(0, 4000)})); } catch (e) {}
+    }
     if (!list.length) throw {code:"invalid_json"};
     const order = act.slice().sort(() => Math.random() - .5);
     c.food -= n; c.day.fed = true;
     c.day.requests = list.map((q, i) => ({id:Date.now().toString(36) + i, who:order[i % order.length], type:q.type === "choice" ? "choice" : "free",
-      say:String(q.say), question_zh:String(q.question_zh || ""), options:(q.options || []).map(String), answer:Number(q.answer) || 0,
-      answers:(q.answers || []).map(String), explain_zh:String(q.explain_zh || ""), status:"open", tries:0}));
+      say:q.say, question_zh:q.question_zh, options:q.options, answer:q.answer,
+      answers:q.answers, explain_zh:q.explain_zh, status:"open", tries:0}));
     saveCity();
   } catch (e) { S.err.city = aiErr(e); }
   S.busy.city = false; render();

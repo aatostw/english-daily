@@ -27,9 +27,13 @@ function provBase(p){ if (p === "server") return Cloud.url() + "/ai"; return (St
 function provReady(p){ if (p === "server") return Cloud.on(); return !!PROVIDERS[p] && !!provBase(p) && (!!provKey(p) || p === "custom"); }
 const MODEL_LISTS = (() => { try { return JSON.parse(localStorage.getItem(LS + "models") || "{}") || {}; } catch (e) { return {}; } })();
 
+/* the town's resident requests (發放) need a careful JSON writer: Flash Lite often breaks the format there */
+const TASK_MODELS = {city:"gemini-3.6-flash"};
 function taskCfg(task){
   const a = aiState(), p = PROVIDERS[a.provider] ? a.provider : "gemini", P = PROVIDERS[p];
   let model = a.model || P.defaults.write || "";
+  /* some jobs need a stronger model than the everyday one */
+  if (P.kind === "gemini" && TASK_MODELS[task]) model = TASK_MODELS[task];
   return {provider:p, model};
 }
 function toTurns(input){

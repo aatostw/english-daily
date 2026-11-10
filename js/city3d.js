@@ -147,29 +147,25 @@ const City3D = {
     /* residents beside their homes; a "!" above the ones who need you */
     this.walkers = [];
     const roads = cityRoads(c);
-    /* the roads decide how many people are out walking: one per two road tiles, at most 8; the rest stay by their homes */
-    let walkSlots = roads.size ? Math.min(8, Math.max(1, Math.floor(roads.size / 2))) : 0;
+    /* nobody stands around: the roads decide how many people are out walking (one per two road tiles, at most 8),
+       everyone else is indoors. A resident with a request shows a "!" above their home. */
+    const roadList = [...roads].filter(k => k !== "0,0");
+    let walkSlots = roadList.length ? Math.min(8, Math.max(1, Math.floor(roadList.length / 2))) : 0;
+    const pins = {};
     c.residents.forEach((p, i) => {
       const ct = centers[p.home]; if (!ct || !L.has(p.home)) return;      /* people only come out once their home reaches the center */
-      const req0 = c.day.requests.find(q => q.who === i && q.status === "open");
-      if (!req0 && walkSlots > 0){
-        /* out for a slow walk: along the roads, into other buildings, and back */
-        walkSlots--;
-        const wg = new T.Group(); this.person(wg, 0, 0, p.color, .9); wg.visible = false; g.add(wg);
-        this.walkers.push({g:wg, at:p.home, q:[], wait:.5 + Math.random() * 4, lane:(Math.random() - .5) * .22, s:0});
+      const req = c.day.requests.find(q => q.who === i && q.status === "open");
+      if (req){
+        const n = pins[p.home] = (pins[p.home] || 0) + 1, hb = this.bgs[p.home], top = hb ? new T.Box3().setFromObject(hb).max.y : .9;
+        this.label(new T.Vector3(ct[0] + (n - 1) * .3 - .15 * (n > 1), Math.max(.7, Math.min(top, 2.4)) + .3, ct[1]), '<button class="req-pin" data-act="city-req" data-id="' + req.id + '" aria-label="' + esc(p.name) + ' 的請求">!</button>', true);
         return;
       }
-      const j = c.residents.slice(0, i).filter(o => o.home === p.home).length;
-      let x, z, ox, oz;
-      if (ct[2].length === 1){ [x, z] = ct[2][0]; ox = [-.58, .58, -.62, .62][j % 4]; oz = [.45, .45, -.05, -.05][j % 4]; }
-      else {
-        /* stand on the outside edge of a big building, spread along it */
-        const [ax, az] = ct[2][j % ct[2].length], dx = ax - ct[0], dz = az - ct[1], d = Math.hypot(dx, dz) || 1;
-        x = ax; z = az; ox = dx / d * .62 + (-dz / d) * .25 * (j >= ct[2].length ? 1 : -1); oz = dz / d * .62 + (dx / d) * .25 * (j >= ct[2].length ? 1 : -1);
-      }
-      this.person(g, x + ox, z + oz, p.color, .9);
-      const req = c.day.requests.find(q => q.who === i && q.status === "open");
-      if (req) this.label(new T.Vector3(x + ox, .62, z + oz), '<button class="req-pin" data-act="city-req" data-id="' + req.id + '" aria-label="' + esc(p.name) + ' 的請求">!</button>', true);
+      if (walkSlots <= 0) return;
+      walkSlots--;
+      const start = roadList[Math.floor(Math.random() * roadList.length)], [sq, sr] = start.split(",").map(Number);
+      const wg = new T.Group(); this.person(wg, 0, 0, p.color, .9); g.add(wg);
+      wg.position.set(Math.sqrt(3) * (sq + sr / 2), .06, 1.5 * sr);
+      this.walkers.push({g:wg, at:start, q:[], wait:Math.random() * 3, lane:(Math.random() - .5) * .22, s:1, started:true});
     });
     /* Lisa stands just in front of the city center; tap her to chat */
     if (curWeek()){
@@ -433,33 +429,25 @@ const City3D = {
   },
   /* ---------- people walking around town ---------- */
   walkPlan(w){
-    const c = city(), roads = cityRoads(c), L = cityLinked(c), posK = k => { const [q, r] = k.split(",").map(Number); return [Math.sqrt(3) * (q + r / 2), 1.5 * r]; };
-    const nodes = new Set(roads); nodes.add("0,0");
-    const entry = k => k === "0,0" ? "0,0" : doorKey(c, k);
-    const spots = [...L].filter(k => nodes.has(entry(k)));
-    if (!spots.length) return;
-    const from = w.at, to = spots[Math.floor(Math.random() * spots.length)];
-    /* shortest way along the roads */
-    const a = entry(from), b = entry(to), prev = {[a]:null}, queue = [a];
+    /* a stroll from one road tile to another, along the roads only */
+    const c = city(), roads = [...cityRoads(c)].filter(k => k !== "0,0"), nodes = new Set(roads);
+    if (roads.length < 2) return;
+    const posK = k => { const [q, r] = k.split(",").map(Number); return [Math.sqrt(3) * (q + r / 2), 1.5 * r]; };
+    const a = nodes.has(w.at) ? w.at : roads[0];
+    let b = a; while (b === a) b = roads[Math.floor(Math.random() * roads.length)];
+    const prev = {[a]:null}, queue = [a];
     while (queue.length){ const k = queue.shift(); if (k === b) break; cityNear(k).forEach(n => { if (nodes.has(n) && !(n in prev)){ prev[n] = k; queue.push(n); } }); }
     if (!(b in prev)) return;
     const path = []; for (let k = b; k; k = prev[k]) path.unshift(k);
-    const P = (k, t) => { const [x, z] = posK(k); return {x, z, s:t}; };
-    const inside = k => c.tiles[k] && c.tiles[k].b === "park" ? 1 : 0;
-    const edge = (bk, nk, f, s) => { const [x1, z1] = posK(bk), [x2, z2] = posK(nk); return {x:x1 + (x2 - x1) * f, z:z1 + (z2 - z1) * f, s}; };
-    const q = [];
-    if (from !== "0,0") q.push(edge(from, a, .15, inside(from)), edge(from, a, .55, 1));
-    path.forEach(k => { const p = P(k, 1); if (k !== "0,0"){ p.x += w.lane; p.z += w.lane; } q.push(p); });
-    if (to !== "0,0"){ q.push(edge(to, b, .55, 1)); q.push(edge(to, b, inside(to) ? .1 : .15, inside(to))); }
-    else q.push(Object.assign(P("0,0", 0), {z:posK("0,0")[1] + .1}));
-    w.q = q; w.at = to;
+    w.q = path.slice(1).map(k => { const [x, z] = posK(k); return {x:x + w.lane, z:z + w.lane, s:1}; });
+    w.at = b;
   },
   walkStep(dt){
     (this.walkers || []).forEach(w => {
       if (!w.q.length){
         w.wait -= dt; if (w.wait > 0) return;
         if (!w.started){ w.started = true; const [q, r] = w.at.split(",").map(Number); w.g.position.set(Math.sqrt(3) * (q + r / 2), .06, 1.5 * r); }
-        this.walkPlan(w); w.wait = 4 + Math.random() * 8; if (!w.q.length) return;
+        this.walkPlan(w); w.wait = 1 + Math.random() * 3; if (!w.q.length) return;
         w.g.visible = true;
       }
       const t = w.q[0], g = w.g, dx = t.x - g.position.x, dz = t.z - g.position.z, d = Math.hypot(dx, dz), step = .22 * dt;   /* a slow stroll */
