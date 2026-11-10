@@ -147,11 +147,14 @@ const City3D = {
     /* residents beside their homes; a "!" above the ones who need you */
     this.walkers = [];
     const roads = cityRoads(c);
+    /* the roads decide how many people are out walking: one per two road tiles, at most 8; the rest stay by their homes */
+    let walkSlots = roads.size ? Math.min(8, Math.max(1, Math.floor(roads.size / 2))) : 0;
     c.residents.forEach((p, i) => {
       const ct = centers[p.home]; if (!ct || !L.has(p.home)) return;      /* people only come out once their home reaches the center */
       const req0 = c.day.requests.find(q => q.who === i && q.status === "open");
-      if (!req0 && roads.size){
-        /* everyone without a request goes out walking: along the roads, into other buildings, and back */
+      if (!req0 && walkSlots > 0){
+        /* out for a slow walk: along the roads, into other buildings, and back */
+        walkSlots--;
         const wg = new T.Group(); this.person(wg, 0, 0, p.color, .9); wg.visible = false; g.add(wg);
         this.walkers.push({g:wg, at:p.home, q:[], wait:.5 + Math.random() * 4, lane:(Math.random() - .5) * .22, s:0});
         return;
@@ -456,14 +459,14 @@ const City3D = {
       if (!w.q.length){
         w.wait -= dt; if (w.wait > 0) return;
         if (!w.started){ w.started = true; const [q, r] = w.at.split(",").map(Number); w.g.position.set(Math.sqrt(3) * (q + r / 2), .06, 1.5 * r); }
-        this.walkPlan(w); w.wait = 2 + Math.random() * 6; if (!w.q.length) return;
+        this.walkPlan(w); w.wait = 4 + Math.random() * 8; if (!w.q.length) return;
         w.g.visible = true;
       }
-      const t = w.q[0], g = w.g, dx = t.x - g.position.x, dz = t.z - g.position.z, d = Math.hypot(dx, dz), step = .55 * dt;
+      const t = w.q[0], g = w.g, dx = t.x - g.position.x, dz = t.z - g.position.z, d = Math.hypot(dx, dz), step = .22 * dt;   /* a slow stroll */
       if (d > .001) g.rotation.y = Math.atan2(dx, dz);
       if (!w.d0) w.d0 = d || 1;
       const k = d <= step ? 1 : step / d;
-      g.position.x += dx * k; g.position.z += dz * k; g.position.y = .06 + Math.abs(Math.sin(performance.now() / 120)) * .02;
+      g.position.x += dx * k; g.position.z += dz * k; g.position.y = .06 + Math.abs(Math.sin(performance.now() / 260)) * .015;
       w.s += (t.s - w.s) * Math.min(1, k * 1.2 + (d <= step ? 1 : 0)); g.scale.setScalar(Math.max(.001, w.s)); g.visible = w.s > .02;
       if (d <= step){ g.position.set(t.x, .06, t.z); w.s = t.s; g.scale.setScalar(Math.max(.001, t.s)); g.visible = t.s > .02; w.q.shift(); w.d0 = 0; }
     });
