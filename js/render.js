@@ -20,11 +20,11 @@ function render(){
   if (!S.profile){
     tabs.hidden = true; main.innerHTML = renderOnboarding();
     const st = S.onb.step, last = st === ONB_LAST, a = S.onb.about || {};
-    const answered = st < 2 || (st === 2 ? !!a.age : st === 3 ? !!a.gender : (a.interests || []).length > 0);
+    const answered = st < 2 || (st === 2 ? !!ageNum(a) : st === 3 ? !!a.gender : (a.interests || []).length > 0);
     dock.className = "dock onb-nav" + (S.onb.step === 0 ? " solo" : ""); dock.hidden = false;
     dock.innerHTML = (st > 0 ? '<button class="back-btn" data-act="onb-back" aria-label="上一步">' + GATE_ICON.back + "</button>" : "") +
       '<button class="btn next" data-act="' + (last ? "onb-finish" : "onb-next") + '">' + (last ? (answered ? "開始使用" : "略過，開始使用") : answered ? "繼續" : "略過") + ' <span aria-hidden="true">→</span></button>';
-    return;
+    wheelInit(); return;
   }
   dock.className = "dock";
   tabs.hidden = false;
@@ -44,6 +44,7 @@ function render(){
   }
   render.lastView = S.view;
   const dh = dockHTML(); dock.innerHTML = dh; dock.hidden = !dh;
+  wheelInit();
   if (S.view === "city") City3D.mount();
   if (S.view === "talk" && S.talk.scrollDown){ S.talk.scrollDown = false; main.scrollTop = main.scrollHeight; }
 }

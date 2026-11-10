@@ -275,11 +275,11 @@ function admDetailHTML(o){
   if (o.err) return head + '<div class="err">' + esc(o.err) + "</div>";
   const d = o.data; if (!d) return head + '<p class="muted"><span class="spinner"></span> 讀取中…</p>';
   const a = d.about || {}, row = (k, v) => '<div class="ad-row"><span>' + k + "</span><b>" + (v === "" || v == null ? '<span class="muted">—</span>' : esc(String(v))) + "</b></div>";
-  const age = (AGE_RANGES.find(x => x[0] === a.age) || [])[1], g = (GENDERS.find(x => x[0] === a.gender) || [])[1];
+  const age = ageNum(a) ? ageNum(a) + " 歲" : "", g = (GENDERS.find(x => x[0] === a.gender) || [])[1];
   const ints = (a.interests || []).map(k => (INTERESTS.find(x => x[0] === k) || [])[1]).filter(Boolean).join("、");
   const day = t => t ? new Date(t).toLocaleDateString("zh-TW") : "";
   return head + '<div class="small muted en" style="margin:-6px 0 6px;overflow-wrap:anywhere">' + esc(o.email) + "</div>" +
-    '<div class="ad-sec">關於我</div>' + row("年齡", age) + row("性別", a.gender === "x" && a.genderText ? "其他：" + a.genderText : g) + row("興趣", ints) +
+    '<div class="ad-sec">關於我</div>' + row("年齡", age) + row("性別", g) + row("興趣", ints) +
     '<div class="ad-sec">學習</div>' + row("排位", Number.isInteger(d.tier) && TIERS[d.tier] ? TIERS[d.tier].name : "") + row("目前週數", d.currentWeek != null ? "第 " + (d.currentWeek + 1) + " 週" : "") +
       row("學習天數", d.study.days + " 天") + row("最後學習", d.study.last) + row("開始使用", day(d.createdAt || (d.user || {}).created_at)) + row("最後上線", day((d.user || {}).last_seen)) +
     '<div class="ad-sec">金幣與城市</div>' + row("金幣", d.coins.balance + "（共賺 " + d.coins.earned + "）") + row("市中心", (HALL_TIERS[Math.ceil(d.city.hallLv / 3) - 1] || "") + " Lv" + d.city.hallLv) +

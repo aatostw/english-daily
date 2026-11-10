@@ -54,9 +54,9 @@ function renderOnboarding(){
       }).join("") + "</div>";
   }
   /* 關於我: age, gender, interests (each can be skipped) */
-  const part = ONB_ABOUT[o.step - 2], [h, why] = ABOUT_STEPS[part];
+  const part = ONB_ABOUT[o.step - 2], h = ABOUT_STEPS[part][0];
   return steps +
-    '<section class="card onb"><h1>' + h + '</h1><p class="muted" style="margin:0">' + why + "可以略過，之後在「設定 → 關於我」也能改。</p></section>" +
+    '<section class="card onb"><h1>' + h + "</h1></section>" +
     '<section class="card">' + aboutPartHTML(part) + "</section>";
 }
 

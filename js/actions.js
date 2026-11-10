@@ -33,7 +33,7 @@ const ACT = {
     S.talkFrom = S.view === "city" ? "city" : "home"; S.chatDay = chatDayFor(w); S.talk.scrollDown = true; go("talk"); },
   "pref-open": el => { S.prefPage = el.dataset.p; go("prefs"); $("#main").scrollTop = 0; },
   "pref-back": () => { S.prefPage = null; render(); $("#main").scrollTop = 0; },
-  "onb-next": () => { aboutGText(); S.onb.step = Math.min(ONB_LAST, S.onb.step + 1); S.err.week = ""; render(); $("#main").scrollTop = 0; },
+  "onb-next": () => { S.onb.step = Math.min(ONB_LAST, S.onb.step + 1); S.err.week = ""; render(); $("#main").scrollTop = 0; },
   "onb-back": () => { S.onb.step = Math.max(0, S.onb.step - 1); render(); $("#main").scrollTop = 0; },
   "pick-tier": el => { const i = Number(el.dataset.i); S.onb.tier = i; S.onb.tierOpen = i; render(); },
   "set-tier": el => { S.profile.tier = Number(el.dataset.i); saveProfile(); render(); toast("之後的文章會用「" + TIERS[S.profile.tier].name + "」的難度"); },
@@ -50,9 +50,7 @@ const ACT = {
     st.pocketVoice = Object.assign({}, st.pocketVoice, {wavData:"", wavName:"", wavSize:0});
     TTS.pocketReset(); saveProfile(); render(); toast("已移除自己的音檔，改回預設聲音。");
   },
-  "onb-finish": () => { aboutGText(); finishOnboarding(); },
-  "about-age": el => { const a = aboutOf(); a.age = a.age === el.dataset.v ? "" : el.dataset.v; aboutSave(); render(); },
-  "about-gender": el => { aboutGText(); const a = aboutOf(); a.gender = a.gender === el.dataset.v ? "" : el.dataset.v; aboutSave(); render(); },
+  "onb-finish": () => { finishOnboarding(); },
   "about-int": el => { const a = aboutOf(), s = new Set(a.interests || []), k = el.dataset.v; s.has(k) ? s.delete(k) : s.add(k); a.interests = [...s]; aboutSave(); render(); },
   "about-dismiss": () => { S.profile.aboutAsked = true; saveProfile(); render(); },
   "open-theme": () => { S.err.week = ""; openSheet({kind:"theme"}); },
@@ -360,7 +358,6 @@ document.addEventListener("change", e => {
     reader.readAsDataURL(f);
     return;
   }
-  if (act === "about-gtext"){ aboutGText(); return; }
   const a = aiState(), p = a.provider;
   if (act === "ai-key"){ KEYS[p] = Object.assign({}, KEYS[p], {key:el.value.trim()}); saveKeys(); delete S.provTest[p]; return; }
   if (act === "ai-base"){ KEYS[p] = Object.assign({}, KEYS[p], {base:el.value.trim()}); saveKeys(); delete S.provTest[p]; return; }

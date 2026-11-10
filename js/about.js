@@ -3,9 +3,58 @@
    Asked during onboarding (each step can be skipped), editable in 設定 → 關於我,
    saved in profile.about and used to fit topics, examples and talk to the learner.
    ========================================================= */
-const AGE_RANGES = [["u18", "18 歲以下", "under 18"], ["18", "18–24", "18-24"], ["25", "25–34", "25-34"], ["35", "35–44", "35-44"],
-  ["45", "45–54", "45-54"], ["55", "55–64", "55-64"], ["65", "65 以上", "65 or older"]];
-const GENDERS = [["m", "男"], ["f", "女"], ["x", "其他"], ["n", "不想說"]];
+const AGE_MIN = 6, AGE_MAX = 90, AGE_DEFAULT = 30;
+const OLD_AGES = {u18:16, "18":21, "25":30, "35":40, "45":50, "55":60, "65":68};   /* the first version asked for a range */
+const GENDERS = [["f", "女"], ["m", "男"], ["n", "不想回答"]];
+/* the age as a number (0 when not given) */
+function ageNum(a){
+  a = a || (S.profile && S.profile.about) || {};
+  const v = a.age; if (!v) return 0;
+  if (typeof v === "string" && OLD_AGES[v]) return OLD_AGES[v];
+  const n = parseInt(v, 10); return n >= AGE_MIN && n <= AGE_MAX ? n : 0;
+}
+/* a wheel to scroll: the middle row is the choice. Saved when it stops (see wheelSettle) */
+function wheelHTML(name, items, cur){
+  const rows = items.map(([v, l]) => '<div class="wheel-i" role="option" data-v="' + v + '" aria-selected="' + (String(v) === String(cur)) + '">' + l + "</div>").join("");
+  return '<div class="wheel" data-wheel="' + name + '"><div class="wheel-hl" aria-hidden="true"></div><div class="wheel-list" role="listbox" tabindex="0">' +
+    '<div class="wheel-pad"></div><div class="wheel-pad"></div>' + rows + '<div class="wheel-pad"></div><div class="wheel-pad"></div></div></div>';
+}
+function wheelIndex(list){ return Math.max(0, Math.round(list.scrollTop / list.firstElementChild.offsetHeight)); }
+function wheelMark(list){
+  const items = list.querySelectorAll(".wheel-i"), i = Math.min(items.length - 1, wheelIndex(list));
+  items.forEach((x, k) => x.setAttribute("aria-selected", k === i));
+  return items[i];
+}
+/* put every wheel on screen at its value (call after each render) */
+function wheelInit(){
+  document.querySelectorAll(".wheel-list").forEach(list => {
+    const on = list.querySelector('.wheel-i[aria-selected="true"]'), h = list.firstElementChild.offsetHeight;
+    const first = list.querySelector(".wheel-i");
+    list.scrollTop = on ? (on.offsetTop - first.offsetTop) : (list.dataset.def ? Number(list.dataset.def) * h : 0);
+  });
+}
+function wheelSettle(list){
+  const it = wheelMark(list), w = list.parentElement.dataset.wheel, a = aboutOf(), v = it.dataset.v;
+  if (w === "age") a.age = Number(v); else a.gender = v;
+  aboutSave();
+  if (!S.profile) render();   /* the dock button turns from 略過 to 繼續 */
+}
+(function(){
+  let t = 0;
+  document.addEventListener("scroll", e => {
+    const list = e.target; if (!list.classList || !list.classList.contains("wheel-list")) return;
+    wheelMark(list); clearTimeout(t); t = setTimeout(() => { if (list.isConnected && list.dataset.touched) wheelSettle(list); }, 140);
+  }, true);
+  const touch = e => { const l = e.target.closest && e.target.closest(".wheel-list"); if (l) l.dataset.touched = "1"; };
+  document.addEventListener("pointerdown", touch, true); document.addEventListener("wheel", touch, true); document.addEventListener("keydown", touch, true);
+  document.addEventListener("click", e => {
+    const i = e.target.closest && e.target.closest(".wheel-i"); if (!i) return;
+    const list = i.parentElement; list.dataset.touched = "1";
+    const first = list.querySelector(".wheel-i");
+    if (i.getAttribute("aria-selected") === "true") wheelSettle(list);
+    else list.scrollTo({top: i.offsetTop - first.offsetTop, behavior: "smooth"});
+  });
+})();
 /* each interest also offers a weekly theme */
 const INTERESTS = [
   ["cook", "料理", "cooking", "在家做料理", "Cooking at home"], ["food", "美食", "food and restaurants", "找好吃的餐廳", "Eating out"],
@@ -20,47 +69,43 @@ const INTERESTS = [
 ];
 function aboutOf(){ return S.profile ? (S.profile.about || (S.profile.about = {})) : (S.onb.about || (S.onb.about = {})); }
 function aboutSave(){ if (S.profile) saveProfile(); }
-/* the 其他 gender text box saves whenever we move on */
-function aboutGText(){ const i = $("#about-gtext"); if (i){ aboutOf().genderText = i.value.trim().slice(0, 30); aboutSave(); } }
-function hasAbout(a){ a = a || (S.profile && S.profile.about); return !!(a && (a.age || a.gender || (a.interests || []).length)); }
+function hasAbout(a){ a = a || (S.profile && S.profile.about); return !!(a && (ageNum(a) || a.gender || (a.interests || []).length)); }
 
 /* one part of the form: "age", "gender" or "interests" */
 function aboutPartHTML(part){
   const a = aboutOf();
   const chip = (act, v, label, on) => '<button class="chip-btn" data-act="' + act + '" data-v="' + v + '" aria-pressed="' + !!on + '">' + label + "</button>";
-  if (part === "age") return '<div class="chip-grid">' + AGE_RANGES.map(([k, l]) => chip("about-age", k, l, a.age === k)).join("") + "</div>";
-  if (part === "gender") return '<div class="chip-grid g2">' + GENDERS.map(([k, l]) => chip("about-gender", k, l, a.gender === k)).join("") + "</div>" +
-    (a.gender === "x" ? '<div class="field" style="margin-top:10px"><label for="about-gtext">想怎麼描述自己？（選填）</label><input class="input" id="about-gtext" maxlength="30" data-act-change="about-gtext" value="' + esc(a.genderText || "") + '"></div>' : "");
+  if (part === "age"){
+    const ages = []; for (let n = AGE_MIN; n <= AGE_MAX; n++) ages.push([n, n + " 歲"]);
+    const n = ageNum(a);
+    return wheelHTML("age", ages, n || "").replace('class="wheel-list"', 'class="wheel-list" data-def="' + (AGE_DEFAULT - AGE_MIN) + '"');
+  }
+  if (part === "gender") return wheelHTML("gender", GENDERS, a.gender);
   const on = new Set(a.interests || []);
-  return '<div class="chip-grid">' + INTERESTS.map(([k, l]) => chip("about-int", k, l, on.has(k))).join("") + "</div>" +
-    '<p class="small muted" style="margin:8px 0 0">可以多選；每週挑主題時會優先推薦。</p>';
+  return '<div class="chip-grid">' + INTERESTS.map(([k, l]) => chip("about-int", k, l, on.has(k))).join("") + "</div>";
 }
 const ABOUT_STEPS = {
-  age:["你的年齡", "讓文章和例句更貼近你的生活。"],
-  gender:["你的性別", "對話練習時，AI 會用對的方式稱呼你。"],
-  interests:["你的興趣", "每週的主題會優先從這裡挑。"]
+  age:["你的年齡"], gender:["你的性別"], interests:["你的興趣"]
 };
 /* the 關於我 page in settings */
 function aboutCardHTML(){
   return '<section class="card pref-card"><h2 style="font-size:20px;margin:0">關於我</h2>' +
-    '<p class="small muted" style="margin:0">用來讓文章、例句和對話更適合你。都可以不填。</p>' +
     ["age", "gender", "interests"].map(p => '<div class="pref-group"><div class="pref-h">' + ABOUT_STEPS[p][0].replace("你的", "") + "</div>" + aboutPartHTML(p) + "</div>").join("") + "</section>";
 }
 /* the one-time card on the home page for people who joined before these questions existed */
 function aboutBannerHTML(){
   const p = S.profile; if (!p || hasAbout() || p.aboutAsked) return "";
-  return '<div class="banner about-banner"><button class="ab-go" data-act="pref-open" data-p="about"><span class="banner-ic" aria-hidden="true">' + ICON.user + '</span><span><b>補填「關於我」</b><small>年齡、興趣，讓內容更適合你</small></span></button>' +
+  return '<div class="banner about-banner"><button class="ab-go" data-act="pref-open" data-p="about"><span class="banner-ic" aria-hidden="true">' + ICON.user + '</span><span><b>補填「關於我」</b></span></button>' +
     '<button class="ab-x" data-act="about-dismiss" aria-label="不用了">×</button></div>';
 }
 /* the learner, in words for the AI (empty when nothing was filled in) */
 function aboutPrompt(withGender){
   const a = S.profile && S.profile.about; if (!hasAbout(a)) return "";
   const parts = [];
-  const age = AGE_RANGES.find(x => x[0] === a.age); if (age) parts.push("age " + age[2]);
+  const age = ageNum(a); if (age) parts.push("age " + age);
   if (withGender){
     if (a.gender === "m") parts.push("male (he/him)");
     else if (a.gender === "f") parts.push("female (she/her)");
-    else if (a.gender === "x") parts.push(a.genderText ? "describes their gender as \"" + String(a.genderText).slice(0, 30) + "\" (use they/them unless it says otherwise)" : "non-binary (they/them)");
   }
   const ints = (a.interests || []).map(k => (INTERESTS.find(x => x[0] === k) || [])[2]).filter(Boolean);
   if (ints.length) parts.push("interested in " + ints.join(", "));
@@ -75,15 +120,16 @@ function interestThemes(){
 /* settings that fit an age: a slower voice from 55, bigger text from 65 */
 function aboutDefaults(st, a){
   if (!a) return;
-  if (a.age === "55" || a.age === "65") st.rate = Math.min(st.rate || .9, .8);
-  if (a.age === "65") st.font = "l";
+  const n = ageNum(a);
+  if (n >= 55) st.rate = Math.min(st.rate || .9, .8);
+  if (n >= 65) st.font = "l";
 }
 function aboutSummary(){
   const a = S.profile.about || {}, out = [];
-  const age = AGE_RANGES.find(x => x[0] === a.age); if (age) out.push(age[1]);
-  const g = GENDERS.find(x => x[0] === a.gender); if (g) out.push(a.gender === "x" && a.genderText ? a.genderText : g[1]);
+  if (ageNum(a)) out.push(ageNum(a) + " 歲");
+  const g = GENDERS.find(x => x[0] === a.gender); if (g) out.push(g[1]);
   if ((a.interests || []).length) out.push((a.interests || []).length + " 個興趣");
   return out.join("・");
 }
 /* "an adult in Taiwan", or a younger learner when they said they are under 18 */
-function learnerNoun(learner){ const kid = S.profile && S.profile.about && S.profile.about.age === "u18"; return (kid ? "a teenager" : "an adult") + (learner ? " learner" : "") + " in Taiwan"; }
+function learnerNoun(learner){ const n = ageNum(), kid = n > 0 && n < 18; return (kid ? "a teenager" : "an adult") + (learner ? " learner" : "") + " in Taiwan"; }

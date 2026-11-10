@@ -721,3 +721,11 @@ h1,h2{color:var(--primary-text)}
 .ad-sec{margin:14px 0 4px;font-weight:700;font-size:14px;color:var(--muted)}
 .ad-row{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--line);font-size:14.5px}
 .ad-row b{text-align:right;font-weight:600;overflow-wrap:anywhere}
+
+.wheel{position:relative;height:240px;width:100%;max-width:320px;margin:0 auto;overflow:hidden}
+.wheel-hl{position:absolute;left:0;right:0;top:96px;height:48px;border-radius:14px;background:var(--surface);box-shadow:0 4px 14px rgba(40,60,90,.14);pointer-events:none}
+.wheel-list{position:relative;height:100%;overflow-y:auto;scroll-snap-type:y mandatory;scrollbar-width:none;overscroll-behavior:contain;outline:0;-webkit-overflow-scrolling:touch}
+.wheel-list::-webkit-scrollbar{display:none}
+.wheel-pad,.wheel-i{height:48px;scroll-snap-align:center}
+.wheel-i{display:flex;align-items:center;justify-content:center;font:500 20px var(--font-ui);color:var(--muted);cursor:pointer;transition:color .12s,font-size .12s}
+.wheel-i[aria-selected="true"]{font-weight:800;font-size:26px;color:var(--primary-text)}

@@ -21,7 +21,7 @@ async function createWeek(n, monday, pair, review, theme, prof){
 function finishOnboarding(){
   const prof = {kind:"profile", startPair:TIERS[S.onb.tier || 0].pair, tier:S.onb.tier || 0, currentWeek:0, usedThemes:[], settings:defaultSettings(), createdAt:Date.now()};
   prof.settings.ai = clone(S.onb.ai || defaultAi());
-  prof.about = Object.assign({age:"", gender:"", genderText:"", interests:[]}, S.onb.about || {});
+  prof.about = Object.assign({age:0, gender:"", interests:[]}, S.onb.about || {});
   if (hasAbout(prof.about)) prof.aboutAsked = true;
   aboutDefaults(prof.settings, prof.about);
   S.profile = prof;
