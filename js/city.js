@@ -7,35 +7,41 @@
    tier = which 階 a building's tier unlocks it at */
 const CITY_BUILDINGS = {
   hall:{name:"市中心", price:0, residents:0, desc:"整座城的中心", fixed:true, tier:1},
-  house:{name:"小屋", price:80, residents:2, desc:"住 2 位居民・每升一級多 1 位", grow:true, tier:1},
+  house:{name:"住家", price:80, residents:2, desc:"住 2 位居民・每升一級多 1 位", grow:true, tier:1},
   road:{name:"道路", price:10, residents:0, desc:"要貼著建築或道路，把建築接上市中心", tier:1},
   farm:{name:"農田", price:100, residents:1, desc:"農夫 1 位・每天產 2 份糧食", food:true, tier:1},
   park:{name:"小公園", price:60, residents:0, desc:"讓島上更漂亮・升級後居民請求變多", fun:true, tier:1},
-  cafe:{name:"咖啡店", price:120, residents:1, desc:"老闆 1 位・每天賺 5 金幣（不算學習上限）", coins:true, tier:2},
-  books:{name:"書店", price:150, residents:1, desc:"老闆 1 位・有學習的那天產 1 知識", know:true, tier:2},
-  clinic:{name:"診所", price:180, residents:1, desc:"醫生 1 位・全城產量 +5%", boost:true, tier:3},
-  landmark:{name:"地標", price:2000, residents:0, desc:"每座城一棟・全城產量 +20%", boost:true, one:true, tier:5}
+  cafe:{name:"商店", price:120, residents:1, desc:"老闆 1 位・每天賺金幣（不算學習上限）", coins:true, tier:2},
+  books:{name:"書店", price:150, residents:1, desc:"老闆 1 位・有學習的那天產知識", know:true, tier:2},
+  clinic:{name:"診所", price:180, residents:1, desc:"醫生 1 位・全城產量提高", boost:true, tier:3},
+  landmark:{name:"地標", price:2000, residents:0, desc:"每座城一棟・全城產量 +20%・跟著時代變樣子", boost:true, one:true, tier:6}
 };
-/* what each building is called at each tier (its look changes with it); the last name carries on */
-const CITY_LOOKS = {
-  house:["小屋", "磚房", "公寓", "大樓", "未來住宅"],
-  farm:["農田", "溫室", "室內農場", "垂直農場", "科技農場"],
-  park:["小公園", "廣場", "中央公園", "空中花園", "生態穹頂"],
-  cafe:["咖啡店", "咖啡館", "咖啡大樓", "美食商場", "未來咖啡站"],
-  books:["書店", "圖書館", "學院", "大學", "知識塔"],
-  clinic:["診所", "醫院", "醫療中心", "生技中心"]
-};
-function lookName(key, lv){ const L = CITY_LOOKS[key]; return L ? L[Math.min(tierOf(lv), L.length) - 1] : CITY_BUILDINGS[key].name; }
-/* the city center's six tiers */
-const HALL_TIERS = ["農寮", "村公所", "鎮公所", "市政廳", "都市中心", "宇宙文明中心"];
+/* the town walks through human history: the city center sets the era (階), and every building has three looks in each era */
+const HALL_TIERS = ["部落中心", "城邦", "城堡", "市政廳", "工業都市", "都市中心", "宇宙文明中心"];
+const ERA_NAMES = ["部落時代", "古典時代", "中世紀", "文藝復興", "工業時代", "現代", "未來"];
 const HALL_MAX = HALL_TIERS.length * 3;
+const CITY_LOOKS = {
+  house:[["茅草屋", "泥土屋", "石屋"], ["木石屋", "磚瓦屋", "庭院宅邸"], ["木筋屋", "石造民宅", "莊園宅邸"], ["聯排屋", "商人宅邸", "宮殿宅邸"], ["工人排屋", "紅磚公寓", "鐵窗公寓"], ["住宅大樓", "摩天公寓", "綠能大樓"], ["未來住宅", "浮空住宅", "太空居住艙"]],
+  farm:[["採集地", "麥田", "灌溉田"], ["橄欖園", "葡萄園", "莊園農地"], ["三圃田", "水車磨坊", "修道院農園"], ["圍欄農場", "風車農場", "莊園溫室"], ["蒸汽農場", "曳引機農場", "大穀倉"], ["溫室", "室內農場", "垂直農場"], ["科技農場", "水耕穹頂", "太空農場"]],
+  park:[["營火空地", "聚會圈", "石陣"], ["集會廣場", "雕像廣場", "露天劇場"], ["修道院花園", "市集廣場", "城堡庭園"], ["噴泉廣場", "幾何花園", "宮廷花園"], ["公共公園", "玻璃溫室", "遊樂園"], ["中央公園", "空中花園", "運動公園"], ["生態穹頂", "全像公園", "星空花園"]],
+  cafe:[["以物易物攤", "交易小屋", "貿易營地"], ["小酒館", "市集攤", "商行"], ["酒館", "旅店", "行會會館"], ["咖啡館", "商會", "交易所"], ["百貨公司", "銀行", "證券交易所"], ["購物中心", "商業大樓", "金融中心"], ["星際商站", "貿易港", "銀河交易所"]],
+  books:[["故事圈", "壁畫洞穴", "石刻碑"], ["卷軸館", "學園", "大圖書館"], ["抄寫室", "修道院圖書館", "大學"], ["印刷坊", "書店", "皇家圖書館"], ["公共圖書館", "報社", "科學院"], ["大學", "研究中心", "資料中心"], ["知識塔", "AI 中心", "銀河資料庫"]],
+  clinic:[["草藥小屋", "巫醫屋", "療癒營地"], ["公共浴場", "醫神廟", "醫學院"], ["藥草房", "修道院醫院", "救濟院"], ["藥房", "醫院", "解剖學院"], ["診所", "醫院", "疫苗研究所"], ["醫學中心", "急救中心", "生技中心"], ["再生醫學中心", "奈米醫療艙", "星際醫療站"]]
+};
+const LANDMARK_LOOKS = ["巨石陣", "神殿", "大教堂", "圓頂大教堂", "鐵塔", "摩天塔", "太空電梯"];
+function lookName(key, lv){
+  if (key === "landmark") return LANDMARK_LOOKS[hallTier(city()) - 1];
+  const L = CITY_LOOKS[key]; if (!L) return CITY_BUILDINGS[key].name;
+  const t = Math.min(tierOf(lv), L.length); return L[t - 1][(lv - 1) % 3];
+}
 /* what each evolution needs (index = the tier being reached) */
 const EVOLVE = [null, null,
   {know:300, people:6, allLinked:true},
   {know:800, people:14, renovated:3, food:10},
   {know:1500, people:24, clinic:true, renovated:6},
   {know:2500, people:40},
-  {know:4000, people:60, landmark:true}];
+  {know:4000, people:60},
+  {know:6000, people:80, landmark:true}];
 const CITY_DECOS = {statue:"公園雕像", fountain:"噴水池", sakura:"櫻花樹", lighthouse:"燈塔"};
 const CITY_PARTS = {
   hat:{label:"帽子", items:{none:"不戴", cap:"棒球帽", beanie:"毛帽", straw:"草帽", crown:"皇冠"}},
@@ -96,9 +102,8 @@ function city(){
 }
 /* ---------- levels, roads and food from shops ---------- */
 const CITY_DIRS = [[1, 0], [1, -1], [0, -1], [-1, 0], [-1, 1], [0, 1]];
-/* the ground under a building, and the two building styles */
+/* the ground under a building */
 const CITY_GROUNDS = {sand:["沙地", 0xF2E6CE, "#efe2c6"], grass:["草地", 0xA8CF7C, "#a8d88a"], stone:["石板", 0xCFCAC2, "#cfcac2"], wood:["木棧板", 0xC99A6B, "#c99a6b"], brick:["紅磚", 0xC9826A, "#c9826a"], white:["白石", 0xF4F5F2, "#f4f5f2"]};
-const CITY_STYLES = {west:"西方", cn:"中華"};
 function tileLv(it){ return (it && it.lv) || 1; }
 function cityNear(k){ const [q, r] = k.split(",").map(Number); return CITY_DIRS.map(([a, b]) => (q + a) + "," + (r + b)); }
 function tierOf(lv){ return Math.ceil((lv || 1) / 3); }
@@ -182,6 +187,7 @@ function cityStudied(){
 /* removing a building or road gives back half of everything paid for it (building + upgrades) */
 function cityRefund(it){
   const b = it && it.b && CITY_BUILDINGS[it.b]; if (!b || b.fixed) return 0;
+  if (it.paid) return Math.floor(it.paid / 2);
   let paid = b.price;
   for (let l = 1; l < tileLv(it); l++) paid += upgradeCost(Object.assign({}, it, {lv:l}));
   return Math.floor(paid / 2);
@@ -371,11 +377,12 @@ function cityBuildAt(c, k, key){
   if (!b || b.fixed || !tileEmpty(c.tiles[k])) return "這格不能蓋";
   const lock = buildLock(c, key); if (lock) return lock;
   if (key === "road" && !roadOk(c, k)) return "道路要貼著建築或其他道路。";
-  if (!spend(b.price, "城市：蓋" + b.name)) return "金幣不夠，多練習幾篇再來。";
+  const lv0 = buildLv(c, key), cost = buildCost(c, key), nm = lookName(key, lv0);
+  if (!spend(cost, "城市：蓋" + nm)) return "金幣不夠，多練習幾篇再來。";
   const g0 = c.tiles[k] && c.tiles[k].g;
-  c.tiles[k] = {b:key};
+  c.tiles[k] = {b:key, paid:cost};
+  if (lv0 > 1) c.tiles[k].lv = lv0;
   if (g0) c.tiles[k].g = g0;
-  if (key !== "road") c.tiles[k].style = c.style || "west";
   if (hasDoor(c.tiles[k])) c.tiles[k].face = autoFace(c, k);
   if (key === "road"){
     /* buildings next to a new road that had no way in turn their door toward it */
@@ -384,14 +391,22 @@ function cityBuildAt(c, k, key){
   }
   if (b.food || b.coins){ const m = shopMake(c, k); c.prod.store += m.food; c.prod.coins = (c.prod.coins || 0) + m.coins; }   /* the first day's batch is ready right away */
   const used = new Set(c.residents.map(p => p.name));
-  for (let i = 0; i < b.residents; i++){
+  const people = b.grow ? bStat(key, lv0).people : b.residents;
+  for (let i = 0; i < people; i++){
     const free = CITY_NAMES.filter(n => !used.has(n)), name = free.length ? free[Math.floor(Math.random() * free.length)] : "Kai" + c.residents.length;
     used.add(name); c.residents.push({name, color:CITY_COLORS[c.residents.length % CITY_COLORS.length], home:k});
   }
   const far = key !== "road" && !isLinked(c, k);
   saveCity();
-  if (key !== "road") toast(b.name + "蓋好了" + (far ? "。記得用道路接上市中心！" : b.residents ? "，" + b.residents + " 位居民搬進來！" : "！"));
+  if (key !== "road") toast(nm + "蓋好了" + (far ? "。記得用道路接上市中心！" : people ? "，" + people + " 位居民搬進來！" : "！"));
   return "";
+}
+/* a new building starts at the first level of the town's current era; it costs half of what climbing there would have */
+function buildLv(c, key){ return key === "road" || key === "landmark" ? 1 : (hallTier(c) - 1) * 3 + 1; }
+function buildCost(c, key){
+  const b = CITY_BUILDINGS[key], lv0 = buildLv(c, key); if (lv0 === 1) return b.price;
+  let sum = b.price; for (let l = 1; l < lv0; l++) sum += upgradeCost({b:key, lv:l});
+  return Math.max(b.price, Math.round(sum / 2 / 10) * 10);
 }
 /* why this kind of building can't be built yet ("" = it can) */
 function buildLock(c, key){
@@ -451,11 +466,10 @@ function cityEditHTML(c){
   const price = n => '<span class="ce-price"><img class="coin-icon" src="' + COIN_IMG + '" alt="">' + n + "</span>";
   let rows = "";
   if (E.tab === "build"){
-    const sty = c.style || "west";
-    rows = '<div class="ce-style">' + Object.entries(CITY_STYLES).map(([k, n]) => '<button class="' + (sty === k ? "on" : "") + '" aria-pressed="' + (sty === k) + '" data-act="city-style" data-v="' + k + '">' + n + "</button>").join("") + "</div>" +
-      Object.entries(CITY_BUILDINGS).filter(([k, b]) => !b.fixed).map(([k, b]) => {
+    rows = Object.entries(CITY_BUILDINGS).filter(([k, b]) => !b.fixed).map(([k, b]) => {
         const lock = b.tier > hallTier(c) ? HALL_TIERS[b.tier - 1] : buildLock(c, k) ? "已經有了" : "";
-        return item("b:" + k, b.name, lock ? (lock === "已經有了" ? lock : lock + "解鎖") : price(b.price), '<span class="ce-pic">' + (k === "road" ? CITY_ICONS.lib_road : k === "park" ? CITY_ICONS.lib_deco : CITY_ICONS.lib_build) + "</span>", !lock && bal >= b.price);
+        const cost = buildCost(c, k);
+        return item("b:" + k, lock ? b.name : lookName(k, buildLv(c, k)), lock ? (lock === "已經有了" ? lock : lock + "解鎖") : price(cost), '<span class="ce-pic">' + (k === "road" ? CITY_ICONS.lib_road : k === "park" ? CITY_ICONS.lib_deco : CITY_ICONS.lib_build) + "</span>", !lock && bal >= cost);
       }).join("");
   } else if (E.tab === "ground"){
     rows = Object.entries(CITY_GROUNDS).map(([k, v]) => item("g:" + k, v[0], groundPrice(k) ? price(groundPrice(k)) : '<span class="ce-free">免費</span>', '<span class="ce-swatch" style="background:' + v[2] + '"></span>', bal >= groundPrice(k))).join("");
@@ -522,7 +536,7 @@ function cityEditApply(k){
 /* the evolution moment: a burst of light over the town with the new name */
 function cityEvolveShow(name){
   const el = document.createElement("div"); el.className = "evo-burst"; el.setAttribute("role", "status");
-  el.innerHTML = '<div class="eb-rays"></div><div class="eb-card"><small>市中心進化了</small><b>' + esc(name) + "</b><span>小島變大了，新的建築也解鎖了！</span></div>";
+  el.innerHTML = '<div class="eb-rays"></div><div class="eb-card"><small>進入' + esc(ERA_NAMES[HALL_TIERS.indexOf(name)] || "新時代") + '</small><b>' + esc(name) + "</b><span>小島變大了，建築可以翻新成新時代的樣子！</span></div>";
   document.body.appendChild(el);
   try { navigator.vibrate && navigator.vibrate([20, 60, 30]); } catch (e) {}
   const bye = () => { el.classList.add("out"); setTimeout(() => el.remove(), 400); };
@@ -533,20 +547,6 @@ function cityOpen(o){ S.sheet = Object.assign({kind:"city"}, o); S.sheetAt = per
 function citySheetHTML(o){
   const c = city(), bal = wallet().balance;
   const head = t => '<div class="sh-head"><div class="sh-word phrase" style="flex:1;min-width:0">' + t + '</div><button class="icon-btn" data-act="close-sheet" aria-label="關閉">×</button></div>';
-  if (o.s === "build"){
-    const sty = c.style || "west";
-    return head("在這裡蓋什麼？") + '<div class="seg style-seg" role="radiogroup" aria-label="建築樣式">' +
-      Object.entries(CITY_STYLES).map(([k, n]) => '<button role="radio" aria-checked="' + (sty === k) + '" class="' + (sty === k ? "on" : "") + '" data-act="city-style" data-v="' + k + '">' + n + "</button>").join("") + "</div>" +
-      '<div class="stack">' + Object.entries(CITY_BUILDINGS).map(([k, b]) => {
-      if (b.fixed) return "";
-      const lock = buildLock(c, k);
-      if (lock) return '<div class="menu-row locked-row"><span><b>' + b.name + '</b><span class="small muted">' + lock + '</span></span><span class="small muted">未解鎖</span></div>';
-      if (k === "road" && !roadOk(c, o.k))
-        return '<div class="menu-row locked-row"><span><b>道路</b><span class="small muted">道路要貼著建築或其他道路</span></span><span class="small muted">不能蓋</span></div>';
-      return '<button class="menu-row" data-act="city-build" data-b="' + k + '"' + (bal < b.price ? " disabled" : "") + '><span><b>' + b.name + '</b><span class="small muted">' + b.desc + '</span></span><span class="price"><img class="coin-icon" src="' + COIN_IMG + '" alt="">' + b.price + "</span></button>";
-    }).join("") +
-      (c.owned.deco.length ? '<div class="label" style="margin-top:6px">背包裡的裝飾（免費放）</div>' + [...new Set(c.owned.deco)].map(d => '<button class="menu-row" data-act="city-deco" data-d="' + d + '"><span><b>' + CITY_DECOS[d] + "</b></span><span>放這裡</span></button>").join("") : "") + "</div>";
-  }
   if (o.s === "land"){
     const own = landOwned(c, o.k), who = (Cloud.cfg && (Cloud.cfg.name || Cloud.cfg.email)) || "你";
     return head(own ? "我的土地（沙地）" : "未註冊的土地") + '<div class="land-card"><span class="land-ic">' + CITY_ICONS.lib_ground + '</span><div><div class="small muted">土地所有人</div><b>' + (own ? esc(who) : "還沒有人") + "</b></div>" +
@@ -572,7 +572,7 @@ function citySheetHTML(o){
     const tag = renovated(c, it) ? '<span class="pill ok">已翻新・產量 +20%</span>' : "";
     const nextTxt = it.b ? cityNextText(c, it, o.k) : "";
     const icon = '<span class="up-ic">' + CITY_ICONS.upgrade + "</span>";
-    const title = it.b === "hall" && evolve ? "進化成「" + HALL_TIERS[tierOf(lv)] + "」" : evolve ? "翻新成「" + lookName(it.b, lv + 1) + "」・Lv" + (lv + 1) : "升到 Lv" + (lv + 1);
+    const title = it.b === "hall" && evolve ? "進化成「" + HALL_TIERS[tierOf(lv)] + "」" : evolve ? "翻新成「" + lookName(it.b, lv + 1) + "」・Lv" + (lv + 1) : it.b === "hall" ? "升到 Lv" + (lv + 1) : "升級成「" + lookName(it.b, lv + 1) + "」・Lv" + (lv + 1);
     let up;
     if (lock === "max") up = '<div class="up-row max">' + icon + '<span class="up-txt"><b>已經是最高等級</b></span></div>';
     else if (lock === "tasks" || (it.b === "hall" && evolve)) up = '<button class="up-row" data-act="city-sheet" data-s="evo">' + icon + '<span class="up-txt"><b>' + title + '</b><span class="small muted">' + (evolveReady(c) ? "進化任務都完成了！" : "先完成進化任務") + '</span></span><span class="price">任務 ›</span></button>';
@@ -587,7 +587,7 @@ function citySheetHTML(o){
     const lv = hallLv(c), tasks = evolveTasks(c), ready = evolveReady(c), cost = 300 * tierOf(lv);
     const atLv = lv % 3 === 0;
     return head("進化成「" + g.name + "」") +
-      '<p class="small muted" style="margin:0">' + hallName(lv) + " → " + g.name + "：小島變大、解鎖新建築，其他建築也能翻新到第 " + g.tier + " 階。</p>" +
+      '<p class="small muted" style="margin:0">' + hallName(lv) + " → " + g.name + "：整座城進入「" + ERA_NAMES[g.tier - 1] + "」，小島變大，建築可以翻新成新時代的樣子，新蓋的建築也會是新時代的。</p>" +
       '<div class="evo-list">' + (atLv ? "" : '<div class="evo-row"><i class="evo-dot"></i><span>市中心先升到 Lv' + ((g.tier - 1) * 3) + '</span><small>現在 Lv' + lv + "</small></div>") +
       tasks.map(x => '<div class="evo-row' + (x.ok ? " ok" : "") + '"><i class="evo-dot">' + (x.ok ? "✓" : "") + "</i><span>" + x.label + "</span><small>" + (x.ok ? "完成" : "現在 " + x.now) + "</small></div>").join("") + "</div>" +
       '<button class="btn block green" data-act="city-evolve"' + (!ready || bal < cost ? " disabled" : "") + '>進化 <img class="coin-icon" src="' + COIN_IMG + '" alt="">' + cost + "</button>";

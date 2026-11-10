@@ -147,7 +147,7 @@ const ACT = {
     const cost = upgradeCost(it), b = CITY_BUILDINGS[it.b]; if (!cost || upgradeLock(c, it)) return;
     const evolve = tileLv(it) % 3 === 0;
     if (!spend(cost, "城市：" + (evolve ? "翻新" : "升級") + b.name)){ toast("金幣不夠。"); return; }
-    it.lv = tileLv(it) + 1;
+    it.lv = tileLv(it) + 1; if (it.paid) it.paid += cost;
     let moved = "";
     if (b.grow){
       const used = new Set(c.residents.map(p => p.name)), add = bStat(it.b, it.lv).people - bStat(it.b, it.lv - 1).people;
@@ -166,14 +166,7 @@ const ACT = {
     cityEvolveShow(hallName(h.lv));
   },
   "city-answer": el => cityAnswer(el),
-  "city-build": el => {
-    const o = S.sheet; if (!o) return;
-    const err = cityBuildAt(city(), o.k, el.dataset.b);
-    if (err){ toast(err); return; }
-    closeSheet(); render();
-  },
   "talk-warn-x": () => { S.talk.warn = ""; render(); },
-  "city-style": el => { const c = city(); c.style = el.dataset.v === "cn" ? "cn" : "west"; saveCity(); if (S.sheet) drawSheet(); if (S.cityEdit) render(); },
   "city-ground": el => { const err = cityGroundAt(city(), el.dataset.k, el.dataset.g); if (err) toast(err); drawSheet(); render(); },
   "dev-time": () => {
     const v = ($("#dev-time") || {}).value; if (!v){ toast("請選一個時間"); return; }
@@ -192,7 +185,6 @@ const ACT = {
     const c = city(), it = c.tiles[el.dataset.k]; if (!hasDoor(it)) return;
     it.face = ((it.face >= 0 ? it.face : 5) + 1) % 6; saveCity(); drawSheet(); render();
   },
-  "city-deco": el => { const o = S.sheet; if (!o) return; const err = cityDecoAt(city(), o.k, el.dataset.d); if (err){ toast(err); return; } closeSheet(); render(); },
   "city-move": el => { cityRemoveAt(city(), el.dataset.k); closeSheet(); render(); },
   "city-buy-land": el => { const err = cityBuyLand(city(), el.dataset.k); if (err){ toast(err); return; } toast("買下這塊地了！"); drawSheet(); render(); },
   "quiz-start": () => { S.quiz = makeQuiz(); S.sheet = {kind:"quiz"}; S.sheetAt = performance.now(); $("#sheet").hidden = false; drawSheet(); if (S.quiz.qs[0].type === "listen") TTS.speak(S.quiz.qs[0].prompt); },

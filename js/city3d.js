@@ -134,12 +134,8 @@ const City3D = {
       centers[key] = [gx, gz, pts];
       const lv = tileLv(it), linked = !it.b || L.has(key), b = it.b && CITY_BUILDINGS[it.b];
       const bg = new T.Group(); bg.position.set(gx, .05, gz); bg.rotation.y = rot; bg.userData.key = key;
-      this.sty = it.style === "cn" ? "cn" : "west";
       /* the landmark grows with the town: it takes the center's level */
       this.building(bg, it.b || it.d, win, (it.b && it.b !== "park" && it.b !== "hall" && !c.day.fed) || !linked, it.b === "landmark" ? hallLv(c) : lv, spots);
-      /* the center grows a little with each level inside its tier (2nd–4th tiers reuse one model each) */
-      if (it.b === "hall" && tierOf(lv) >= 2 && tierOf(lv) <= 4) bg.scale.setScalar(1 + ((lv - 1) % 3) * .07);
-      this.sty = "west";
       bg.traverse(m => { if (m.isMesh){ m.castShadow = true; m.receiveShadow = true; m.userData.key = key; this.pick.push(m); } });
       const top3 = new T.Box3().setFromObject(bg).max.y;
       if (!this.known.has(key + ":" + lv) && this.known.size){ bg.scale.setScalar(.01); this.grow.push({g:bg, t0:performance.now()}); }
@@ -220,21 +216,10 @@ const City3D = {
     this.overlay.appendChild(el); this.labels.push({v, el});
   },
   box(parent, w, h, d, col, x, y, z, extra){
-    if (this.sty === "cn" && typeof col === "number") col = ({0x8A6A4A:0xB8322A, 0xF8F3EA:0xF4E9D8, 0xF3E9DA:0xF1E3CF, 0xE9DFCF:0xA8322A, 0xDB6A41:0xA8322A})[col] || col;
     const m = new this.T.Mesh(new this.T.BoxGeometry(w, h, d), typeof col === "object" ? col : this.mat(col, extra)); m.position.set(x, y, z); parent.add(m); return m;
   },
   roof(parent, w, h, d, col, y){
     const T = this.T;
-    if (this.sty === "cn"){
-      /* Chinese style: dark tiled hip roof with wide eaves, a ridge, and corners that curl up */
-      const tile = col === 0x8E6B5A ? 0xD9A53A : 0x4F5D68, m = this.mat(tile);
-      const eave = new T.Mesh(new T.BoxGeometry(w + .2, .04, d + .2), m); eave.position.y = y + .02; parent.add(eave);
-      const hip = new T.Mesh(new T.CylinderGeometry(.08, 1, 1, 4, 1), m); hip.rotation.y = Math.PI / 4; hip.scale.set((w + .12) / Math.SQRT2, h * .9, (d + .12) / Math.SQRT2); hip.position.y = y + .04 + h * .45; parent.add(hip);
-      const ridge = new T.Mesh(new T.BoxGeometry(w * .55, .06, .07), m); ridge.position.y = y + .04 + h * .9; parent.add(ridge);
-      [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => { const t = new T.Mesh(new T.ConeGeometry(.035, .14, 5), m); t.position.set(sx * (w / 2 + .1), y + .08, sz * (d / 2 + .1)); t.rotation.set(sz * .6, 0, -sx * .6); parent.add(t); });
-      [-1, 1].forEach(sx => { const t = new T.Mesh(new T.ConeGeometry(.03, .12, 5), m); t.position.set(sx * w * .28, y + .1 + h * .9, 0); t.rotation.z = -sx * .5; parent.add(t); });
-      return hip;
-    }
     /* a gable roof: a triangle (front view) pushed out along the house's width */
     const sh = new T.Shape();
     sh.moveTo(-d / 2, 0); sh.lineTo(d / 2, 0); sh.lineTo(0, h); sh.closePath();
@@ -242,8 +227,8 @@ const City3D = {
     geo.translate(0, 0, -w / 2); geo.rotateY(Math.PI / 2);
     const m = new T.Mesh(geo, this.mat(col)); m.position.y = y; parent.add(m); return m;
   },
-  /* lv is the building's real level; each tier has its own look (city3d-tiers.js), and where a tier keeps a classic model
-     below, lv becomes that model's 1–3. classic = draw the classic model lv as is (used from inside a tier model). */
+  /* lv is the building's real level; every era has its own looks (city3d-tiers.js). The classic models below are
+     kept for decorations and are reused by some era looks: classic = draw classic model lv (1–3) as is. */
   building(g, type, win, dim, lv, spots, classic){
     const T = this.T, w = (x, y, z) => this.box(g, .1, .1, .02, win, x, y, z);
     const shade = dim ? {color:0xbbbbbb} : null;
@@ -252,9 +237,9 @@ const City3D = {
     const t = tierOf(lv), ti = (lv - 1) % 3;
     if (!classic && B && this.tierModel(g, type, t, ti, win)){
       /* drawn by its tier */
-    } else if ((classic || (lv = type === "hall" ? Math.max(1, t - 1) : type === "house" && t === 3 ? 3 : ti + 1)) && B && (B.coins || B.know) && lv > 1){
+    } else if ((classic || (lv = ti + 1)) && B && (B.coins || B.know) && lv > 1){
       /* bigger shops: Lv2 stretches over two plots with a big sign; Lv3 is a two-tier store with a little plaza in each plot */
-      const sub = new T.Group(); g.add(sub); this.building(sub, type, win, false, 1);
+      const sub = new T.Group(); g.add(sub); this.building(sub, type, win, false, 1, null, true);
       const col = {cafe:0xE8945A, bakery:0xC9574A, books:0x6E8FB0, market:0x6DB4A0}[type] || 0xE8945A, h1 = {cafe:.45, bakery:.74, books:1.0, market:.4}[type] || .5;
       if (lv === 2){
         /* a wider shop front with a big sign and plants by the door */
@@ -395,7 +380,7 @@ const City3D = {
         this.box(g, .4, .03, .12, 0xB98B5E, -.22, .08, .25); this.box(g, .03, .06, .14, 0x8A6A4A, -.4, .06, .25); this.box(g, .03, .06, .14, 0x8A6A4A, -.04, .06, .25);
         [[-.3, .2, 0xF48FB1], [-.12, .32, 0xFFFFFF]].forEach(([x, z, col]) => { const l = new T.Mesh(new T.CylinderGeometry(.05, .05, .01, 8), this.mat(0x8CC46E)); l.position.set(x, .045, z); g.add(l); const f = new T.Mesh(new T.IcosahedronGeometry(.025, 0), this.mat(col)); f.position.set(x, .06, z); g.add(f); });
         /* pavilion */
-        [[-.15, -.15], [.15, -.15], [-.15, .15], [.15, .15]].forEach(([x, z]) => this.box(g, .04, .36, .04, this.sty === "cn" ? 0xB8322A : 0xFFFFFF, .3 + x, .18, -.25 + z));
+        [[-.15, -.15], [.15, -.15], [-.15, .15], [.15, .15]].forEach(([x, z]) => this.box(g, .04, .36, .04, 0xFFFFFF, .3 + x, .18, -.25 + z));
         this.box(g, .38, .03, .38, 0xD8CCB6, .3, .015, -.25);
         const pg = new T.Group(); pg.position.set(.3, 0, -.25); g.add(pg); this.roof(pg, .38, .22, .38, 0x6E8FB0, .36);
         /* lamps */
@@ -418,13 +403,6 @@ const City3D = {
       this.box(g, .24, .16, .24, win, 0, 1.28, 0); const cap = new T.Mesh(new T.ConeGeometry(.2, .2, 8), this.mat(0xDB6A41)); cap.position.y = 1.46; g.add(cap);
     }
     if (classic) return;
-    if (this.sty === "cn" && type !== "park"){
-      /* red lanterns on both sides of every red door */
-      g.updateMatrixWorld(true);
-      const doors = []; g.traverse(m => { if (m.isMesh && m.geometry.type === "BoxGeometry" && m.material.color && m.material.color.getHex() === 0xB8322A && m.geometry.parameters.depth <= .03) doors.push(m); });
-      doors.slice(0, 2).forEach(d => { const p = d.position.clone(); d.parent.localToWorld(p); g.worldToLocal(p);
-        [-1, 1].forEach(sx => { const l = new T.Mesh(new T.SphereGeometry(.045, 10, 8), this.mat(0xE53935, {emissive:0xB71C1C, emissiveIntensity:.35})); l.scale.y = 1.25; l.position.set(p.x + sx * (d.geometry.parameters.width / 2 + .07), p.y + .12, p.z + .05); g.add(l); }); });
-    }
     if (shade) g.traverse(m => { if (m.isMesh && m.material !== win){ m.material = m.material.clone(); m.material.color.lerp(new T.Color(0x9a9a9a), .35); } });
   },
   road(g, c, q, r, x, z, pos){
