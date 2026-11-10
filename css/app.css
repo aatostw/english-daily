@@ -729,3 +729,6 @@ h1,h2{color:var(--primary-text)}
 .wheel-pad,.wheel-i{height:48px;scroll-snap-align:center}
 .wheel-i{display:flex;align-items:center;justify-content:center;font:500 20px var(--font-ui);color:var(--muted);cursor:pointer;transition:color .12s,font-size .12s}
 .wheel-i[aria-selected="true"]{font-weight:800;font-size:26px;color:var(--primary-text)}
+.onb-pick{display:flex;justify-content:center;padding:8px 0}
+.onb-pick>*{width:100%;max-width:340px;margin:0 auto}
+.onb-pick .chip-grid{grid-template-columns:repeat(3,1fr);justify-content:center}

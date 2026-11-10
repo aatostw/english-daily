@@ -57,7 +57,7 @@ function renderOnboarding(){
   const part = ONB_ABOUT[o.step - 2], h = ABOUT_STEPS[part][0];
   return steps +
     '<section class="card onb"><h1>' + h + "</h1></section>" +
-    '<section class="card">' + aboutPartHTML(part) + "</section>";
+    '<section class="onb-pick">' + aboutPartHTML(part) + "</section>";
 }
 
 /* ---------- today ---------- */
