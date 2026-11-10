@@ -27,11 +27,14 @@ function wheelMark(list){
 }
 /* put every wheel on screen at its value (call after each render) */
 function wheelInit(){
-  document.querySelectorAll(".wheel-list").forEach(list => {
-    const on = list.querySelector('.wheel-i[aria-selected="true"]'), h = list.firstElementChild.offsetHeight;
-    const first = list.querySelector(".wheel-i");
-    list.scrollTop = on ? (on.offsetTop - first.offsetTop) : (list.dataset.def ? Number(list.dataset.def) * h : 0);
+  const place = () => document.querySelectorAll(".wheel-list").forEach(list => {
+    const items = list.querySelectorAll(".wheel-i"); if (!items.length) return;
+    const on = list.querySelector('.wheel-i[aria-selected="true"]') || items[Number(list.dataset.def) || 0];
+    list.style.scrollSnapType = "none";
+    list.scrollTop = on.offsetTop - items[0].offsetTop;
+    list.style.scrollSnapType = ""; wheelMark(list);
   });
+  place(); requestAnimationFrame(place);   /* again once the layout has settled */
 }
 function wheelSettle(list){
   const it = wheelMark(list), w = list.parentElement.dataset.wheel, a = aboutOf(), v = it.dataset.v;
