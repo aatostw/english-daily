@@ -129,28 +129,41 @@ const ACT = {
     if (tileEmpty(it)){ cityOpen({s:"land", k}); return; }
     /* roads and decorations have nothing to upgrade: change them in 編輯 */
     const b = it.b && CITY_BUILDINGS[it.b];
-    if (!b || !(b.make || b.grow || b.fun || b.fixed)){ toast("要移動、轉向或移除，請按左上的「編輯」"); return; }
+    if (!b || it.b === "road"){ toast("要移動、轉向或移除，請按左上的「編輯」"); return; }
     cityOpen({s:"tile", k});
   },
   "city-sheet": el => cityOpen({s:el.dataset.s}),
   "city-req": el => cityOpen({s:"req", id:el.dataset.id}),
   "city-feed": () => cityFeed(),
-  "city-harvest": () => { const c = city(), n = c.prod.store; if (!n) return; c.food += n; c.prod.store = 0; saveCity(); render(); toast("收成 " + n + " 份糧食！"); },
+  "city-harvest": () => {
+    const c = city(), p = c.prod, f = p.store || 0, m = p.coins || 0, k = p.know || 0; if (!f && !m && !k) return;
+    c.food += f; p.store = 0; p.coins = 0; p.know = 0; saveCity();
+    if (m) cityIncome(m, "城市：咖啡店收入");
+    if (k) gainKnow(k, "書店");
+    render(); toast("收成：" + [f ? f + " 份糧食" : "", m ? m + " 金幣" : "", k ? k + " 知識" : ""].filter(Boolean).join("、") + "！");
+  },
   "city-upgrade": el => {
     const c = city(), k = el.dataset.k, it = c.tiles[k]; if (!it || !it.b) return;
-    const cost = upgradeCost(it), b = CITY_BUILDINGS[it.b]; if (!cost) return;
-    if (b.fixed && !knowUnlocked(HALL.know[tileLv(it)])) return;
-    if (!spend(cost, "城市：升級" + b.name)){ toast("金幣不夠。"); return; }
+    const cost = upgradeCost(it), b = CITY_BUILDINGS[it.b]; if (!cost || upgradeLock(c, it)) return;
+    const evolve = tileLv(it) % 3 === 0;
+    if (!spend(cost, "城市：" + (evolve ? "翻新" : "升級") + b.name)){ toast("金幣不夠。"); return; }
     it.lv = tileLv(it) + 1;
     let moved = "";
     if (b.grow){
-      const used = new Set(c.residents.map(p => p.name)), add = b.grow[it.lv - 1] - b.grow[it.lv - 2];
+      const used = new Set(c.residents.map(p => p.name)), add = bStat(it.b, it.lv).people - bStat(it.b, it.lv - 1).people;
       for (let i = 0; i < add; i++){
         const free = CITY_NAMES.filter(n => !used.has(n)), name = free.length ? free[Math.floor(Math.random() * free.length)] : "Kai" + c.residents.length;
         used.add(name); c.residents.push({name, color:CITY_COLORS[c.residents.length % CITY_COLORS.length], home:k}); moved = name;
       }
     }
-    saveCity(); drawSheet(); render(); toast(b.name + "升到 Lv" + it.lv + (b.fixed ? "，小島變大了！" : moved ? "，" + moved + " 搬進來了！" : "！"));
+    saveCity(); drawSheet(); render();
+    toast(b.name + (evolve ? "翻新到第 " + tierOf(it.lv) + " 階" : "升到 Lv" + it.lv) + (moved ? "，" + moved + " 搬進來了！" : "！"));
+  },
+  "city-evolve": () => {
+    const c = city(), h = c.tiles["0,0"], cost = 300 * hallTier(c); if (!evolveReady(c)) return;
+    if (!spend(cost, "城市：市中心進化")){ toast("金幣不夠。"); return; }
+    h.lv = hallLv(c) + 1; saveCity(); closeSheet(); render();
+    cityEvolveShow(hallName(h.lv));
   },
   "city-answer": el => cityAnswer(el),
   "city-build": el => {

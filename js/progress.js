@@ -84,7 +84,12 @@ function progressEstimate(){
   }
   return out;
 }
-function nextKnowGoal(){ const k = knowledge(); return KNOW_UNLOCKS.find(u => u.at > k) || null; }
+/* the next knowledge goal: what the city center needs for its next evolution */
+function nextKnowGoal(){
+  const c = city(), k = knowledge();
+  for (let t = hallTier(c) + 1; t <= HALL_TIERS.length; t++) if (EVOLVE[t].know > k) return {at:EVOLVE[t].know, name:"市中心進化成「" + HALL_TIERS[t - 1] + "」"};
+  return null;
+}
 
 function historyHTML(){
   const weeks = Object.values(S.weeks).sort((a, b) => b.n - a.n);

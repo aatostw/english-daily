@@ -26,6 +26,13 @@ function refund(amount, reason){
   W.ledger.push({at:Date.now(), amount, reason}); if (W.ledger.length > 500) W.ledger = W.ledger.slice(-500);
   Store.set("wallet", W).catch(() => {}); coinPop(amount); renderCoins(); return amount;
 }
+/* What the town earns by itself (cafés): its own money, so the daily learning cap doesn't apply. */
+function cityIncome(amount, reason){
+  amount = Math.floor(amount); if (amount <= 0) return 0;
+  const W = wallet(); W.balance += amount; W.earned += amount;
+  W.ledger.push({at:Date.now(), amount, reason}); if (W.ledger.length > 500) W.ledger = W.ledger.slice(-500);
+  Store.set("wallet", W).catch(() => {}); coinPop(amount); renderCoins(); return amount;
+}
 /* For the mini game: spends coins if there are enough. */
 function spend(amount, reason, item){
   const W = wallet();
@@ -80,6 +87,7 @@ function logActivity(type){
   const d = todayStr(), day = S.log.days[d] || (S.log.days[d] = {read:0, practice:0, talk:0});
   day[type] = (day[type] || 0) + 1;
   Store.set("log", S.log).catch(() => {});
+  if (typeof cityStudied === "function") cityStudied();   /* bookshops give knowledge on study days */
 }
 /* 學習歷程: how well each pattern and word is being used, and daily scores, kept from now on.
    m.p[pid] / m.w[word] = {n: times tried, ok: times right, last: date}; day.pr = [right, tried], day.sh = [sum, count], day.tk = [sum, count] */

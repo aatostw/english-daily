@@ -98,11 +98,11 @@ const City3D = {
     const g = this.group;
     while (g.children.length) g.remove(g.children[0]);
     this.pick = []; this.labels = []; this.overlay.innerHTML = ""; this.bgs = {}; this.ring = null; this.selShown = null;
-    const tiles = cityTiles(c), R = hallLv(c) + 1, L = cityLinked(c);
+    const tiles = cityTiles(c), R = cityRadius(c), L = cityLinked(c);
     const H = .55, pos = (q, r) => [Math.sqrt(3) * (q + r / 2), 1.5 * r], posK = k => pos(...k.split(",").map(Number));
     this.shallow.scale.setScalar(R * 1.9 + 2.2);
     if (this.dist == null || this.lastR !== R){
-      this.dist = [11, 16, 21, 26][R - 1]; this.lastR = R;
+      this.dist = 6 + 5 * R; this.lastR = R;
       const sc = this.sun.shadow.camera, e = R * 2 + 3; Object.assign(sc, {left:-e, right:e, top:e, bottom:-e}); sc.updateProjectionMatrix();
       this.scene.fog.near = this.dist + 6; this.scene.fog.far = this.dist + 44;
     }
@@ -135,13 +135,17 @@ const City3D = {
       const lv = tileLv(it), linked = !it.b || L.has(key), b = it.b && CITY_BUILDINGS[it.b];
       const bg = new T.Group(); bg.position.set(gx, .05, gz); bg.rotation.y = rot; bg.userData.key = key;
       this.sty = it.style === "cn" ? "cn" : "west";
-      this.building(bg, it.b || it.d, win, (it.b && it.b !== "park" && it.b !== "hall" && !c.day.fed) || !linked, lv, spots);
+      /* looks for now: inside the first tier as before; later tiers keep growing up to the biggest model (new looks per tier come next) */
+      const vlv = it.b === "hall" ? Math.min(3, tierOf(lv)) : Math.min(3, lv - 2 * (tierOf(lv) - 1));
+      this.building(bg, it.b || it.d, win, (it.b && it.b !== "park" && it.b !== "hall" && !c.day.fed) || !linked, vlv, spots);
+      if (it.b === "hall") bg.scale.setScalar(1 + ((lv - 1) % 3) * .07 + (tierOf(lv) - 1) * .05);
+      else if (tierOf(lv) > 1) bg.scale.setScalar(1 + Math.min(.3, (tierOf(lv) - 1) * .1));
       this.sty = "west";
       bg.traverse(m => { if (m.isMesh){ m.castShadow = true; m.receiveShadow = true; m.userData.key = key; this.pick.push(m); } });
       const top3 = new T.Box3().setFromObject(bg).max.y;
       if (!this.known.has(key + ":" + lv) && this.known.size){ bg.scale.setScalar(.01); this.grow.push({g:bg, t0:performance.now()}); }
       g.add(bg); this.bgs[key] = bg;
-      const off = b && !b.fixed && (b.make || b.residents) && !linked;
+      const off = b && !b.fixed && (b.food || b.coins || b.know || b.boost || b.residents) && !linked;
       this.label(new T.Vector3(gx, top3 + .08, gz), '<span class="lbl bname' + (off ? " off" : "") + '">' + esc(cityName(it)) + (off ? "・未接市中心" : "") + "</span>");
     });
     this.known = new Set(Object.keys(c.tiles).filter(k => !c.tiles[k].part).map(k => k + ":" + tileLv(c.tiles[k]))); if (!this.known.size) this.known.add("_");
@@ -244,7 +248,7 @@ const City3D = {
     const shade = dim ? {color:0xbbbbbb} : null;
     lv = lv || 1; spots = spots || [[0, 0]];
     const B = CITY_BUILDINGS[type], cyl = (r, h, col, x, y, z) => { const m = new T.Mesh(new T.CylinderGeometry(r, r, h, 10), this.mat(col)); m.position.set(x, y, z); g.add(m); return m; };
-    if (B && B.make && !B.fixed && lv > 1){
+    if (B && (B.coins || B.know) && lv > 1){
       /* bigger shops: Lv2 stretches over two plots with a big sign; Lv3 is a two-tier store with a little plaza in each plot */
       const sub = new T.Group(); g.add(sub); this.building(sub, type, win, false, 1);
       const col = {cafe:0xE8945A, bakery:0xC9574A, books:0x6E8FB0, market:0x6DB4A0}[type] || 0xE8945A, h1 = {cafe:.45, bakery:.74, books:1.0, market:.4}[type] || .5;
@@ -289,6 +293,30 @@ const City3D = {
         [-.6, .6].forEach((x, i) => { this.box(g, .025, .9, .025, 0x6b5240, x, .45, .8); this.box(g, .22, .13, .01, i ? 0xDB6A41 : 0x3f6fa8, x + .12, .82, .8); });
         [-.45, .45].forEach(x => { w(x, .5, -.51); });
       }
+    } else if (type === "farm"){
+      /* a field of crop rows; Lv2 adds a fence and a shed, Lv3 a greenhouse */
+      this.box(g, 1.2, .05, .95, 0x8A6447, 0, .025, .05);
+      const rows = lv >= 3 ? [-.1, .12, .34] : [-.3, -.08, .14, .36];
+      rows.forEach((z, j) => { this.box(g, .98, .05, .1, 0x6E4E36, lv >= 3 ? .12 : 0, .06, z);
+        for (let x = -.4; x <= .41; x += .16){ if (lv >= 3 && x < -.2) continue; const p = new T.Mesh(new T.IcosahedronGeometry(.055, 0), this.mat(j % 2 ? 0x8CC46E : 0x6FAE57)); p.position.set(x + (lv >= 3 ? .12 : 0), .12, z); g.add(p); } });
+      if (lv >= 2){
+        [[-.6, 0, .02, .95], [.6, 0, .02, .95], [0, -.47, 1.2, .02]].forEach(([x, z, w2, d2]) => this.box(g, w2, .1, d2, 0xC9A26B, x, .1, z));
+        this.box(g, .32, .28, .26, 0xC9574A, lv >= 3 ? -.42 : .42, .14, -.3);
+        const sh = new T.Group(); sh.position.set(lv >= 3 ? -.42 : .42, 0, -.3); g.add(sh); this.roof(sh, .38, .16, .32, 0x8A5A3A, .28);
+      }
+      if (lv >= 3){
+        /* a little glass greenhouse */
+        const gh = new T.Mesh(new T.BoxGeometry(.42, .3, .34), this.mat(0xCFEFF5, {transparent:true, opacity:.55})); gh.position.set(-.38, .2, .22); g.add(gh);
+        const ghr = new T.Mesh(new T.CylinderGeometry(.17, .17, .42, 10, 1, false, 0, Math.PI), this.mat(0xCFEFF5, {transparent:true, opacity:.55})); ghr.rotation.z = Math.PI / 2; ghr.rotation.y = Math.PI / 2; ghr.position.set(-.38, .35, .22); g.add(ghr);
+        [[-.58, .06], [-.18, .06], [-.58, .38], [-.18, .38]].forEach(([x, z]) => this.box(g, .02, .32, .02, 0xFFFFFF, x, .18, z));
+        for (let x = -.52; x <= -.24; x += .1){ const p = new T.Mesh(new T.IcosahedronGeometry(.045, 0), this.mat(0xE57373)); p.position.set(x, .12, .22); g.add(p); }
+      }
+    } else if (type === "landmark"){
+      /* a tall white spire with a glowing crystal on top */
+      cyl(.45, .12, 0xE6DCCB, 0, .06, 0); cyl(.32, .1, 0xF4EFE6, 0, .17, 0);
+      const sp = new T.Mesh(new T.CylinderGeometry(.06, .2, 1.9, 6), this.mat(0xF7F5F0)); sp.position.y = 1.15; g.add(sp);
+      [.6, 1.1, 1.6].forEach(y => cyl(.16 - y * .05, .05, 0xE8C35A, 0, y, 0));
+      const cr = new T.Mesh(new T.OctahedronGeometry(.17, 0), this.mat(0x9FE3FF, {emissive:0x58C6FF, emissiveIntensity:.6})); cr.position.y = 2.32; g.add(cr);
     } else if (type === "market"){
       [-.28, .28].forEach((x, i) => {
         this.box(g, .42, .3, .36, 0xF6E9D6, x, .15, .02);
@@ -501,7 +529,7 @@ const City3D = {
     const k = this.dist * .0024 * (this.w ? 340 / this.w : 1), sa = Math.sin(this.az), ca = Math.cos(this.az);
     const p = this.pan || [0, 0];
     p[0] += -ca * dx * k - sa * dy * k; p[1] += sa * dx * k - ca * dy * k;
-    const lim = (hallLv(city()) + 1) * 2.2, len = Math.hypot(p[0], p[1]); if (len > lim){ p[0] *= lim / len; p[1] *= lim / len; }
+    const lim = cityRadius(city()) * 2.2, len = Math.hypot(p[0], p[1]); if (len > lim){ p[0] *= lim / len; p[1] *= lim / len; }
     this.pan = p;
   },
   /* chatting with Lisa: swing the camera in close to her; afterwards go back to the whole island */
