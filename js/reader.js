@@ -311,6 +311,7 @@ async function shadowSend(o){
     o.res = j; o.state = "done";
     shadowSave(o.text, j);
     if (o.scores) o.scores[o.i] = Math.max(o.scores[o.i] || 0, j.score || 0);
+    if (typeof j.score === "number") logScore("sh", j.score);
     if (j.score >= 80) earnShadow(o.text);
   } catch (e) {
     o.state = "err";

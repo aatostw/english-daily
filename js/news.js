@@ -77,6 +77,8 @@ async function checkPractice(){
     const P = weekPats(w);
     const fb = await aiJson("review", practicePrompt(a.practice_zh || "", P[a.practice_pattern] || P.A, val), {cache:false});
     const firstTry = !a.practicedAt;
+    if (firstTry && w){ const pid = a.practice_pattern === "B" ? w.patterns[1] : a.practice_pattern === "A" || !a.practice_pattern ? w.patterns[0] : (w.review || [])[Number(String(a.practice_pattern).slice(1)) - 1];
+      if (pid != null) logResult("p", pid, !!fb.ok); logScore("pr", fb.ok ? 1 : 0); }
     a.practicedAt = Date.now(); logActivity("practice");
     if (firstTry) earn(5, "造句練習");
     if (fb.ok && !a.coinOk){ a.coinOk = true; earn(5, "造句寫對了"); gainKnow(5, "造句寫對了"); }
@@ -157,6 +159,10 @@ async function endTalk(){
     conv.done = true; conv.doneAt = Date.now();
     logActivity("talk");
     const score = Math.max(1, Math.min(5, conv.feedback.score));
+    logScore("tk", score);
+    { const map = {A:w.patterns[0], B:w.patterns[1]}; (w.review || []).forEach((pid, i) => { map["R" + (i + 1)] = pid; });
+      conv.feedback.patterns_used.forEach(k => { if (map[k] != null) logResult("p", map[k], !weakLabels.includes(k)); });
+      (rev.words || []).forEach(i => { const wd = w.words[i]; if (wd && wd.en) logResult("w", wd.en, conv.feedback.words_used.includes(i)); }); }
     if (d >= 6){
       const map = {A:w.patterns[0], B:w.patterns[1]};
       (w.review || []).forEach((pid, i) => { map["R" + (i + 1)] = pid; });

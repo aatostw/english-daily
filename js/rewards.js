@@ -81,6 +81,21 @@ function logActivity(type){
   day[type] = (day[type] || 0) + 1;
   Store.set("log", S.log).catch(() => {});
 }
+/* 學習歷程: how well each pattern and word is being used, and daily scores, kept from now on.
+   m.p[pid] / m.w[word] = {n: times tried, ok: times right, last: date}; day.pr = [right, tried], day.sh = [sum, count], day.tk = [sum, count] */
+function logResult(kind, id, ok){
+  if (!S.log) S.log = {kind:"log", days:{}};
+  const m = S.log.m || (S.log.m = {p:{}, w:{}}), box = m[kind] || (m[kind] = {}), key = String(id).toLowerCase();
+  const x = box[key] || (box[key] = {n:0, ok:0, last:""});
+  x.n++; if (ok) x.ok++; x.last = todayStr();
+  Store.set("log", S.log).catch(() => {});
+}
+function logScore(field, value){
+  if (!S.log) S.log = {kind:"log", days:{}};
+  const d = todayStr(), day = S.log.days[d] || (S.log.days[d] = {read:0, practice:0, talk:0}), v = day[field] || (day[field] = [0, 0]);
+  v[0] += value; v[1] += 1;
+  Store.set("log", S.log).catch(() => {});
+}
 function streakDays(){
   const days = (S.log && S.log.days) || {};
   const active = d => { const x = days[d]; return !!x && (x.read || x.practice || x.talk); };
