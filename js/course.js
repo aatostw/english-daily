@@ -45,7 +45,10 @@ async function startWeek(){
     if (need.first) await createWeek(1, monday, S.profile.startPair, [], theme);
     else {
       const conv = S.convs[w.n];
-      const review = (conv && conv.done && conv.weakPids) || [];
+      /* next week's review: what the Sunday chat found weak, then what the 月考 got wrong */
+      const extra = (S.log && S.log.reviewNext) || [];
+      const review = [...new Set(((conv && conv.done && conv.weakPids) || []).concat(extra))].slice(0, 2);
+      if (extra.length){ S.log.reviewNext = []; Store.set("log", S.log).catch(() => {}); }
       await createWeek(w.n + 1, monday, S.profile.startPair + w.n, review, theme);
       w.status = "done"; Store.set("week-" + w.n, w).catch(() => {});
     }

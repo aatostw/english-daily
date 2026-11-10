@@ -669,3 +669,24 @@ h1,h2{color:var(--primary-text)}
 .m-words{display:flex;flex-direction:column;gap:6px;font-size:14px}
 .est{font-size:15px;line-height:1.6}
 .est b{color:var(--primary)}
+/* ---------- 月考 ---------- */
+.quiz-card{border:2px solid #F3CC58;background:#FFFBEA}
+.quiz-ic{font-size:30px}
+.quiz-top{display:flex;flex-direction:column;gap:6px}
+.quiz-q{display:flex;flex-direction:column;gap:8px;margin:6px 0}
+.quiz-prompt{font-size:20px;font-weight:700;line-height:1.4}
+.quiz-prompt.en{font-family:var(--font-en);font-size:26px}
+.quiz-opts{display:flex;flex-direction:column;gap:8px}
+.quiz-opt{text-align:left;padding:12px 14px;border:1.5px solid var(--line);border-radius:14px;background:#fff;font:inherit;font-size:16px;color:var(--ink)}
+.quiz-opt.en{font-family:var(--font-en)}
+.quiz-opt.right{border-color:#3EAE7F;background:#E3F5EC;color:#1F6E4C;font-weight:700}
+.quiz-opt.wrong{border-color:#E57373;background:#FDECEC;color:#B23B3B}
+.quiz-opt:disabled{opacity:1}
+.quiz-result{display:flex;flex-direction:column;gap:12px}
+.quiz-score{display:flex;align-items:baseline;justify-content:center;gap:6px;color:var(--primary)}
+.quiz-score b{font:800 56px var(--font-en)}
+.quiz-score span{font:700 22px var(--font-en);color:var(--muted)}
+.quiz-wrong{display:flex;flex-direction:column;gap:8px}
+.quiz-wrong div{display:flex;flex-direction:column;padding:10px 12px;border-radius:12px;background:var(--field)}
+.quiz-wrong b{font-family:var(--font-en)}
+.quiz-wrong span{font-size:14px;color:var(--muted)}

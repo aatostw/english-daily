@@ -165,6 +165,7 @@ function renderHome(){
     html += secTitle("每日的文章");
     html += articleCardHTML(w, Math.max(0, Math.min(5, di)));   /* on Sunday, Saturday's set stays open for more reading */
   }
+  html += quizCardHTML();
   if (Cloud.on()) html += secTitle("每日新聞") + newsCardHTML();
   return html + lisaCardHTML(w);
 }
