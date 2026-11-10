@@ -136,6 +136,7 @@ function openExternal(url){
   const w = window.open(url, "_blank");
   if (w) w.opener = null;
 }
+function cambridge(w){ return "https://dictionary.cambridge.org/dictionary/english-chinese-traditional/" + encodeURIComponent(String(w).toLowerCase().trim().replace(/\s+/g, "-")); }
 /* Google's translate box on the search page: unlike translate.google.com links, the Translate app
    doesn't take these over (it opened without the word), so the word is always filled in */
 function gtrans(w){ return "https://www.google.com/search?hl=zh-TW&q=" + encodeURIComponent(String(w).trim() + " 中文翻譯"); }
