@@ -115,6 +115,18 @@ function practiceHTML(a, w){
 /* ---------- word sheet ---------- */
 const LOOKUP = new Map((() => { try { return Object.entries(JSON.parse(localStorage.getItem(LS + "lookup") || "{}")); } catch (e) { return []; } })());
 function saveLookup(){ try { localStorage.setItem(LS + "lookup", JSON.stringify(Object.fromEntries([...LOOKUP].slice(-400)))); } catch (e) {} }
+/* Open an outside page in a new browser tab. In the installed app on Android, links would open in a
+   small in-app viewer, so hand them to Chrome instead (as its own tab). */
+function openExternal(url){
+  const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+  if (standalone && /Android/i.test(navigator.userAgent)){
+    const u = new URL(url);
+    location.href = "intent://" + u.host + u.pathname + u.search + u.hash + "#Intent;scheme=" + u.protocol.replace(":", "") + ";package=com.android.chrome;S.browser_fallback_url=" + encodeURIComponent(url) + ";end";
+    return;
+  }
+  const w = window.open(url, "_blank", "noopener");
+  if (!w) location.href = url;
+}
 function cambridge(w){ return "https://dictionary.cambridge.org/dictionary/english-chinese-traditional/" + encodeURIComponent(String(w).toLowerCase().trim().replace(/\s+/g, "-")); }
 function gtrans(w){ return "https://translate.google.com/?sl=en&tl=zh-TW&op=translate&text=" + encodeURIComponent(w); }
 function openSheet(o){
@@ -368,7 +380,7 @@ function drawSheet(){
       '<div class="row" style="gap:14px"><button class="btn ghost sm" style="padding:4px 0" data-act="say" data-text="' + esc(o.sentence) + '">' + ICON.speaker.replace("<svg", '<svg width="16" height="16"') + "唸整句</button>" +
       '<button class="btn ghost sm" style="padding:4px 0" data-act="shadow" data-text="' + esc(o.sentence) + '">' + MIC_SVG.replace("<svg", '<svg width="16" height="16"') + "跟讀這句</button></div></div>";
   }
-  html += '<div class="links"><a class="btn soft sm" href="' + cambridge(head) + '" target="_blank" rel="noopener">劍橋字典 ↗</a><a class="btn soft sm" href="' + gtrans(head) + '" target="_blank" rel="noopener">Google 翻譯 ↗</a>' +
+  html += '<div class="links"><a class="btn soft sm" href="' + cambridge(head) + '" target="_blank" rel="noopener" data-act="open-ext">劍橋字典 ↗</a><a class="btn soft sm" href="' + gtrans(head) + '" target="_blank" rel="noopener" data-act="open-ext">Google 翻譯 ↗</a>' +
     '<button class="icon-btn ' + (starred ? "on" : "") + '" data-act="star" aria-pressed="' + starred + '" aria-label="' + (starred ? "取消收藏" : "收藏") + '"' + (o.state === "loading" ? " disabled" : "") + ">" + (starred ? ICON.starOn : ICON.star) + "</button></div>";
   $("#sheet-card").innerHTML = html;
   /* Start making the audio now, so pressing play is instant: word first, then the sentences. */
