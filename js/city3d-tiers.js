@@ -123,7 +123,7 @@ Object.assign(City3D, {
     /* 未來住宅: round white pods stacked on a stem, with greenery and solar petals */
     const pods = [[0, .5, 0, .34]].concat(i >= 1 || t === 6 ? [[-.3, .95, .05, .26]] : [], i >= 2 || t === 6 ? [[.3, 1.3, -.05, .24]] : [], t === 6 ? [[0, 1.7, 0, .22]] : []);
     this.cy(g, .08, .12, pods[pods.length - 1][1], 0xF7F8FA, 0, pods[pods.length - 1][1] / 2, 0, 12);
-    pods.forEach(([x, y, z, r]) => { const p = this.sp(g, r, 0xF7F8FA, x, y, z); p.scale.y = .62; const b = this.sp(g, r * .98, this.glass(0x9FD3E6), x, y + .02, z + .02); b.scale.set(.9, .32, 1); this.box(g, r * 1.2, .04, r * 1.2, 0x8CC46E, x, y - r * .5, z); });
+    pods.forEach(([x, y, z, r]) => { if (x) this.box(g, Math.abs(x), .05, .06, 0xF7F8FA, x / 2, y - r * .3, z); const p = this.sp(g, r, 0xF7F8FA, x, y, z); p.scale.y = .62; const b = this.sp(g, r * .98, this.glass(0x9FD3E6), x, y + .02, z + .02); b.scale.set(.9, .32, 1); this.box(g, r * 1.2, .04, r * 1.2, 0x8CC46E, x, y - r * .5, z); });
     this.solar(g, .42, .25, .32, .22, .16); this.solar(g, -.42, .25, .32, .22, .16);
     if (t === 6) this.halo(g, .3, 2.0, 0xB89BFF);
     this.tree(g, -.45, 0, -.4, .6, 0x7FB860);
@@ -139,7 +139,7 @@ Object.assign(City3D, {
       const n = i + 1, w = 1.1 / n;
       for (let k = 0; k < n; k++){
         const x = (k - (n - 1) / 2) * w;
-        const a = new this.T.Mesh(new this.T.CylinderGeometry(w * .45, w * .45, .86, 14, 1, false, -Math.PI / 2, Math.PI), this.glass()); a.rotation.x = Math.PI / 2; a.position.set(x, .06, 0); g.add(a);
+        const a = new this.T.Mesh(new this.T.CylinderGeometry(w * .45, w * .45, .86, 14, 1, false, -Math.PI / 2, Math.PI), this.glass()); a.rotation.x = -Math.PI / 2; a.position.set(x, .06, 0); g.add(a);
         for (let z = -.3; z <= .31; z += .15) this.crop(g, x, z, k % 2 ? 0xE57373 : 0x7FBF5E, .9);
         this.box(g, .02, .02, .86, 0xFFFFFF, x, .06 + w * .45, 0);
       }
@@ -249,7 +249,7 @@ Object.assign(City3D, {
     if (t === 4){
       /* 美食商場: a long glass mall with a curved roof and banners */
       this.box(g, 1.25, .5, .8, this.glass(0xCFEAF2), 0, .27, 0); this.box(g, 1.25, .04, .8, 0xE4E7EA, 0, .02, 0);
-      const r = new this.T.Mesh(new this.T.CylinderGeometry(.42, .42, 1.25, 16, 1, false, -Math.PI / 2, Math.PI), this.mat(0xE4E7EA)); r.rotation.z = Math.PI / 2; r.scale.y = 1; r.position.y = .52; r.scale.set(1, 1, .45); g.add(r);
+      const r = new this.T.Mesh(new this.T.CylinderGeometry(.4, .4, 1.25, 16, 1, false, 0, Math.PI), this.mat(0xE4E7EA)); r.rotation.z = Math.PI / 2; r.scale.set(.45, 1, 1); r.position.y = .52; g.add(r);
       [[-.4, 0xE8945A], [0, 0xC9574A], [.4, 0x4DB892]].forEach(([x, c]) => { this.box(g, .3, .3, .5, c, x, .2, -.05); this.box(g, .22, .14, .01, 0xFFFFFF, x, .3, .41); });
       for (let k = 0; k <= i; k++) this.box(g, .03, .5, .03, 0xC0C6CC, -.55 + k * .3, .25, .45);
       return true;
@@ -270,7 +270,7 @@ Object.assign(City3D, {
     if (t === 2){
       /* 圖書館: a stone library with columns and a pediment */
       this.box(g, 1.0, .55, .7, 0xEDE7DC, 0, .3, -.05); this.box(g, 1.1, .06, .8, 0xD5CBB8, 0, .6, -.05);
-      const p = this.co(g, .62, .22, 0xD5CBB8, 0, .74, .25, 3); p.rotation.z = Math.PI / 2; p.rotation.y = Math.PI / 2; p.scale.set(.3, 1, 1.6);
+      const pd = new this.T.Group(); pd.rotation.y = Math.PI / 2; pd.position.set(0, 0, -.05); g.add(pd); this.roof(pd, .84, .24, 1.12, 0xD5CBB8, .63);
       for (let x = -.38; x <= .39; x += .19) this.cy(g, .04, .045, .5, 0xF7F3EC, x, .3, .32, 8);
       this.box(g, 1.0, .05, .22, 0xD5CBB8, 0, .025, .38); this.door(g, 0, .31, 0x6E8FB0);
       if (i >= 1) this.box(g, .5, .25, .4, 0xEDE7DC, 0, .75, -.2);
