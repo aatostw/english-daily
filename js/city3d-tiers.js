@@ -333,7 +333,7 @@ Object.assign(City3D, {
         return true;
       }
       /* 露天劇場: half-rings of stone steps facing a stage */
-      for (let k = 0; k < 4; k++){ const r = .55 - k * .1; const m = new this.T.Mesh(new this.T.CylinderGeometry(r, r, .08 * (k + 1), 20, 1, false, Math.PI / 2, Math.PI), this.mat(k % 2 ? 0xE6E0D4 : 0xEDE8DE)); m.position.set(0, .04 * (k + 1), -.05); g.add(m); }
+      for (let k = 3; k >= 0; k--){ const r = .25 + k * .1; const m = new this.T.Mesh(new this.T.CylinderGeometry(r, r, .08 * (k + 1), 20, 1, false, Math.PI / 2, Math.PI), this.mat(k % 2 ? 0xC9BFAE : 0xDAD2C2)); m.position.set(0, .04 * (k + 1), -.05); g.add(m); }
       this.box(g, .5, .05, .2, 0xD8CCB6, 0, .03, .38); this.columns(g, 4, .44, .3, .45, 0xF7F3EC, .05, .025);
       return true;
     }
@@ -705,7 +705,7 @@ Object.assign(City3D, {
       this.cy(g, .32, .34, .3, 0xF0DDB4, 0, .8, 0, 18); this.sp(g, .34, this.mat(0xC2553B), 0, .95, 0, null, true); this.cy(g, .06, .07, .16, 0xF4EFE6, 0, 1.36, 0, 8); this.sp(g, .05, 0xC8A44A, 0, 1.47, 0, {metalness:.4}); return true;
     }
     if (t === 5){   /* 鐵塔: a lattice iron tower */
-      const leg = (sx, sz) => { const l = this.box(g, .06, 1.5, .06, 0x6B5A48, sx * .22, .72, sz * .22); l.rotation.z = -sx * .22; l.rotation.x = sz * .22; };
+      const leg = (sx, sz) => { const l = this.box(g, .06, 1.5, .06, 0x6B5A48, sx * .22, .72, sz * .22); l.rotation.z = sx * .2; l.rotation.x = -sz * .2; };
       leg(-1, -1); leg(1, -1); leg(-1, 1); leg(1, 1); this.box(g, .7, .05, .7, 0x6B5A48, 0, .3, 0); this.box(g, .36, .05, .36, 0x6B5A48, 0, .9, 0); this.cy(g, .03, .1, .9, 0x6B5A48, 0, 1.85, 0, 4); this.sp(g, .04, this.glow(0xFFD36B), 0, 2.3, 0); return true;
     }
     if (t === 6){   /* 摩天塔 */
