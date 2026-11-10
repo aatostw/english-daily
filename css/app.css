@@ -732,3 +732,4 @@ h1,h2{color:var(--primary-text)}
 .onb-pick{display:flex;justify-content:center;padding:8px 0}
 .onb-pick>*{width:100%;max-width:340px;margin:0 auto}
 .onb-pick .chip-grid{grid-template-columns:repeat(3,1fr);justify-content:center}
+.onb-pick{align-items:center;min-height:calc(100dvh - 250px)}
