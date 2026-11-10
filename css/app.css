@@ -733,3 +733,4 @@ h1,h2{color:var(--primary-text)}
 .onb-pick>*{width:100%;max-width:340px;margin:0 auto}
 .onb-pick .chip-grid{grid-template-columns:repeat(3,1fr);justify-content:center}
 .onb-pick{align-items:center;min-height:calc(100dvh - 250px)}
+.onb-pick{position:fixed;left:0;right:0;top:50%;transform:translateY(-50%);min-height:0;padding:0 16px;z-index:1}
