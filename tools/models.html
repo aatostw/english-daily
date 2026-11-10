@@ -17,10 +17,9 @@ nav{margin:0 16px 8px}nav a{margin-right:10px}
 <nav><a href="?i=0">每階第 1 級</a><a href="?i=1">第 2 級</a><a href="?i=2">第 3 級</a><a href="?style=cn&i=2">中華風</a></nav>
 <div class="wrap"><div class="grid" id="grid"></div></div>
 <script>window.S = {}; window.$ = s => document.querySelector(s);</script>
-<script src="../js/city.js"></script>
-<script src="../js/city3d.js"></script>
-<script src="../js/city3d-tiers.js"></script>
 <script type="module">
+/* always the newest files (skip caches) */
+for (const f of ["city.js", "city3d.js", "city3d-tiers.js"]) await new Promise((ok, no) => { const s = document.createElement("script"); s.src = "../js/" + f + "?t=" + Date.now(); s.onload = ok; s.onerror = no; document.head.appendChild(s); });
 const T = await import(THREE_URL);
 const q = new URLSearchParams(location.search), I = Math.max(0, Math.min(2, Number(q.get("i") ?? 2))), STY = q.get("style") === "cn" ? "cn" : "west";
 const ROWS = ["hall", "house", "farm", "park", "cafe", "books", "clinic", "landmark"];
@@ -42,7 +41,7 @@ ROWS.forEach((type, row) => {
     const g = new T.Group(), base = new T.Mesh(new T.CylinderGeometry(.95, 1, .3, 6), C.mat(0xE6DCCB)); base.position.y = -.17; g.add(base);
     const bg = new T.Group(); bg.position.y = .03; g.add(bg);
     try { C.building(bg, type, win, false, type === "landmark" ? lv : lv); if (type === "hall" && t >= 2 && t <= 4) bg.scale.setScalar(1 + I * .07); }
-    catch (e) { grid.lastElementChild.textContent += " ⚠ " + e.message; }
+    catch (e) { grid.lastElementChild.textContent += " ⚠ " + e.message; console.error(e); }
     scene.add(g); g.visible = false;
     const box = new T.Box3().setFromObject(g), h = Math.max(1.4, box.max.y);
     cam.position.set(2.6, 1.2 + h * .9, 3.4).multiplyScalar(Math.max(1, h / 1.6) * .9); cam.lookAt(0, h * .38, 0);
