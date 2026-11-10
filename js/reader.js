@@ -115,20 +115,26 @@ function practiceHTML(a, w){
 /* ---------- word sheet ---------- */
 const LOOKUP = new Map((() => { try { return Object.entries(JSON.parse(localStorage.getItem(LS + "lookup") || "{}")); } catch (e) { return []; } })());
 function saveLookup(){ try { localStorage.setItem(LS + "lookup", JSON.stringify(Object.fromEntries([...LOOKUP].slice(-400)))); } catch (e) {} }
-/* Open an outside page in a new browser tab. In the installed app on Android, links would open in a
-   small in-app viewer, so hand them to Chrome instead (as its own tab). */
+/* Open an outside page in a new browser tab. In the installed app on Android a normal link opens in a
+   small viewer inside the app, so ask Chrome to open it as its own tab (googlechrome://); if Chrome
+   doesn't take it within a second, fall back to a normal new window. */
 function openExternal(url){
   const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
   if (standalone && /Android/i.test(navigator.userAgent)){
-    const u = new URL(url);
-    location.href = "intent://" + u.host + u.pathname + u.search + u.hash + "#Intent;scheme=" + u.protocol.replace(":", "") + ";package=com.android.chrome;S.browser_fallback_url=" + encodeURIComponent(url) + ";end";
+    let left = false;
+    const away = () => { left = true; };
+    document.addEventListener("visibilitychange", away, {once:true});
+    location.href = "googlechrome://navigate?url=" + encodeURIComponent(url);
+    setTimeout(() => { document.removeEventListener("visibilitychange", away); if (!left && !document.hidden) window.open(url, "_blank", "noopener"); }, 1200);
     return;
   }
   const w = window.open(url, "_blank", "noopener");
   if (!w) location.href = url;
 }
 function cambridge(w){ return "https://dictionary.cambridge.org/dictionary/english-chinese-traditional/" + encodeURIComponent(String(w).toLowerCase().trim().replace(/\s+/g, "-")); }
-function gtrans(w){ return "https://translate.google.com/?sl=en&tl=zh-TW&op=translate&text=" + encodeURIComponent(w); }
+/* Google's translate box on the search page: unlike translate.google.com links, the Translate app
+   doesn't take these over (it opened without the word), so the word is always filled in */
+function gtrans(w){ return "https://www.google.com/search?hl=zh-TW&q=" + encodeURIComponent(String(w).trim() + " 中文翻譯"); }
 function openSheet(o){
   S.sheet = o; S.sheetAt = performance.now();
   $("#sheet").hidden = false;
