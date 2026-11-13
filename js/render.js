@@ -4,7 +4,7 @@
 function renderPill(){
   renderCoins();
   const on = !!S.profile;
-  $("#brand").hidden = on; $("#me").hidden = !on;
+  $("#brand").hidden = on; $("#me").hidden = !on; $("#appsw-btn").hidden = !on;
   if (on){
     const k = knowledge();
     $("#me-lv").textContent = "Lv." + (1 + Math.floor(k / 50));
