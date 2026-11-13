@@ -560,7 +560,7 @@ function citySheetHTML(o){
     const open = c.day.requests.filter(q => q.status === "open").length;
     return head("今天的居民請求") + (c.day.requests.length ? '<div class="stack">' + c.day.requests.map(q => {
       const p = c.residents[q.who] || {name:"居民", color:"#999"};
-      return '<button class="day-row" data-act="city-req" data-id="' + q.id + '"><span class="d"><b>' + esc(p.name) + '</b><span>' + (q.type === "choice" ? "選擇題" : "回答") + '</span></span><span class="t"><div class="en">' + esc(q.say) + '</div></span><span class="state ' + (q.status === "open" ? "" : "done") + '">' + (q.status === "open" ? "待回答" : q.status === "right" ? "答對" : "完成") + "</span></button>";
+      return '<button class="day-row" data-act="city-req" data-id="' + q.id + '"><span class="d"><b>' + esc(p.name) + '</b><span>' + (q.type === "talk" ? "對話" : q.type === "choice" ? "選擇題" : "回答") + '</span></span><span class="t"><div class="en">' + esc(q.say) + '</div></span><span class="state ' + (q.status === "done" ? "done" : "") + '">' + (q.status === "open" ? (q.type === "talk" && q.turns.length > 1 ? "進行中" : "待回答") : q.status === "done" ? (q.type === "talk" ? "幫上忙了" : "完成") : "沒幫上") + "</span></button>";
     }).join("") + "</div>" : '<p class="muted" style="margin:0">今天沒有請求了。</p>') +
       '<p class="small muted" style="margin:0">' + (open ? "還有 " + open + " 個請求。答對會拿到隨機禮物！" : "今天的請求都處理完了，明天再來。") + "</p>";
   }
@@ -624,6 +624,7 @@ function citySheetHTML(o){
   if (o.s === "req"){
     const q = c.day.requests.find(x => x.id === o.id); if (!q) return head("請求") + '<p class="muted">這個請求不見了。</p>';
     const p = c.residents[q.who] || {name:"居民", color:"#999"};
+    if (q.type === "talk") return cityTalkHTML(o, q, p, head);
     let html = head(esc(p.name) + " 想請你幫忙") + '<div class="ex-box"><span class="en" data-ctx="creq-' + q.id + '">' + tapText(q.say, "creq-" + q.id) + ' <button class="btn ghost sm" style="padding:2px 6px;min-height:0;vertical-align:middle" data-act="say" data-text="' + esc(q.say) + '" aria-label="朗讀">' + ICON.speaker.replace("<svg", '<svg width="16" height="16"') + "</button></span>" + (q.question_zh ? '<span class="zh">' + esc(q.question_zh) + "</span>" : "") + "</div>";
     if (q.status === "open"){
       if (q.type === "choice") html += '<div class="stack">' + q.options.map((t, i) => '<button class="menu-row" data-act="city-answer" data-id="' + q.id + '" data-i="' + i + '"><span class="en">' + esc(t) + "</span></button>").join("") + "</div>";
@@ -699,18 +700,17 @@ async function cityFeed(){
   try {
     const want = Math.min(n, reqCap(c));
     /* ask once more if the reply can't be used; keep the last bad reply so it can be looked at (localStorage "eel-aifail") */
+    const order = act.slice().sort(() => Math.random() - .5);
     let list = [];
     for (let t = 0; t < 2 && !list.length; t++){
-      const res = await callAI("city", cityReqPrompt(want), {cache:false, json:true});
-      try { list = cityReqList(parseLoose(res.text)).slice(0, want); } catch (e) {}
+      const res = await callAI("city", cityTalkPrompt(c, order.slice(0, want)), {cache:false, json:true});
+      try { list = cityTalkList(parseLoose(res.text), want); } catch (e) {}
       if (!list.length) try { localStorage.setItem(LS + "aifail", JSON.stringify({at:new Date().toISOString(), task:"city", model:taskCfg("city").model, text:String(res.text).slice(0, 4000)})); } catch (e) {}
     }
     if (!list.length) throw {code:"invalid_json"};
-    const order = act.slice().sort(() => Math.random() - .5);
     c.food -= n; c.day.fed = true;
-    c.day.requests = list.map((q, i) => ({id:Date.now().toString(36) + i, who:order[i % order.length], type:q.type === "choice" ? "choice" : "free",
-      say:q.say, question_zh:q.question_zh, options:q.options, answer:q.answer,
-      answers:q.answers, explain_zh:q.explain_zh, status:"open", tries:0}));
+    c.day.requests = list.map((q, i) => ({id:Date.now().toString(36) + i, who:order[q.who % order.length], type:"talk",
+      say:q.opening, goal:q.goal, hint_zh:q.hint_zh, turns:[{role:"npc", text:q.opening}], misses:0, status:"open"}));
     saveCity();
   } catch (e) { S.err.city = aiErr(e); }
   S.busy.city = false; render();
@@ -758,6 +758,172 @@ async function cityAnswer(el){
   if (ok){ q.gift = cityGift(); logActivity("practice"); gainKnow(4, "幫居民解決請求"); }
   saveCity(); S.sheet.msg = ""; drawSheet(); render();
   if (ok) toast("拿到禮物：" + q.gift);
+}
+
+/* ---------- requests as short conversations ----------
+   A resident comes with a real need; the player helps by talking (typing or speaking).
+   No quiz and no Chinese task: the resident simply does or doesn't understand.
+   3 chances: each message the resident can't understand uses one. Solved = gift + 知識; failed = lose 知識. */
+const CITY_JOBS = {house:"lives in a little house on the island", farm:"is the island's farmer", cafe:"runs the island shop", books:"runs the island bookstore", clinic:"is the island doctor"};
+const TALK_CHANCES = 3, TALK_MAX = 6, TALK_LOSE = 3;
+function residentRole(c, i){ const p = c.residents[i], t = p && c.tiles[p.home]; return CITY_JOBS[t && t.b] || CITY_JOBS.house; }
+function cityTalkPrompt(c, people){
+  const w = curWeek(), P = w ? weekPats(w) : null;
+  return [
+    "You design tiny conversations for a cozy island town game. The player is " + learnerNoun(true) + " learning English, level " + levelText() + ".",
+    aboutPrompt(),
+    "Each resident comes to the player with a real, small need, and the player helps just by talking in English. It is not a quiz: no grammar questions, no translation. The player only has to make themselves understood and get the thing done.",
+    "Residents (one conversation each, \"who\" is the number):",
+    people.map((i, k) => k + ": " + c.residents[i].name + ", who " + residentRole(c, i)).join("\n"),
+    w ? "Build the situations so the player will naturally need these words: " + w.words.map(x => x.en).join(", ") + (P ? "; and these patterns: " + Object.values(P).map(x => x.en).join("; ") : "") + ". Never tell the player which words or patterns to use." : "",
+    "Mix kinds: asking for help, finding something or a place, giving advice, making a choice, a small negotiation or persuasion. Fit each one to the resident's job. Each need can be solved in 1-3 replies, from the player's own ideas (no real-world facts needed).",
+    "All English at the player's level. Opening: at most 20 words, ending so the player clearly knows they should answer.",
+    "Reply with only JSON:",
+    '{"talks":[{"who":0,"opening":"<what the resident says first>","goal":"<in English, for the judge: what the player must get across for this to be solved>","hint_zh":"<Traditional Chinese (Taiwan): the situation and an idea of what to say, 1-2 sentences, never the full English answer>"}]}'
+  ].filter(Boolean).join("\n");
+}
+function cityTalkList(r, want){
+  let arr = Array.isArray(r) ? r : r && typeof r === "object" ? (r.talks || r.requests || r.items || Object.values(r).find(Array.isArray) || []) : [];
+  const str = v => v == null ? "" : String(typeof v === "object" ? (v.text || v.en || Object.values(v)[0] || "") : v).trim();
+  return arr.map((q, i) => q && typeof q === "object" ? {who:Number.isInteger(+q.who) ? +q.who : i, opening:str(q.opening || q.say || q.line), goal:str(q.goal || q.need), hint_zh:str(q.hint_zh || q.hint)} : null)
+    .filter(q => q && q.opening && q.goal).slice(0, want);
+}
+function cityTalkTurnPrompt(q, p, role){
+  return [
+    "You are " + p.name + ", who " + role + ", in a cozy island town game. You are talking with the player, " + learnerNoun() + " learning English (level " + levelText() + ").",
+    "Your need: " + q.goal,
+    "Conversation so far:",
+    q.turns.map(t => (t.role === "npc" ? p.name : "Player") + ": " + t.text).join("\n"),
+    "",
+    "React to the player's LAST message like a real person. Be strict about meaning and relaxed about small errors:",
+    "- You UNDERSTAND when the meaning is clear, even with small mistakes (missing a/the, wrong tense or verb form, small spelling errors, very simple words).",
+    "- You DO NOT UNDERSTAND when: the word order is so mixed up that the meaning is unclear; a key word is missing or wrong, so the meaning is lost or changes; it is only a few loose words with no clear idea; it is not English (e.g. Chinese).",
+    "- If you do not understand: say so naturally, in character, and ask them to say it another way. Do not guess for them and never give them the answer.",
+    "- solved = true only when the player has clearly got across what your need asks for. If you understood but it is not solved yet, react and ask a natural follow-up that moves toward it.",
+    "- If solved: thank them warmly.",
+    "Your reply: 1-2 short sentences at the player's level.",
+    "Reply with only JSON:",
+    '{"understood":true,"solved":false,"reply":"<your next line>","better":"<how a native speaker would naturally say the player\'s last message, same meaning; identical if already natural>","note_zh":"<only when not understood: one short Traditional Chinese (Taiwan) hint about what made it unclear, without giving the answer; otherwise empty>"}'
+  ].join("\n");
+}
+function loseKnow(n, reason){
+  if (!S.profile || !(n > 0)) return;
+  const c = city(); c.knowledge = Math.max(0, (c.knowledge || 0) - n); saveCity();
+}
+function cityTalkHTML(o, q, p, head){
+  const c = city(), mine = q.turns.filter(t => t.role === "me").length;
+  const sayBtn = t => '<button data-act="say" data-text="' + esc(t) + '" aria-label="朗讀">' + ICON.speaker + "</button>";
+  let html = head(esc(p.name) + ' <span class="small muted" style="font-weight:600">想請你幫忙</span>');
+  html += '<div class="row between talk-bar"><span class="talk-chances" aria-label="還有 ' + (TALK_CHANCES - q.misses) + ' 次機會">' +
+    Array.from({length:TALK_CHANCES}, (_, i) => '<i class="' + (i < TALK_CHANCES - q.misses ? "on" : "") + '"></i>').join("") + "</span>" +
+    (q.hint_zh ? '<button class="btn ghost sm" data-act="ctalk-hint">' + (o.hint ? "收起提示" : "提示") + "</button>" : "") + "</div>";
+  if (o.hint && q.hint_zh) html += '<div class="note">' + esc(q.hint_zh) + "</div>";
+  html += '<div class="chat talk-chat">' + q.turns.map((t, i) => t.role === "npc"
+    ? '<div class="bubble them' + (t.lost ? " lost" : "") + '"><div class="who"><span>' + esc(p.name) + "</span>" + sayBtn(t.text) + "</div>" + tapText(t.text, "ctalk-" + q.id + "-" + i) + "</div>"
+    : '<div class="bubble me">' + esc(t.text) + "</div>" + (q.status !== "open" && t.better && t.better.toLowerCase().replace(/\W/g, "") !== t.text.toLowerCase().replace(/\W/g, "") ? '<div class="talk-better">更自然：<span class="en">' + esc(t.better) + "</span></div>" : "")
+  ).join("") + (S.busy.cityTalk === q.id ? '<div class="bubble them"><div class="who"><span>' + esc(p.name) + '</span></div><span class="spinner"></span></div>' : "") + "</div>";
+  if (q.note && q.status === "open") html += '<div class="note warn">' + esc(q.note) + "</div>";
+  if (q.status !== "open"){
+    html += q.status === "done"
+      ? '<div class="note ok">幫上忙了！' + (q.gift ? "拿到禮物：<b>" + esc(q.gift) + "</b>" : "") + "</div>"
+      : '<div class="note warn">' + esc(p.name) + " 還是沒聽懂，這次沒幫上忙（知識 -" + TALK_LOSE + "）。看看上面「更自然」的說法，下次就會了。</div>";
+    return html;
+  }
+  if (o.msg) html += '<div class="note warn">' + esc(o.msg) + "</div>";
+  const busy = S.busy.cityTalk === q.id;
+  if (o.rec === "rec") return html + '<button class="rec-btn on" data-act="ctalk-rec-stop" aria-label="停止錄音"><span class="rec-dot"></span></button><div class="rec-hint"><b id="rec-time">0.0</b> 秒・說完按一下停止</div>';
+  if (o.rec === "up") return html + '<div class="rec-wait"><span class="spinner"></span>正在聽你說的…</div>';
+  html += '<div class="talk-input"><textarea class="input en" id="talk-ans" rows="2" placeholder="Say something to ' + esc(p.name) + '…"' + (busy ? " disabled" : "") + ">" + esc(o.draft || "") + "</textarea>" +
+    '<div class="row talk-actions">' + (asrBase() ? '<button class="icon-btn mic" data-act="ctalk-rec" aria-label="用說的"' + (busy ? " disabled" : "") + ">" + MIC_SVG + "</button>" : "") +
+    '<button class="btn green" style="flex:1" data-act="ctalk-send"' + (busy ? " disabled" : "") + ">" + (busy ? '<span class="spinner"></span>' : "送出") + "</button></div></div>";
+  if (mine >= TALK_MAX - 1) html += '<p class="small muted" style="margin:0">最後一次回答了。</p>';
+  return html;
+}
+function talkSheet(){ const o = S.sheet; if (!o || o.kind !== "city" || o.s !== "req") return null; const q = city().day.requests.find(x => x.id === o.id); return q && q.type === "talk" ? {o, q} : null; }
+async function cityTalkSend(text){
+  const t = talkSheet(); if (!t) return;
+  const {o, q} = t, c = city();
+  if (q.status !== "open" || S.busy.cityTalk) return;
+  text = String(text == null ? (($("#talk-ans") || {}).value || "") : text).trim();
+  if (!text){ toast("先說點什麼再送出。"); return; }
+  const p = c.residents[q.who] || {name:"Resident"};
+  q.turns.push({role:"me", text}); q.note = ""; o.msg = ""; o.draft = "";
+  S.busy.cityTalk = q.id; drawSheet();
+  let r;
+  try {
+    const res = await callAI("city", cityTalkTurnPrompt(q, p, residentRole(c, q.who)), {cache:false, json:true});
+    r = parseLoose(res.text);
+    if (!r || typeof r !== "object" || !r.reply) throw {code:"invalid_json"};
+  } catch (e) {
+    q.turns.pop(); S.busy.cityTalk = "";
+    if (S.sheet === o){ o.draft = text; o.msg = aiErr(e); drawSheet(); }
+    return;
+  }
+  S.busy.cityTalk = "";
+  const me = q.turns[q.turns.length - 1];
+  me.better = String(r.better || "");
+  const understood = r.understood !== false && r.understood !== "false";
+  const solved = understood && (r.solved === true || r.solved === "true");
+  q.turns.push({role:"npc", text:String(r.reply), lost:!understood});
+  if (!understood){ q.misses = (q.misses || 0) + 1; q.note = String(r.note_zh || ""); }
+  const mine = q.turns.filter(x => x.role === "me").length;
+  if (solved){
+    q.status = "done"; q.gift = cityGift(); logActivity("practice"); gainKnow(4, "幫居民解決請求");
+    toast("幫上忙了！拿到禮物：" + q.gift);
+  } else if (q.misses >= TALK_CHANCES || mine >= TALK_MAX){
+    q.status = "failed"; loseKnow(TALK_LOSE, "居民沒聽懂"); logActivity("practice");
+  }
+  saveCity();
+  if (S.sheet === o) drawSheet();
+  render();
+  if (understood || q.status !== "open") return;
+  const box = $("#talk-ans"); if (box) box.focus();
+}
+/* speaking: record, let the computer's Whisper write it down, then send it like a typed message */
+async function cityTalkRec(){
+  const t = talkSheet(); if (!t || S.busy.cityTalk) return;
+  const {o} = t;
+  o.draft = (($("#talk-ans") || {}).value || ""); o.msg = "";
+  TTS.stop && TTS.stop();
+  try { REC.stream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true, noiseSuppression:true}}); }
+  catch (e) { o.msg = "沒辦法用麥克風，請在瀏覽器允許麥克風權限。"; drawSheet(); return; }
+  const type = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg"].find(x => window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(x)) || "";
+  try { REC.mr = new MediaRecorder(REC.stream, type ? {mimeType:type} : undefined); }
+  catch (e) { shadowRelease(); o.msg = "這個瀏覽器不能錄音，請用打字。"; drawSheet(); return; }
+  REC.chunks = [];
+  REC.mr.ondataavailable = e => { if (e.data && e.data.size) REC.chunks.push(e.data); };
+  REC.mr.onstop = () => cityTalkHeard(o);
+  REC.mr.start();
+  o.rec = "rec"; const t0 = performance.now(); drawSheet();
+  clearInterval(REC.timer);
+  REC.timer = setInterval(() => {
+    const sec = (performance.now() - t0) / 1000, el = $("#rec-time"); if (el) el.textContent = sec.toFixed(1);
+    if (sec >= 45) shadowStop();
+  }, 100);
+}
+async function cityTalkHeard(o){
+  const type = (REC.mr && REC.mr.mimeType) || "audio/webm";
+  const blob = new Blob(REC.chunks, {type});
+  shadowRelease();
+  if (S.sheet !== o) return;
+  if (blob.size < 1200){ o.rec = ""; o.msg = "沒錄到聲音，再試一次。"; drawSheet(); return; }
+  o.rec = "up"; drawSheet();
+  const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 60000);
+  let heard = "";
+  try {
+    const r = await fetch(asrBase() + "/asr?k=" + asrKey() + "&target=" + encodeURIComponent("Hello."), {method:"POST", body:blob, headers:{"Content-Type":type.split(";")[0]}, signal:ctl.signal});
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.ok) throw new Error(j.error || ("電腦回應錯誤（" + r.status + "）"));
+    heard = String(j.heard || "").trim();
+  } catch (e) {
+    o.rec = ""; o.msg = e.name === "AbortError" ? "電腦太久沒回應，可以先用打字。" : /Failed to fetch|NetworkError|Load failed/i.test(String(e.message)) ? await asrDiagnose() : String(e.message || e);
+    if (S.sheet === o) drawSheet(); return;
+  } finally { clearTimeout(timer); }
+  o.rec = "";
+  if (S.sheet !== o) return;
+  if (!heard){ o.msg = "沒聽清楚你說什麼，再說一次或用打字。"; drawSheet(); return; }
+  /* put what was heard in the box, so a wrong word can be fixed before sending */
+  o.draft = heard; o.msg = "聽到的是這樣，沒問題就按「送出」，有錯可以先改。"; drawSheet();
 }
 
 /* 編輯: drag an item from the library onto the island.

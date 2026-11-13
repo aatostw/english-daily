@@ -177,6 +177,10 @@ const ACT = {
     cityEvolveShow(hallName(h.lv));
   },
   "city-answer": el => cityAnswer(el),
+  "ctalk-send": () => cityTalkSend(),
+  "ctalk-rec": () => cityTalkRec(),
+  "ctalk-rec-stop": () => shadowStop(),
+  "ctalk-hint": () => { const o = S.sheet; if (!o) return; o.draft = (($("#talk-ans") || {}).value || o.draft || ""); o.hint = !o.hint; drawSheet(); },
   "talk-warn-x": () => { S.talk.warn = ""; render(); },
   "city-ground": el => { const err = cityGroundAt(city(), el.dataset.k, el.dataset.g); if (err) toast(err); drawSheet(); render(); },
   "dev-time": () => {
