@@ -34,8 +34,6 @@ function taskCfg(task){
   let model = a.model || P.defaults.write || "";
   /* some jobs need a stronger model than the everyday one */
   if (P.kind === "gemini" && TASK_MODELS[task]) model = TASK_MODELS[task];
-  /* daily articles: Flash Lite tends to loop and repeat itself, so use Flash unless a stronger model was picked */
-  if (P.kind === "gemini" && task === "article" && /lite/i.test(model)) model = "gemini-3.6-flash";
   return {provider:p, model};
 }
 function toTurns(input){
