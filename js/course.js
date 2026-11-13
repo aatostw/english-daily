@@ -75,14 +75,28 @@ async function generateArticle(n, d, k, pick, topic){
   render();
   let pending = false;
   try {
-    const res = await ai("article", articlePrompt(w, d, k, genre, extra, topic), {
-      cache:false, signal:ctl.signal,
-      onText: ({text}) => {
-        if (!S.reader || S.reader.ctl !== ctl) return;
-        S.reader.raw = text;
-        if (!pending){ pending = true; requestAnimationFrame(() => { pending = false; if (S.reader && S.reader.ctl === ctl) drawReader(false); }); }
-      }
-    });
+    const prompt = articlePrompt(w, d, k, genre, extra, topic);
+    const onText = ({text}) => {
+      if (!S.reader || S.reader.ctl !== ctl) return;
+      S.reader.raw = text;
+      if (!pending){ pending = true; requestAnimationFrame(() => { pending = false; if (S.reader && S.reader.ctl === ctl) drawReader(false); }); }
+    };
+    /* Try the stronger model first. If it has not started writing within 25 seconds
+       (or fails), fall back to the everyday model so the spinner never hangs. */
+    let res = null;
+    if (taskCfg("article").model !== taskCfg("write").model){
+      const inner = new AbortController(), stop = () => inner.abort();
+      ctl.signal.addEventListener("abort", stop);
+      let started = false;
+      const timer = setTimeout(() => { if (!started) inner.abort(); }, 25000);
+      try {
+        res = await ai("article", prompt, {cache:false, signal:inner.signal, onText: x => { started = true; onText(x); }});
+      } catch (e) {
+        if (ctl.signal.aborted || started) throw e;
+        res = null;
+      } finally { clearTimeout(timer); ctl.signal.removeEventListener("abort", stop); }
+    }
+    if (!res) res = await ai("write", prompt, {cache:false, signal:ctl.signal, onText});
     const p = parseRaw(res.text);
     if (!p.body) throw {code:"invalid_json"};
     const plan = DAY_PLAN[d];
