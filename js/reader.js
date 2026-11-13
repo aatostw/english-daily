@@ -239,7 +239,8 @@ function shadowHTML(o){
   }
   const say = '<button class="icon-btn" data-act="say" data-text="' + esc(o.text) + '" aria-label="聽示範">' + ICON.speaker + "</button>";
   let target = esc(o.text);
-  if (o.res && o.res.diff){
+  /* while recording or waiting, show the plain text so it is easy to read; the marked-up result only after scoring */
+  if (o.res && o.res.diff && o.state === "done"){
     /* the sentence again, word by word: green = said right, red = heard as something else, grey = missed */
     target = o.res.diff.map(d => d.t === "ok" ? '<span class="sw ok' + (d.p < .55 ? " weak" : "") + '">' + esc(d.show || d.w) + "</span>"
       : d.t === "sub" ? '<span class="sw sub">' + esc(d.show || d.w) + "<small>聽成 " + esc(d.heard) + "</small></span>"
