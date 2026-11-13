@@ -191,7 +191,8 @@ function renderPrefs(){
     ["read", "閱讀", (LENGTHS[set().length] || LENGTHS.mid).label + "篇幅・" + TIERS[tierIdx()].name],
     ["data", "資料", "學習統計和金幣紀錄"]
   ];
-  if (!S.prefPage) return '<section class="card"><h2 style="font-size:20px">設定</h2><div class="stack">' + items.map(([k, t, sub]) =>
+  if (!S.prefPage) return '<section class="card"><h2 style="font-size:20px">設定</h2><div class="stack">' +
+    '<button class="menu-row" data-act="app-switch"><span><b>切換 App</b><span class="small muted">學習筆記</span></span><span class="chev" aria-hidden="true">›</span></button>' + items.map(([k, t, sub]) =>
     '<button class="menu-row" data-act="pref-open" data-p="' + k + '"><span><b>' + t + '</b><span class="small muted">' + esc(sub) + '</span></span><span class="chev" aria-hidden="true">›</span></button>').join("") + "</div></section>" +
     (Cloud.on() ? '<button class="prefs-logout" data-act="cloud-logout">登出</button>' : "");
   const parts = prefsParts();

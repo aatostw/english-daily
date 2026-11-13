@@ -2,7 +2,7 @@
    The app itself: network first (so updates arrive), cached copy when offline.
    Fonts, the Pocket TTS library, its runtime and voice models: cache first —
    downloaded once while online, then served from the phone. */
-const SHELL = "eel-shell-v90";
+const SHELL = "eel-shell-v91";
 const ASSETS = "eel-assets-v1";
 const SHELL_FILES = [
   "./",
@@ -28,6 +28,7 @@ const SHELL_FILES = [
   "./js/course.js",
   "./js/news.js",
   "./js/rewards.js",
+  "./js/apps.js",
   "./js/progress.js",
   "./js/actions.js",
   "./js/boot.js",
