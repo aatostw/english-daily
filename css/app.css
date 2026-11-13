@@ -757,3 +757,10 @@ h1,h2{color:var(--primary-text)}
 .appsw-btn{flex:none;display:inline-flex;align-items:center;gap:2px;height:38px;padding:0 4px 0 0;border:0;background:none;cursor:pointer;-webkit-tap-highlight-color:transparent;color:var(--muted,#64748b)}
 .appsw-btn[hidden]{display:none}
 .appsw-btn .brand-chev{width:12px;height:12px}
+.top #brand{flex:0 1 auto;min-width:0}
+.top #brand svg:first-child{flex:none}
+.top #brand .name{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top #brand .brand-chev{flex:none}
+.top .stat{flex:none}
+@media (max-width:400px){.top #brand{gap:7px}.top #brand .name{font-size:15px;letter-spacing:0}.top #brand svg:first-child{width:26px;height:26px}}
+.top #brand.tight .name{display:none}

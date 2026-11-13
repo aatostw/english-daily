@@ -3,8 +3,6 @@
    ========================================================= */
 function renderPill(){
   renderCoins();
-  const on = !!S.profile;
-  $("#brand").hidden = on; $("#appsw-btn").hidden = !on;
 }
 function render(){
   drawGate();
