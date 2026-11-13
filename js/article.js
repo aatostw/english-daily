@@ -30,6 +30,25 @@ function parseSegs(p){
     last = re.lastIndex;
   }
   if (last < p.length) out.push({t:"plain", text:cleanBraces(p.slice(last))});
+  return dedupePats(out);
+}
+/* The AI sometimes writes a pattern and then adds it again inside the markup:
+   "You want to ((I want to|A)) eat". Drop the copy and mark the words that were already there. */
+function dedupePats(out){
+  const reEsc = x => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  for (let i = 1; i < out.length; i++){
+    const seg = out[i], prev = out[i - 1];
+    if (seg.t !== "pt" || prev.t !== "plain") continue;
+    const toks = seg.text.trim().split(/\s+/).filter(Boolean);
+    if (!toks.length) continue;
+    const rest = toks.slice(1).map(reEsc).join("\\s+");
+    const re = new RegExp("(^|[^A-Za-z'’])(" + (toks.length > 1 ? "[A-Za-z'’]+\\s+" + rest : reEsc(toks[0])) + ")\\s*$", "i");
+    const m = prev.text.match(re);
+    if (!m) continue;
+    prev.text = prev.text.slice(0, m.index + m[1].length);
+    seg.text = m[2];
+    if (!prev.text){ out.splice(i - 1, 1); i--; }
+  }
   return out;
 }
 function stripMarkup(p){ return parseSegs(p).map(s => s.text).join(""); }

@@ -75,7 +75,7 @@ async function generateArticle(n, d, k, pick, topic){
   render();
   let pending = false;
   try {
-    const res = await ai("write", articlePrompt(w, d, k, genre, extra, topic), {
+    const res = await ai("article", articlePrompt(w, d, k, genre, extra, topic), {
       cache:false, signal:ctl.signal,
       onText: ({text}) => {
         if (!S.reader || S.reader.ctl !== ctl) return;

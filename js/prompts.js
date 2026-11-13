@@ -39,25 +39,31 @@ function articlePrompt(w, d, k, genre, extra, topic){
   const words = plan.words.map(i => i + ": " + w.words[i].en + " (" + w.words[i].zh + ")").join("\n");
   const earlier = artsOf(w.n).filter(a => !(a.day === d && a.k === k)).map(a => a.title).filter(Boolean);
   const fp = P[plan.focus];
+  const many = plan.words.length > 3;
+  const easy = tierIdx() <= 1;
   return [
-    'You write daily reading pieces for " + learnerNoun() + " who is learning English. Copy the style of the TikTok account "English Everyday": short, simple sentences; repetition and rhythm (for example: "They wait. They wait for a friend. They wait for the perfect moment."); talk to the reader as "you" when it fits; warm, honest, one clear idea. No cliches like "in today\'s fast-paced world".',
+    "You write daily reading pieces for " + learnerNoun() + " who is learning English. Copy the style of the TikTok account \"English Everyday\": short, simple sentences with rhythm; talk to the reader as \"you\" when it fits; warm, honest, one clear idea. No cliches like \"in today's fast-paced world\".",
+    "Rhythm, not repetition: you may echo a phrase once for effect (\"They wait. They wait for a friend.\"), but every sentence must add something new: a detail, an action, a feeling, a reason. Never use the same sentence frame more than twice in a row, and never repeat a sentence. Fill the length with more concrete moments and details, not with filler.",
     "",
     "Learner level: " + levelText(),
     aboutPrompt(),
     "Genre: " + (genre === "custom" ? "Written to the learner's own request: \"" + String(topic || "").slice(0, 80) + "\". Write that kind of piece (still linked to the week theme where it fits), and follow every rule below." : GENRE_SPEC[genre] || GENRE_SPEC.story),
     "Week theme: " + w.theme_en + " (" + w.theme_zh + ")",
     "Length: about " + L.words + " words (about " + L.min + " minutes to read aloud).",
+    easy ? "Keep sentences short and easy, but to reach the length tell more: small scenes, examples, what happens next. A few extra everyday words beyond the level list are fine when needed." : "",
     "",
     "Sentence patterns:",
     lines.join("\n"),
     "",
-    'Target words (use each one at least twice; inflected forms are fine, e.g. "settle in" -> "settled in"):',
+    "Patterns may appear with any subject and form that fits the sentence (\"I want to\" can be \"You want to\", \"She wants to\"). Use them where they sound natural; never force one into a sentence that does not need it.",
+    "",
+    'Target words (use each one ' + (many ? "at least once, twice where it fits naturally" : "at least twice") + '; inflected forms are fine, e.g. "settle in" -> "settled in"):',
     words,
-    (extra && extra.length ? "\nSaved words the learner is reviewing (use each one at least once, same markup with these numbers):\n" + extra.map((x, i) => (6 + i) + ": " + x.en + " (" + x.zh + ")").join("\n") : ""),
+    (extra && extra.length ? "\nSaved words the learner is reviewing (use the ones that fit naturally, at least " + Math.min(3, extra.length) + " of them, same markup with these numbers):\n" + extra.map((x, i) => (6 + i) + ": " + x.en + " (" + x.zh + ")").join("\n") : ""),
     "",
     "Markup rules (the app reads them):",
     "- Every use of a target word: {{the words as they appear|number}}  e.g. {{settled in|4}}",
-    "- Every use of a pattern: wrap only its fixed words: ((I'm used to|A)) waking up early. Use the labels exactly as given above.",
+    "- Every use of a pattern: wrap the words you actually wrote, exactly as they appear in the sentence: \"((You're used to|A)) waking up early\", \"((She wants to|A)) rest\". The markup goes around existing words; never add the pattern's words a second time. WRONG: \"You want to ((I want to|A)) eat\". RIGHT: \"((You want to|A)) eat\". Use the labels exactly as given above.",
     "- Use exactly {{ }} and (( )). Never use ** or [[ ]]. Never put markup inside markup. No other formatting: no #, no lists.",
     earlier.length ? "Earlier pieces this week (choose a different angle and story): " + earlier.join("; ") : "",
     "",
