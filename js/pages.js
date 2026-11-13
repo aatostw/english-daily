@@ -94,7 +94,7 @@ function articleCardHTML(w, d){
         '<div class="art-row"><div class="art-t"><h2>' + esc(a.title) + '</h2><div class="zh">' + esc(a.title_zh) + "</div></div>" +
         '<button class="btn art-go' + (a.read ? " soft" : "") + '" data-act="open-art" data-id="' + artId(a) + '">' + (a.read ? "再讀一次" : "開始閱讀") + "</button></div>";
     });
-    const k = arts.length;
+    const k = Math.max.apply(null, arts.map(a => a.k || 0)) + 1; // not arts.length: after a delete that could reuse a number
     html += '<button class="art-more" data-act="gen-pick" data-n="' + w.n + '" data-d="' + d + '" data-k="' + k + '"' + (busy ? " disabled" : "") + ">" + (busy ? '<span class="spinner"></span>正在寫…' : plus + "再讀一篇") + "</button>";
   }
   if (S.err["gen-" + w.n + "-" + d]) html += '<div class="err">' + esc(S.err["gen-" + w.n + "-" + d]) + "</div>";

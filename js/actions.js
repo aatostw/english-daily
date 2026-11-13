@@ -65,6 +65,15 @@ const ACT = {
   "gen": el => generateArticle(Number(el.dataset.n), Number(el.dataset.d), Number(el.dataset.k)),
   "open-art": el => { if (el.dataset.id && S.arts[el.dataset.id]) openArticle(el.dataset.id); else if (el.dataset.d) generateArticle(Number(el.dataset.n), Number(el.dataset.d), 0); },
   "close-reader": () => closeReader(),
+  "del-art": async () => {
+    const a = S.reader && S.reader.art; if (!a || S.reader.news) return;
+    if (!(await confirmBox("刪除這篇文章？", "「" + (a.title || "這篇文章") + "」和你的造句、批改都會刪除，無法復原。已經拿到的金幣和紀錄會留著。", "刪除", true))) return;
+    const id = artId(a);
+    delete S.arts[id];
+    Store.del(id).catch(() => {});
+    closeReader();
+    toast("已刪除");
+  },
   "stop-gen": () => { if (S.reader && S.reader.ctl) S.reader.ctl.abort(); },
   "retry-gen": () => { const r = S.reader; closeReader(); generateArticle(r.week, r.day, r.k); },
   "open-news": el => openNews(el.dataset.id),

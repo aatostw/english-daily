@@ -48,13 +48,15 @@ function closeReader(){
 function readerShell(){
   return '<div class="reader-top"><button class="back-btn" data-act="close-reader" aria-label="返回">' + GATE_ICON.back + '</button><div class="ttl" id="rd-ttl"></div>' +
     '<button class="icon-btn" id="rd-play" data-act="read-all" aria-label="朗讀全文">' + ICON.play + "</button>" +
-    '<button class="icon-btn" data-act="font-cycle" aria-label="字體大小">' + ICON.font + "</button></div>" +
+    '<button class="icon-btn" data-act="font-cycle" aria-label="字體大小">' + ICON.font + "</button>" +
+    '<button class="icon-btn" id="rd-del" data-act="del-art" aria-label="刪除這篇文章" hidden>' + ICON.trash + "</button></div>" +
     '<div class="reader-body" id="rd-body"></div>';
 }
 function drawReader(first){
   const r = S.reader; if (!r) return;
   const el = $("#reader");
   if (first || !$("#rd-body")) el.innerHTML = readerShell();
+  const del = $("#rd-del"); if (del) del.hidden = !!r.news || r.state !== "ready" || !r.art;
   if (r.news){
     $("#rd-ttl").textContent = "每日新聞";
     $("#rd-body").innerHTML = newsReaderHTML(r.art);
