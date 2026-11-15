@@ -328,7 +328,7 @@ async function asrDiagnose(){
   try {
     const r = await fetch(asrBase() + "/ping?k=" + asrKey(), {cache:"no-store"}), j = await r.json();
     if (voiceProblem(j)) return voiceProblem(j);
-    if (!j.asr) return "電腦連得到，但電腦上的語音伺服器是舊版，還不能評分。請關掉電腦上的語音伺服器視窗，重新雙擊「啟動語音伺服器.bat」，再把新網址貼過來。";
+    if (!j.asr) return "電腦連得到，但電腦上的語音伺服器是舊版，還不能評分。請關掉電腦上的語音伺服器視窗，重新雙擊「start-voice-server.bat」，再把新網址貼過來。";
     if (j.asr === "loading") return "電腦的 Whisper 還在準備（第一次要下載模型，可能要幾分鐘），等一下再唸一次。";
     if (j.asr !== "ready") return "電腦的跟讀評分沒開啟（" + j.asr + "），看一下電腦上語音伺服器視窗的訊息。";
     return "錄音傳到電腦時斷掉了，再唸一次試試。";

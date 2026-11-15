@@ -10,6 +10,19 @@
 | 伺服器 | `server/eel-api.js`，部署成 Cloudflare Worker `eel-api` + D1 資料庫 `eel-english` | 帳號、雲端同步、AI 代理、每日新聞、電腦語音轉接、帳號管理 |
 | 電腦語音 | 你的電腦 `D:\english-server\voice_server.py`（借用 `D:\GPT-SoVITS-v2pro-20250604` 的模型），經 voice.natursai.com | GPT-SoVITS 朗讀、Whisper 跟讀評分 |
 
+## 電腦上的資料夾 `D:\english-server`
+
+| 名稱 | 內容 |
+|---|---|
+| `start-voice-server.bat` | 啟動電腦語音伺服器（每次要用時雙擊） |
+| `setup-fixed-url.bat` | 只在第一次設定 voice.natursai.com 時用 |
+| `voice_server.py` | 語音伺服器程式 |
+| `reference-voice.wav` | 朗讀用的參考音檔（3～10 秒） |
+| `access-key.txt` | 語音伺服器密碼（= Cloudflare 的 `VOICE_KEY`） |
+| `logs\` | `gpt-sovits-api.log`、`tunnel.log`、`self-test.wav` |
+| `english-daily\` | 這個 repo 的備份（網站實際用的是 GitHub 上的版本） |
+| `archive\` | 舊版檔案 |
+
 ## 網頁 App 的檔案（依載入順序）
 
 全部是一般 `<script>`，依序載入、共用全域變數；不需要建置工具。
@@ -58,7 +71,7 @@
 | `ADMIN_USER` | 變數 | 管理員帳號 |
 | `ADMIN_KEY` | Secret | 管理密碼 |
 | `GEMINI_KEY` | Secret | 伺服器 AI 和每日新聞用的 Gemini 金鑰 |
-| `VOICE_KEY` | Secret | 電腦語音伺服器的密碼（`voice_server_key.txt`） |
+| `VOICE_KEY` | Secret | 電腦語音伺服器的密碼（`D:\english-server\access-key.txt`） |
 | `AI_DAILY` | 變數（選填） | 每人每天 AI 次數，預設 300 |
 | `NEWS_MODEL`、`NEWS_BACKUPS` | 變數（選填） | 新聞用的模型與備用模型 |
 
