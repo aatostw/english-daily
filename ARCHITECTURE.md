@@ -8,7 +8,7 @@
 |---|---|---|
 | 網頁 App | 這個 repo 的根目錄 | 畫面、學習流程、資料先存在手機（localStorage） |
 | 伺服器 | `server/eel-api.js`，部署成 Cloudflare Worker `eel-api` + D1 資料庫 `eel-english` | 帳號、雲端同步、AI 代理、每日新聞、電腦語音轉接、帳號管理 |
-| 電腦語音 | 你的電腦 `D:\GPT-SoVITS-v2pro-20250604\voice_server.py`，經 voice.natursai.com | GPT-SoVITS 朗讀、Whisper 跟讀評分 |
+| 電腦語音 | 你的電腦 `D:\english-server\voice_server.py`（借用 `D:\GPT-SoVITS-v2pro-20250604` 的模型），經 voice.natursai.com | GPT-SoVITS 朗讀、Whisper 跟讀評分 |
 
 ## 網頁 App 的檔案（依載入順序）
 
