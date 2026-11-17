@@ -162,6 +162,12 @@ async function changePw(req, env, me){
 /* ---------- the computer voice, passed through for people the admin allowed ----------
    The phone never learns the computer's address or password: it shows its login instead (?k=). */
 async function getConfig(env, k){ const r = await env.DB.prepare("SELECT v FROM config WHERE k = ?").bind(k).first(); return r ? r.v : ""; }
+/* the Gemini key: one saved in the app (設定 → 開發人員 → 伺服器 AI 金鑰) wins over the Cloudflare secret GEMINI_KEY */
+async function geminiKey(env){ return String((await getConfig(env, "geminiKey")) || env.GEMINI_KEY || "").trim(); }
+async function geminiInfo(env){
+  const app = String(await getConfig(env, "geminiKey") || "").trim(), k = app || String(env.GEMINI_KEY || "").trim();
+  return {source:app ? "app" : k ? "cloudflare" : "", tail:k ? k.slice(-4) : "", cloudflare:!!env.GEMINI_KEY};
+}
 async function voice(req, env, path){
   const me = await auth(req, env, true);
   if (!me) return json(req, 401, {ok:false, error:"請重新登入", relogin:true});
@@ -193,7 +199,7 @@ async function voice(req, env, path){
    Daily news: one international tech story a day, the same for everyone,
    written by AI at six difficulty levels and stored, so it's made only once.
    Runs every morning (Cron); if that failed, the first reader starts it.
-   Needs the secret GEMINI_KEY (optional variable NEWS_MODEL).
+   Needs a Gemini key (geminiKey: the app setting, else the secret GEMINI_KEY; optional variable NEWS_MODEL).
    ====================================================================== */
 const NEWS_FEEDS = [
   {site:"BBC", url:"https://feeds.bbci.co.uk/news/technology/rss.xml"},
@@ -235,12 +241,13 @@ async function readFeed(f){
 }
 /* Busy (429/5xx): wait 1.5 s and try again, then the backup models in order. */
 async function gemini(env, prompt, json){
+  const key = await geminiKey(env);
   const models = [env.NEWS_MODEL || "gemini-3.5-flash-lite"].concat(String(env.NEWS_BACKUPS || "gemini-3.6-flash,gemini-3.8-flash").split(",").map(x => x.trim()).filter(Boolean));
   let lastErr;
   for (let i = 0; i < models.length; i++){
     for (let t = 0; t < (i ? 1 : 2); t++){
       const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + models[i] + ":generateContent", {
-        method:"POST", headers:{"Content-Type":"application/json", "x-goog-api-key":String(env.GEMINI_KEY).trim()},
+        method:"POST", headers:{"Content-Type":"application/json", "x-goog-api-key":key},
         body:JSON.stringify({contents:[{role:"user", parts:[{text:prompt}]}], generationConfig:Object.assign({temperature:0.7}, json ? {responseMimeType:"application/json"} : {})})
       });
       const j = await r.json().catch(() => ({}));
@@ -281,7 +288,7 @@ async function makeNews(env, date){
   /* (an error row is retried: by the next reader after 10 minutes, or by the admin) */
   await env.DB.prepare("INSERT INTO news (date, status, created_at) VALUES (?, 'pending', ?) ON CONFLICT(date) DO UPDATE SET status = 'pending', err = NULL, created_at = excluded.created_at").bind(date, Date.now()).run();
   try {
-    if (!env.GEMINI_KEY) throw new Error("伺服器還沒設定 GEMINI_KEY");
+    if (!(await geminiKey(env))) throw new Error("伺服器還沒設定 Gemini 金鑰");
     const recent = await env.DB.prepare("SELECT json FROM news WHERE status = 'ready' ORDER BY date DESC LIMIT 14").all();
     const used = new Set((recent.results || []).map(r => { try { return JSON.parse(r.json).source.link; } catch (e) { return ""; } }));
     const lists = await Promise.all(NEWS_FEEDS.map(readFeed));
@@ -335,7 +342,7 @@ async function newsRoute(req, env, ctx, path){
 
 
 /* ======================================================================
-   AI for everyone who is logged in, paid by the server's GEMINI_KEY.
+   AI for everyone who is logged in, paid by the server's Gemini key (geminiKey).
    The paths copy Gemini's own (/ai/models, /ai/models/<model>:streamGenerateContent),
    so the app talks to it exactly like Gemini; ?key= carries the login instead of an API key.
    Each person may make AI_DAILY requests a day (default 300).
@@ -344,10 +351,11 @@ async function aiRoute(req, env, path){
   const u = new URL(req.url), tok = (u.searchParams.get("key") || "").match(/^[a-f0-9]{64}$/);
   const me = tok ? await auth(new Request(req.url, {headers:{Authorization:"Bearer " + tok[0]}}), env) : await auth(req, env);
   if (!me) return json(req, 401, {ok:false, error:{code:401, message:"請重新登入"}, relogin:true});
-  if (!env.GEMINI_KEY) return json(req, 503, {ok:false, error:{code:503, message:"伺服器還沒設定 GEMINI_KEY"}});
+  const gk = await geminiKey(env);
+  if (!gk) return json(req, 503, {ok:false, error:{code:503, message:"伺服器還沒設定 Gemini 金鑰"}});
   const base = "https://generativelanguage.googleapis.com/v1beta";
   const fwd = new URLSearchParams(u.search); fwd.delete("key");
-  const hdr = {"x-goog-api-key":String(env.GEMINI_KEY).trim()};
+  const hdr = {"x-goog-api-key":gk};
   if (path === "/ai/models" && req.method === "GET"){
     const r = await fetch(base + "/models?" + fwd.toString(), {headers:hdr});
     return new Response(r.body, {status:r.status, headers:Object.assign({"Content-Type":"application/json"}, cors(req))});
@@ -390,8 +398,21 @@ async function adminRoute(req, env, path){
     if (req.method === "POST"){
       if (typeof b.voiceKey === "string" && b.voiceKey.trim()) await env.DB.prepare("INSERT INTO config (k, v) VALUES ('voiceKey', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v").bind(b.voiceKey.trim()).run();
       if (typeof b.voiceUrl === "string") await env.DB.prepare("INSERT INTO config (k, v) VALUES ('voiceUrl', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v").bind(b.voiceUrl.trim().replace(/\/+$/, "")).run();
+      if (b.geminiClear) await env.DB.prepare("DELETE FROM config WHERE k = 'geminiKey'").run();
+      else if (typeof b.geminiKey === "string" && b.geminiKey.trim()){
+        /* ask Google first, so a typo never replaces a working key */
+        const k = b.geminiKey.trim();
+        if (!/^[A-Za-z0-9_-]{20,200}$/.test(k)) return json(req, 400, {ok:false, error:"金鑰格式不對：應該是一串英文字母和數字，中間沒有空格"});
+        const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=1", {headers:{"x-goog-api-key":k}}).catch(() => null);
+        if (!r) return json(req, 502, {ok:false, error:"連不上 Google，金鑰沒有換。稍後再試一次"});
+        if (!r.ok){
+          const j = await r.json().catch(() => ({}));
+          return json(req, 400, {ok:false, error:"Google 不接受這組金鑰，沒有換（" + r.status + (j.error && j.error.message ? "：" + String(j.error.message).slice(0, 120) : "") + "）"});
+        }
+        await env.DB.prepare("INSERT INTO config (k, v) VALUES ('geminiKey', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v").bind(k).run();
+      }
     }
-    return json(req, 200, {ok:true, voiceKeySet:!!(env.VOICE_KEY || await getConfig(env, "voiceKey")), voiceUrl:(await getConfig(env, "voiceUrl")) || VOICE_URL});
+    return json(req, 200, {ok:true, voiceKeySet:!!(env.VOICE_KEY || await getConfig(env, "voiceKey")), voiceUrl:(await getConfig(env, "voiceUrl")) || VOICE_URL, gemini:await geminiInfo(env)});
   }
   const email = cleanEmail(b.email);
   if (!okEmail(email)) return json(req, 400, {ok:false, error:"Email 格式不對"});

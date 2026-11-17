@@ -70,7 +70,7 @@
 | `DB` | D1 綁定 | 資料庫 `eel-english` |
 | `ADMIN_USER` | 變數 | 管理員帳號 |
 | `ADMIN_KEY` | Secret | 管理密碼 |
-| `GEMINI_KEY` | Secret | 伺服器 AI 和每日新聞用的 Gemini 金鑰 |
+| `GEMINI_KEY` | Secret | 伺服器 AI 和每日新聞用的 Gemini 金鑰。App「設定 → 資料 → 開發人員 → 伺服器 AI 金鑰」換上的金鑰（存在 D1 的 `config` 表，`geminiKey`）會優先使用 |
 | `VOICE_KEY` | Secret | 電腦語音伺服器的密碼（`D:\english-server\access-key.txt`） |
 | `AI_DAILY` | 變數（選填） | 每人每天 AI 次數，預設 300 |
 | `NEWS_MODEL`、`NEWS_BACKUPS` | 變數（選填） | 新聞用的模型與備用模型 |

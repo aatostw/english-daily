@@ -132,7 +132,7 @@ function adminHTML(){
         '<div class="row between" style="align-items:center;margin-top:8px"><span class="small"><b>電腦語音</b><span class="muted">（GPT-SoVITS、跟讀評分）</span></span><button class="switch" role="switch" aria-checked="' + !!u.voice + '" data-act="adm-voice" data-email="' + esc(u.email) + '" data-on="' + (u.voice ? 0 : 1) + '" aria-label="電腦語音"><span></span></button></div>' +
         (a.reset === u.email ? '<div class="row" style="margin-top:8px"><input class="input" id="adm-rp" type="text" autocomplete="off" placeholder="新密碼（至少 6 個字）" aria-label="新密碼"><button class="btn sm" data-act="adm-reset-go" data-email="' + esc(u.email) + '">確定</button></div>' : "") +
       "</div>").join("") + "</div>" : '<p class="muted small" style="margin:0">還沒有帳號。</p>';
-  return '<div class="divider"></div><div><b>帳號管理</b></div>' +
+  return geminiAdminHTML(a) + '<div class="divider"></div><div><b>帳號管理</b></div>' +
     '<div class="row between" style="align-items:center"><span class="small muted">管理員：<b class="en">' + esc(admUser()) + '</b></span><button class="btn soft sm" data-act="adm-load"' + (a.busy ? " disabled" : "") + ">" + (a.busy ? '<span class="spinner"></span>' : "") + "重新整理</button></div>" +
     (a.err ? '<div class="err">' + esc(a.err) + "</div>" : "") + (a.ok ? '<div class="note ok">' + esc(a.ok) + "</div>" : "") + list +
     (users ? '<details class="ledger"' + (a.addOpen ? " open" : "") + '><summary>新增帳號</summary><div class="stack" style="margin-top:10px">' +
@@ -142,6 +142,20 @@ function adminHTML(){
       '<label class="row" style="align-items:center;gap:8px;font-size:14px"><input type="checkbox" id="adm-voice" checked> 開通電腦語音（GPT-SoVITS、跟讀評分）</label>' +
       '<button class="btn" data-act="adm-add">建立帳號</button></div></details>' +
     "" : "");
+}
+/* 伺服器 AI 金鑰: the Gemini key everyone's default AI (provider 伺服器) and the daily news use.
+   The server only ever sends back where it comes from and its last 4 characters. */
+function geminiAdminHTML(a){
+  const g = a.gemini, m = a.gmsg;
+  if (a.users && !g) return '<div class="divider"></div><div><b>伺服器 AI 金鑰</b></div><div class="small" style="color:#C93636">Cloudflare 上的伺服器程式還是舊版，更新 Worker 後這裡才能換金鑰。</div>';
+  const now = !g ? "" : g.source === "app" ? "使用中：在這裡設定的金鑰" : g.source === "cloudflare" ? "使用中：Cloudflare 的 GEMINI_KEY" : "還沒有金鑰，大家的預設 AI 不能用";
+  return '<div class="divider"></div><div><b>伺服器 AI 金鑰</b><span class="small muted">（Gemini，大家預設的 AI 和每日新聞）</span></div>' +
+    (now ? '<div class="small' + (g.source ? " muted" : "") + '"' + (g.source ? "" : ' style="color:#C93636"') + ">" + now + (g.tail ? '，結尾是 <b class="en">…' + esc(g.tail) + "</b>" : "") + "</div>" : "") +
+    '<div class="row" style="gap:8px;align-items:center"><input class="input en" id="adm-gkey" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="新的 Gemini API 金鑰" aria-label="新的 Gemini API 金鑰" style="flex:1;min-width:0" value="' + esc(a.gdraft || "") + '">' +
+      '<button class="btn sm" data-act="adm-gkey"' + (a.gbusy ? " disabled" : "") + ">" + (a.gbusy ? '<span class="spinner"></span>' : "") + "測試並換上</button></div>" +
+    '<div class="row between" style="align-items:center"><a class="small" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">到 Google AI Studio 拿金鑰</a>' +
+      (g && g.source === "app" && g.cloudflare ? '<button class="btn soft sm" data-act="adm-gkey-clear"' + (a.gbusy ? " disabled" : "") + ">改回 Cloudflare 的金鑰</button>" : "") + "</div>" +
+    (m ? '<div class="' + (m.ok ? "note ok" : "err") + '">' + esc(m.text) + "</div>" : "");
 }
 /* the admin's name and password (Cloudflare: ADMIN_USER / ADMIN_KEY), kept only on this device after they were checked */
 function admCreds(){ try { const c = JSON.parse(localStorage.getItem("eel-admin") || "null"); return c && c.key ? c : null; } catch (e) { return null; } }

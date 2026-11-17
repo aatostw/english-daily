@@ -297,9 +297,27 @@ const ACT = {
     const k = admKey();
     if (!k) return;
     S.adm = Object.assign(S.adm || {}, {busy:true}, keep ? {} : {err:"", ok:""}); render();
-    try { const j = await Cloud.api("/admin/users", {admin:k}); S.adm.users = j.users; const c = await Cloud.api("/admin/config", {admin:k}); S.adm.voiceKeySet = c.voiceKeySet; S.adm.voiceUrl = String(c.voiceUrl || "").replace(/^https?:\/\//, ""); }
+    try { const j = await Cloud.api("/admin/users", {admin:k}); S.adm.users = j.users; const c = await Cloud.api("/admin/config", {admin:k}); S.adm.voiceKeySet = c.voiceKeySet; S.adm.gemini = c.gemini; S.adm.voiceUrl = String(c.voiceUrl || "").replace(/^https?:\/\//, ""); }
     catch (e) { S.adm.err = e.message; S.adm.users = null; if (/管理員帳號或密碼不對/.test(e.message)){ admForget(); set().devMode = false; saveProfile(); toast("管理員帳號或密碼已經改了，請重新開啟開發人員模式。"); } }
     S.adm.busy = false; render();
+  },
+  "adm-gkey": async () => {
+    const k = (($("#adm-gkey") || {}).value || "").trim();
+    S.adm.gdraft = k;
+    if (!k){ S.adm.gmsg = {ok:false, text:"請先貼上新的金鑰。"}; render(); return; }
+    S.adm.gbusy = true; S.adm.gmsg = null; render();
+    try { const c = await Cloud.api("/admin/config", {admin:admKey(), body:{geminiKey:k}});
+      if (!c.gemini) S.adm.gmsg = {ok:false, text:"Cloudflare 上的伺服器程式還是舊版，金鑰沒有換。請先更新 Worker 程式再試。"};
+      else { S.adm.gemini = c.gemini; S.adm.gdraft = ""; S.adm.gmsg = {ok:true, text:"Google 測試通過，已換上新金鑰。大家下一次用 AI 就會用它。"}; } }
+    catch (e) { S.adm.gmsg = {ok:false, text:e.message}; }
+    S.adm.gbusy = false; render();
+  },
+  "adm-gkey-clear": async () => {
+    if (!(await confirmBox("改回 Cloudflare 的金鑰？", "在這裡設定的金鑰會被移除，改用 Cloudflare 設定裡的 GEMINI_KEY。之後想再換，要重新貼上。", "改回"))) return;
+    S.adm.gbusy = true; S.adm.gmsg = null; render();
+    try { const c = await Cloud.api("/admin/config", {admin:admKey(), body:{geminiClear:true}}); S.adm.gemini = c.gemini; S.adm.gmsg = {ok:true, text:"已改回 Cloudflare 的 GEMINI_KEY。"}; }
+    catch (e) { S.adm.gmsg = {ok:false, text:e.message}; }
+    S.adm.gbusy = false; render();
   },
   "adm-add": async () => {
     const body = {name:(($("#adm-name") || {}).value || "").trim(), email:(($("#adm-email") || {}).value || "").trim(), password:($("#adm-pw") || {}).value || "", voice:!!($("#adm-voice") || {}).checked};
