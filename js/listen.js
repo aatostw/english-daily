@@ -4,10 +4,13 @@
    每一段：中文導讀 → 英文故事／對話 → 單字回顧（單字、原句重播、解釋、新例句、跟著說）。
    ========================================================= */
 const POD_TYPE = {story:"故事", dialog:"對話情境"};
-const POD_LEN = {short:{parts:2, label:"短", min:"約 8 分鐘"}, mid:{parts:3, label:"中", min:"約 12 分鐘"}, long:{parts:4, label:"長", min:"約 16 分鐘"}};
-const POD_ZH = {more:"中文多", less:"中文少", none:"純英文"};
-const NUM_ZH = ["一", "二", "三", "四", "五", "六"];
-const NUM_EN = ["one", "two", "three", "four", "five", "six"];
+const POD_SRC = {week:"本週單字", star:"我的收藏", custom:"自己新增"};
+const POD_ZH = {more:"中英導讀", less:"中文少", none:"全英文"};
+const POD_ZH_HINT = {more:"每段先用中文說大意，單字用中文解釋情境和用法。", less:"每段先用中文說大意，單字只說中文意思，詳細解釋留在畫面上。", none:"全部用英文唸，連單字解釋也是英文；中文只出現在畫面上。"};
+const NUM_ZH = ["一", "二", "三", "四", "五", "六", "七", "八"];
+const NUM_EN = ["one", "two", "three", "four", "five", "six", "seven", "eight"];
+const LETTER = {a:"ay", b:"bee", c:"see", d:"dee", e:"ee", f:"f", g:"gee", h:"h", i:"eye", j:"jay", k:"kay", l:"el", m:"em", n:"en", o:"oh", p:"pee", q:"cue", r:"ar", s:"ess", t:"tee", u:"you", v:"vee", w:"double you", x:"ex", y:"why", z:"zee"};
+const MAX_WORDS = 24;
 ICON.headphones = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="4.5" height="7" rx="1.8"/><rect x="16.5" y="14" width="4.5" height="7" rx="1.8"/></svg>';
 ICON.pause = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6.5" y="5" width="4" height="14" rx="1.2"/><rect x="13.5" y="5" width="4" height="14" rx="1.2"/></svg>';
 ICON.back10 = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1"/><path d="M3 4v4.5h4.5"/><text x="12" y="15.6" text-anchor="middle" font-size="7.5" font-weight="700" fill="currentColor" stroke="none" font-family="Lexend,sans-serif">10</text></svg>';
@@ -17,28 +20,39 @@ ICON.more = '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12"
 
 function listenOpts(){
   const st = set();
-  const o = Object.assign({type:"story", src:"week", len:"mid", zh:"more", follow:true, onlyEn:false, auto:true}, st.listen || {});
-  if (!st.listen && S.profile){ st.listen = o; }
+  const o = Object.assign({types:["story"], srcs:["week"], sel:{}, custom:[], mins:12, zh:"more", follow:true, spell:false, speed:1, rate:1, onlyEn:false, auto:true}, st.listen || {});
+  /* 舊的設定（一個類型、一個來源、短中長）換成新的 */
+  if (o.type){ o.types = [o.type]; delete o.type; }
+  if (o.src){ o.srcs = [o.src]; delete o.src; }
+  if (o.len){ o.mins = {short:8, mid:12, long:16}[o.len] || 12; delete o.len; }
+  if (S.profile) st.listen = o;
   return o;
 }
 function podList(){ return Object.values(S.pods || {}).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)); }
 function podOf(id){ return (S.pods || {})[id] || null; }
 function savePod(p){ S.pods[p.id] = p; return Store.set(p.id, p).catch(() => {}); }
 function heardCount(word){ const h = S.log && S.log.m && S.log.m.h && S.log.m.h[String(word).toLowerCase()]; return h ? h.n : 0; }
+function podTypes(p){ return p.types || [p.type || "story"]; }
+function podSrcs(p){ return p.srcs || [p.src || "week"]; }
 
 /* ---------- 挑單字 ---------- */
-function podWords(src){
-  const norm = x => ({en:x.en, pos:x.pos || "", ipa:x.ipa || "", zh:x.zh || "", note_zh:x.note_zh || "", example_en:x.example_en || ""});
-  const saved = Object.values(S.bank).filter(x => x && x.en)
-    .sort((a, b) => (heardCount(a.en) - heardCount(b.en)) || ((b.addedAt || 0) - (a.addedAt || 0)));
-  if (src === "star") return saved.slice(0, 8).map(x => Object.assign(norm(x), {saved:true}));
-  const w = curWeek(); if (!w) return [];
-  const mine = w.words.map(norm), have = new Set(mine.map(x => x.en.toLowerCase()));
-  /* 本週單字，再加 2 個收藏單字（聽得最少、掌握度最低的先） */
-  const extra = saved.filter(x => !have.has(x.en.toLowerCase()))
-    .sort((a, b) => ({new:0, mid:1, ok:2}[mastery("w", a.en)] - {new:0, mid:1, ok:2}[mastery("w", b.en)]) || (heardCount(a.en) - heardCount(b.en)))
-    .slice(0, 2).map(x => Object.assign(norm(x), {saved:true}));
-  return mine.concat(extra);
+/* 三個來源的所有單字，每個都標好有沒有勾選。
+   沒動過的預設：本週單字和自己新增的全勾；收藏只勾聽得最少的 6 個。 */
+function podCandidates(o){
+  const norm = (x, from) => ({en:String(x.en).trim(), pos:x.pos || "", ipa:x.ipa || "", zh:x.zh || "", note_zh:x.note_zh || "", example_en:x.example_en || "", from});
+  const out = [], seen = new Set();
+  const push = (x, on) => { const k = x.en.toLowerCase(); if (!x.en || seen.has(k)) return; seen.add(k); x.key = k; x.on = o.sel[k] != null ? !!o.sel[k] : on; out.push(x); };
+  const w = curWeek();
+  if (w) w.words.forEach(x => push(norm(x, "week"), true));
+  Object.values(S.bank).filter(x => x && x.en)
+    .sort((a, b) => (heardCount(a.en) - heardCount(b.en)) || ({new:0, mid:1, ok:2}[mastery("w", a.en)] - {new:0, mid:1, ok:2}[mastery("w", b.en)]) || ((b.addedAt || 0) - (a.addedAt || 0)))
+    .forEach((x, i) => push(norm(x, "star"), i < 6));
+  (o.custom || []).forEach(x => push(norm(x, "custom"), true));
+  return out;
+}
+function podWords(o){
+  return podCandidates(o).filter(x => x.on && o.srcs.includes(x.from)).slice(0, MAX_WORDS)
+    .map(x => { const y = Object.assign({}, x); delete y.on; delete y.key; if (x.from === "star") y.saved = true; return y; });
 }
 /* 把單字分給每一段：8 個字 3 段 → 3、3、2 */
 function splitWords(words, parts){
@@ -46,32 +60,49 @@ function splitWords(words, parts){
   words.forEach((w, i) => out[i % parts].push(w));
   return out;
 }
+function spellText(word){
+  return String(word).toLowerCase().split(/\s+/).filter(Boolean).map(t => t.replace(/[^a-z]/g, "").split("").map(c => LETTER[c]).join(", ")).filter(Boolean).join(". ") + ".";
+}
+function spellShow(word){ return String(word).toUpperCase().split(/\s+/).map(t => t.replace(/[^A-Z]/g, "").split("").join(" ")).join("  ·  "); }
+
+/* 用時間長度推算：幾段、每段英文大概幾個字（單字回顧的時間先扣掉） */
+function podPlan(o, n){
+  const mins = Math.max(3, Math.min(30, Number(o.mins) || 12)), sp = Number(o.speed) || 1;
+  let parts = Math.max(1, Math.min(8, Math.round(mins / 4)));
+  if (n) parts = Math.min(parts, n);
+  const perWord = (5 + (o.spell ? 6 : 0) + 4.5 + (o.zh === "more" ? 8 : o.zh === "less" ? 3.5 : 6) + 3) / sp + 3.1 + (o.follow ? 2.6 : 0.9);
+  const perPart = (o.zh !== "none" ? 9 : 0) + 6;
+  const review = n * perWord, story = mins * 60 - review - parts * perPart - 6;
+  const enWords = Math.round(Math.max(60, Math.min(500, story / parts * 2.4 * sp)) / 10) * 10;
+  return {mins, parts, enWords, reviewMin:Math.round(review / 60 * 10) / 10, short:story / parts < 30};
+}
 
 /* ---------- 稿子 ---------- */
-function podPrompt(o, groups, prev){
-  const w = curWeek(), P = w && o.src === "week" ? weekPats(w) : null;
-  const story = o.type === "story";
+function podPrompt(o, groups, prev, plan){
+  const w = curWeek(), P = w && o.srcs.includes("week") ? weekPats(w) : null;
+  const types = o.types.length ? o.types : ["story"], mixed = types.length > 1, anyDialog = types.includes("dialog");
+  const typeOf = i => types[i % types.length];
   return [
     "You write one episode of a listening podcast for " + learnerNoun(true) + ". The learner listens while working (hands busy), so it must be easy to follow by ear.",
     "Learner level: " + levelText(),
     aboutPrompt(),
-    w && o.src === "week" ? "Week theme: " + w.theme_en + " (" + w.theme_zh + ")" : "Theme: everyday life in Taiwan; pick one concrete situation that fits the words.",
-    story ? "Type: a short serial story told by ONE narrator, warm and concrete, with a small turn in every part. Characters may speak inside the narration with quotation marks."
-          : "Type: a natural everyday conversation between two people, A and B, in one real-life situation (work, shopping, friends, family, travel). Give them first names. They take turns; each line is what one person says.",
+    P ? "Week theme: " + w.theme_en + " (" + w.theme_zh + ")" : "Theme: everyday life in Taiwan; pick one concrete situation that fits the words.",
+    types.includes("story") ? "Story parts: told by ONE narrator, warm and concrete, with a small turn in every part. Characters may speak inside the narration with quotation marks. Every line has who \"N\"." : "",
+    anyDialog ? "Dialogue parts: a natural everyday conversation between two people, A and B, in a real-life situation (work, shopping, friends, family, travel). They take turns; each line is what one person says. Every line has who \"A\" or \"B\"." : "",
+    mixed ? "Story parts and dialogue parts belong to ONE continuous plot with the same characters (A and B are characters of the story)." : "",
     prev ? "This continues earlier episodes. Keep the same characters and continue the story from here: " + prev : "",
     P ? "Sentence patterns of the week; use each one naturally a few times: A: " + P.A.en + " (" + P.A.zh + "); B: " + P.B.en + " (" + P.B.zh + ")" : "",
     "",
-    "The episode has " + groups.length + " parts. Each part: " + (story ? "about 170 English words, split into lines of one or two sentences." : "12 to 16 short lines.") ,
+    "The episode has " + groups.length + " parts. Split the English into lines of one or two sentences.",
     "Target words for each part (use every word of a part at least twice inside that part, inflected forms are fine; they may appear again later):",
-    groups.map((g, i) => "Part " + (i + 1) + ": " + g.map(x => x.en + " (" + x.zh + ")").join("; ")).join("\n"),
+    groups.map((g, i) => "Part " + (i + 1) + " (" + (typeOf(i) === "story" ? "story" : "dialogue") + ", about " + plan.enWords + " English words): " + g.map(x => x.en + (x.zh ? " (" + x.zh + ")" : "")).join("; ")).join("\n"),
     "",
     "Spoken English only: it will be read aloud by a voice engine. No markup, no emoji, no lists, no stage directions, no parentheses. Write numbers as words.",
     "",
     "Reply with only JSON in this shape:",
-    '{"title":"English title, at most 7 words","title_zh":"中文標題",' + (story ? "" : '"cast":{"A":"Mia","B":"Ken"},') + '"summary_zh":"這一集發生了什麼（1～2 句，下一集接著寫用）",' +
-    '"parts":[{"intro_zh":"用 1～2 句中文說這一段在發生什麼事，不要翻譯全文，40 字以內","lines":[{"who":"' + (story ? "N" : "A") + '","en":"..."}],' +
-    '"words":[{"word":"the target word exactly as given","line":0,"explain_zh":"1～2 句中文：它在這個情境的意思、怎麼用、常跟什麼搭配（句子裡可以直接寫英文單字）","explain_en":"one short, simple English explanation","example_en":"one new short everyday example, at most 12 words, not from the story"}]}]}',
-    story ? 'who is always "N".' : 'who is "A" or "B".',
+    '{"title":"English title, at most 7 words","title_zh":"中文標題",' + (anyDialog ? '"cast":{"A":"Mia","B":"Ken"},' : "") + '"summary_zh":"這一集發生了什麼（1～2 句，下一集接著寫用）",' +
+    '"parts":[{"intro_zh":"用 1～2 句中文說這一段在發生什麼事，不要翻譯全文，40 字以內","lines":[{"who":"' + (types[0] === "story" ? "N" : "A") + '","en":"..."}],' +
+    '"words":[{"word":"the target word exactly as given","zh":"簡短中文意思","ipa":"/American IPA/","line":0,"explain_zh":"1～2 句中文：它在這個情境的意思、怎麼用、常跟什麼搭配（句子裡可以直接寫英文單字）","explain_en":"one short, simple English explanation","example_en":"one new short everyday example, at most 12 words, not from the story"}]}]}',
     '"line" is the 0-based index of the line in that part where the word is used most clearly. "words" lists exactly the target words of that part, in the order given.',
     "All Chinese in Traditional Chinese as used in Taiwan."
   ].filter(x => x !== "").join("\n");
@@ -87,10 +118,12 @@ function cleanSpoken(t){ return String(t || "").replace(/[*_#{}\[\]()]/g, "").re
 
 /* 把 AI 的稿子變成一行一行要唸的東西（每行：誰唸、語言、文字、唸完停多久） */
 function compilePod(p){
-  const o = p.opts, out = [], zh = o.zh, story = p.type === "story";
-  const add = (k, v, t, gap, extra) => { t = cleanSpoken(t); if (!t && k !== "pause") return; out.push(Object.assign({k, v, lang:v === "zh" ? "zh" : "en", t, gap}, extra || {})); };
-  const voiceOf = who => (!story && String(who).toUpperCase() === "B") ? "b" : "a";
+  const o = p.opts, out = [], zh = o.zh, types = podTypes(p), sp = Number(o.speed) || 1;
+  /* 英文照設定的語速唸；中文一律正常速度 */
+  const add = (k, v, t, gap, extra) => { t = cleanSpoken(t); if (!t && k !== "pause") return; out.push(Object.assign({k, v, lang:v === "zh" ? "zh" : "en", t, gap, s:v === "zh" ? 1 : sp}, extra || {})); };
   (p.script.parts || []).forEach((part, pi) => {
+    const story = types[pi % types.length] === "story";
+    const voiceOf = who => (!story && String(who).toUpperCase() === "B") ? "b" : "a";
     zh === "none" ? add("cue", "a", "Part " + (NUM_EN[pi] || pi + 1) + ".", 0.6, {p:pi, cue:"part"}) : add("cue", "zh", "第" + (NUM_ZH[pi] || pi + 1) + "段。", 0.5, {p:pi, cue:"part"});
     if (zh !== "none") add("intro", "zh", part.intro_zh, 0.9, {p:pi});
     const lines = (part.lines || []).filter(l => l && cleanSpoken(l.en));
@@ -98,12 +131,17 @@ function compilePod(p){
     const words = part.words || [];
     if (words.length) zh === "none" ? add("cue", "a", "Now, the words.", 0.8, {p:pi, cue:"review"}) : add("cue", "zh", "來複習這一段的單字。", 0.8, {p:pi, cue:"review"});
     words.forEach(wd => {
-      const info = p.words.find(x => x.en.toLowerCase() === String(wd.word || "").toLowerCase()) || {en:wd.word, zh:""};
+      let info = p.words.find(x => x.en.toLowerCase() === String(wd.word || "").toLowerCase());
+      if (!info){ info = {en:String(wd.word || ""), zh:"", ipa:""}; p.words.push(info); }
+      /* 自己新增的單字沒有中文和音標：用 AI 給的補上 */
+      if (!info.zh && wd.zh) info.zh = String(wd.zh);
+      if (!info.ipa && wd.ipa) info.ipa = String(wd.ipa);
       const re = wordRe(info.en);
       let li = Number(wd.line);
       if (!(lines[li] && re && re.test(lines[li].en))) li = re ? lines.findIndex(l => re.test(l.en)) : -1;
       const wi = p.words.indexOf(info);
       add("word", "a", info.en + ". " + info.en + ".", 0.6, {p:pi, w:wi});
+      if (o.spell && /[a-z]/i.test(info.en)) add("spell", "a", spellText(info.en), 0.5, {p:pi, w:wi, show:spellShow(info.en), s:Math.min(sp, 0.9)}), add("word", "a", info.en + ".", 0.7, {p:pi, w:wi, again:true});
       if (li >= 0) add("replay", voiceOf(lines[li].who), lines[li].en, 0.7, {p:pi, w:wi, who:story ? "" : String(lines[li].who || "A").toUpperCase()});
       if (zh === "more") add("explain", "zh", wd.explain_zh || (info.en + "，" + info.zh + "。"), 0.7, {p:pi, w:wi});
       else if (zh === "less") add("explain", "zh", info.en + "，" + (info.zh || "") + "。", 0.6, {p:pi, w:wi, zh:wd.explain_zh || ""});
@@ -143,19 +181,21 @@ async function makePod(){
   if (S.busy.pod) return;
   const o = clone(listenOpts());
   if (!Cloud.voiceOk()){ S.err.pod = "聽學要用電腦語音（GPT-SoVITS）。請先到「設定 → 帳號」登入，並請管理員開通電腦語音。"; drawSheet(); return; }
-  const words = podWords(o.src);
-  if (words.length < 2){ S.err.pod = o.src === "star" ? "收藏的單字太少了，至少要 2 個。讀文章時點單字、按星號就能收藏。" : "還沒有本週單字，先到首頁開始這一週。"; drawSheet(); return; }
-  const parts = POD_LEN[o.len] ? POD_LEN[o.len].parts : 3;
-  const groups = splitWords(words, parts);
-  const w = curWeek();
-  const prevs = podList().filter(x => x.type === "story" && o.type === "story" && x.src === o.src && (o.src !== "week" || (w && x.week === w.n)) && x.script && x.script.summary_zh).slice(0, 3).reverse();
+  if (!o.types.length){ S.err.pod = "至少勾一種類型。"; drawSheet(); return; }
+  if (!o.srcs.length){ S.err.pod = "至少勾一個單字來源。"; drawSheet(); return; }
+  const words = podWords(o);
+  if (words.length < 2){ S.err.pod = "勾選的單字太少了，至少要 2 個。按「詳情」可以挑單字，也可以自己新增。"; drawSheet(); return; }
+  const plan = podPlan(o, words.length);
+  const groups = splitWords(words, plan.parts);
+  const w = curWeek(), src = o.srcs.includes("week") ? "week" : "star";
+  const prevs = o.types.includes("story") ? podList().filter(x => podTypes(x).includes("story") && (x.src || "week") === src && (src !== "week" || (w && x.week === w.n)) && x.script && x.script.summary_zh).slice(0, 3).reverse() : [];
   const prev = prevs.map(x => x.script.summary_zh).join(" ");
   const id = "pod-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 6);
-  const p = {kind:"pod", id, type:o.type, src:o.src, week:o.src === "week" && w ? w.n : 0, opts:o, words, state:"write", createdAt:Date.now(), ver:1, pos:0, heard:false};
+  const p = {kind:"pod", id, types:o.types.slice(), srcs:o.srcs.slice(), src, week:src === "week" && w ? w.n : 0, opts:o, words, state:"write", createdAt:Date.now(), ver:1, pos:0, heard:false};
   S.busy.pod = true; S.err.pod = ""; closeSheet();
   S.pods[id] = p; render();
   try {
-    const sc = await aiJson("write", podPrompt(o, groups, prev));
+    const sc = await aiJson("write", podPrompt(o, groups, prev, plan));
     if (!sc || !Array.isArray(sc.parts) || !sc.parts.length) throw {code:"invalid_json"};
     p.script = sc; p.title = String(sc.title || "Episode"); p.title_zh = String(sc.title_zh || "");
     p.lines = compilePod(p);
@@ -170,7 +210,7 @@ async function makePod(){
 }
 async function sendPod(p){
   p.state = "make"; p.err = ""; p.prog = null;
-  await listenApi("/listen/new", p.id, {id:p.id, title:p.title, lines:p.lines.map(l => ({v:l.v, lang:l.lang, t:l.t, gap:l.gap}))});
+  await listenApi("/listen/new", p.id, {id:p.id, title:p.title, lines:p.lines.map(l => ({v:l.v, lang:l.lang, t:l.t, gap:l.gap, s:l.s || 1}))});
   await savePod(p); render(); pollPods();
 }
 /* 等電腦做好：做的中每 4 秒問一次 */
@@ -337,8 +377,8 @@ function markHeard(p){
 
 /* ---------- 畫面 ---------- */
 function podMeta(p){
-  return '<span class="chip">' + (POD_TYPE[p.type] || "") + "</span>" +
-    '<span class="chip">' + (p.src === "week" ? "第 " + p.week + " 週單字" : "我的收藏") + "</span>" +
+  return '<span class="chip">' + podTypes(p).map(t => POD_TYPE[t]).join("＋") + "</span>" +
+    '<span class="chip">' + podSrcs(p).map(x => x === "week" ? "第 " + p.week + " 週單字" : POD_SRC[x]).join("＋") + "</span>" +
     (p.dur ? '<span class="chip">' + fmtT(p.dur) + "</span>" : "") +
     (p.heard ? '<span class="chip done">聽完了</span>' : p.pos && p.dur ? '<span class="chip">聽到 ' + Math.min(99, Math.round(p.pos / p.dur * 100)) + "%</span>" : "");
 }
@@ -364,7 +404,7 @@ function renderListen(){
   let html = '<section class="card"><div class="row between"><div class="row" style="gap:6px"><button class="icon-btn" data-act="tab" data-v="words" aria-label="回收藏">' + ICON.back + '</button><div><div class="label">聽學</div><b>' +
     (w ? "第 " + w.n + " 週 · " + esc(w.theme_zh) : "用單字做成的 Podcast") + "</b></div></div>" +
     '<button class="btn sm" data-act="pod-new">' + ICON.plus.replace("<svg", '<svg width="18" height="18"') + "新的一集</button></div>" +
-    '<div class="seg" role="group" aria-label="篩選"><button data-act="pod-filter" data-f="week" aria-pressed="' + (f === "week") + '">本週</button><button data-act="pod-filter" data-f="star" aria-pressed="' + (f === "star") + '">我的收藏</button><button data-act="pod-filter" data-f="done" aria-pressed="' + (f === "done") + '">已聽完</button></div>' +
+    '<div class="seg" role="group" aria-label="篩選"><button data-act="pod-filter" data-f="week" aria-pressed="' + (f === "week") + '">本週</button><button data-act="pod-filter" data-f="star" aria-pressed="' + (f === "star") + '">收藏・自訂</button><button data-act="pod-filter" data-f="done" aria-pressed="' + (f === "done") + '">已聽完</button></div>' +
     (today >= 60 ? '<div class="small muted">今天聽了 ' + Math.round(today / 60) + " 分鐘</div>" : "") + "</section>";
   if (!Cloud.voiceOk()) html += '<div class="note warn">聽學要用電腦語音（GPT-SoVITS）唸稿和存音檔。請先到「設定 → 帳號」登入，並請管理員開通電腦語音。</div>';
   if (!list.length){
@@ -391,7 +431,7 @@ function markWords(text, p){
   return html;
 }
 function renderPod(p){
-  const o = listenOpts(), story = p.type === "story", cast = (p.script && p.script.cast) || {};
+  const o = listenOpts(), cast = (p.script && p.script.cast) || {};
   const ready = p.state === "ready" && p.times;
   let html = '<section class="card"><div class="row between"><button class="icon-btn" data-act="pod-close" aria-label="回聽學">' + ICON.back + "</button>" +
     '<div class="row" style="gap:6px"><button class="btn soft sm" data-act="pod-only-en" aria-pressed="' + !!o.onlyEn + '">' + (o.onlyEn ? "顯示中文" : "只看英文") + "</button>" +
@@ -412,10 +452,12 @@ function renderPod(p){
       const tap = ready ? ' data-act="pod-seek" data-i="' + i + '"' : "";
       if (l.k === "intro"){ html += '<button class="lp-line zh intro"' + tap + ' data-i="' + i + '">' + esc(l.t) + "</button>"; return; }
       if (l.k === "en"){
-        const name = !story && l.who ? '<span class="lp-who ' + (l.who === "B" ? "b" : "a") + '">' + esc(cast[l.who] || l.who) + "</span>" : "";
+        const name = l.who ? '<span class="lp-who ' + (l.who === "B" ? "b" : "a") + '">' + esc(cast[l.who] || l.who) + "</span>" : "";
         html += '<button class="lp-line en"' + tap + ' data-i="' + i + '">' + name + "<span>" + markWords(l.t, p) + "</span></button>"; return;
       }
       const info = p.words[l.w] || {};
+      if (l.k === "word" && l.again) return;
+      if (l.k === "spell"){ html += '<button class="lp-line sub en"' + tap + ' data-i="' + i + '"><span class="lp-tag">拼字</span><span class="lp-spell">' + esc(l.show || "") + "</span></button>"; return; }
       if (l.k === "word"){ html += '<button class="lp-line lp-word"' + tap + ' data-i="' + i + '"><span class="en">' + esc(info.en) + '</span><span class="w-ipa">' + esc(info.ipa || "") + '</span><span class="lp-zh">' + esc(info.zh || "") + "</span></button>"; return; }
       if (l.k === "replay"){ html += '<button class="lp-line en sub"' + tap + ' data-i="' + i + '"><span class="lp-tag">原句</span><span>' + markWords(l.t, p) + "</span></button>"; return; }
       if (l.k === "explain"){
@@ -446,21 +488,64 @@ function podDockHTML(){
     '<button class="lp-rate ghost" data-act="pod-part" data-d="1" aria-label="下一段">下一段</button></div>' +
     '<div class="tiny muted" id="lp-state" style="text-align:center"></div></div>';
 }
+function speedLabel(v){ v = Number(v) || 1; return v.toFixed(2).replace(/0$/, "") + "×" + (v < 0.95 ? "（慢一點）" : v > 1.05 ? "（快一點）" : "（正常）"); }
 function podNewHTML(){
-  const o = listenOpts(), w = curWeek(), words = podWords(o.src);
-  const seg = (key, opts) => '<div class="seg" role="group">' + Object.keys(opts).map(k => '<button data-act="pod-opt" data-k="' + key + '" data-v="' + k + '" aria-pressed="' + (o[key] === k) + '">' + opts[k] + "</button>").join("") + "</div>";
-  return '<div class="grab" aria-hidden="true"></div><div class="sh-head"><div class="sh-word phrase" style="flex:1;min-width:0">新的一集</div><button class="icon-btn" data-act="close-sheet" aria-label="關閉">×</button></div>' +
-    '<div class="field"><label>類型</label>' + seg("type", POD_TYPE) + "</div>" +
-    '<div class="field"><label>用哪些單字</label>' + seg("src", {week:w ? "第 " + w.n + " 週單字" : "本週單字", star:"我的收藏"}) +
-    '<div class="row wrap" style="gap:6px;margin-top:8px">' + (words.length ? words.map(x => '<span class="chip word">' + esc(x.en) + "</span>").join("") : '<span class="small muted">' + (o.src === "star" ? "還沒有收藏的單字" : "還沒有本週單字") + "</span>") + "</div>" +
-    (o.src === "week" && words.some(x => x.saved) ? '<div class="tiny muted">另外加了 ' + words.filter(x => x.saved).length + " 個比較少聽到的收藏單字</div>" : "") + "</div>" +
-    '<div class="field"><label>長度</label>' + seg("len", {short:"短・2 段", mid:"中・3 段", long:"長・4 段"}) + "</div>" +
-    '<div class="field"><label>中文</label>' + seg("zh", POD_ZH) +
-    '<div class="tiny muted" style="margin-top:6px">' + {more:"中文導讀＋中文解釋單字。", less:"中文導讀＋單字只說中文意思，解釋留在畫面上。", none:"全部英文，中文只出現在畫面上。"}[o.zh] + "</div></div>" +
-    '<label class="row small" style="gap:10px"><input type="checkbox" data-act="pod-follow"' + (o.follow ? " checked" : "") + '> 例句後停 2 秒，讓我跟著說</label>' +
+  const o = listenOpts(), w = curWeek(), cands = podCandidates(o), words = podWords(o), plan = podPlan(o, words.length);
+  const chk = (act, on, label, extra) => '<button class="pod-chk" role="checkbox" aria-checked="' + !!on + '" data-act="' + act + '"' + (extra || "") + '><span class="box" aria-hidden="true">' + (on ? ICON.check : "") + "</span><span>" + label + "</span></button>";
+  const count = from => { const c = cands.filter(x => x.from === from); return c.length ? "（" + c.filter(x => x.on).length + "/" + c.length + "）" : "（0）"; };
+  let html = '<div class="grab" aria-hidden="true"></div><div class="sh-head"><div class="sh-word phrase" style="flex:1;min-width:0">新的一集</div><button class="icon-btn" data-act="close-sheet" aria-label="關閉">×</button></div>' +
+    '<div class="field"><label>類型（可複選）</label><div class="pod-chks">' + Object.keys(POD_TYPE).map(k => chk("pod-type", o.types.includes(k), POD_TYPE[k], ' data-v="' + k + '"')).join("") + "</div>" +
+    (o.types.length > 1 ? '<div class="tiny muted">兩種都勾：故事和對話一段一段輪流，同一個劇情、同一組角色。</div>' : "") + "</div>" +
+    '<div class="field"><div class="row between"><label>用哪些單字（可複選）</label><button class="btn ghost sm" data-act="pod-detail">' + (S.podDetail ? "收起" : "詳情") + "</button></div>" +
+    '<div class="pod-chks col">' + chk("pod-src", o.srcs.includes("week"), (w ? "第 " + w.n + " 週單字" : "本週單字") + '<span class="muted small">' + count("week") + "</span>", ' data-v="week"') +
+    chk("pod-src", o.srcs.includes("star"), "我的收藏" + '<span class="muted small">' + count("star") + "</span>", ' data-v="star"') +
+    chk("pod-src", o.srcs.includes("custom"), "自己新增" + '<span class="muted small">' + count("custom") + "</span>", ' data-v="custom"') + "</div>";
+  if (S.podDetail){
+    html += '<div class="pod-detail">';
+    ["week", "star", "custom"].forEach(from => {
+      const list = cands.filter(x => x.from === from), off = !o.srcs.includes(from);
+      html += '<div class="label" style="margin-top:6px">' + (from === "week" && w ? "第 " + w.n + " 週單字" : POD_SRC[from]) + (off ? "（沒勾這個來源，不會用到）" : "") + "</div>";
+      if (from === "custom"){
+        html += '<div class="row pod-add"><input class="input" id="pod-cw-en" placeholder="英文單字或片語" maxlength="40" autocapitalize="off" spellcheck="false"><input class="input" id="pod-cw-zh" placeholder="中文（可不填）" maxlength="20"><button class="btn sm" data-act="pod-cw-add">新增</button></div>';
+      }
+      if (!list.length){ html += '<div class="small muted">' + (from === "star" ? "還沒有收藏的單字。讀文章時點單字、按星號就會收進來。" : from === "week" ? "還沒有本週單字。" : "在上面輸入單字，按「新增」。") + "</div>"; return; }
+      html += '<div class="' + (off ? "pod-off" : "") + '">' + list.map(x => '<div class="pod-wrow">' + chk("pod-word", x.on, '<span class="w-en">' + esc(x.en) + '</span><span class="w-ipa">' + esc(x.ipa || "") + '</span><span class="w-zh">' + esc(x.zh || (from === "custom" ? "（AI 會補上中文）" : "")) + "</span>" +
+        (from === "star" ? '<span class="tiny muted">聽過 ' + heardCount(x.en) + " 次</span>" : ""), ' data-key="' + esc(x.key) + '"') +
+        (from === "custom" ? '<button class="icon-btn" data-act="pod-cw-del" data-key="' + esc(x.key) + '" aria-label="移除">×</button>' : "") + "</div>").join("") + "</div>";
+    });
+    html += "</div>";
+  }
+  html += '<div class="row wrap" style="gap:6px">' + (words.length ? words.map(x => '<span class="chip word">' + esc(x.en) + "</span>").join("") : '<span class="small muted">還沒有勾選任何單字</span>') + "</div>" +
+    '<div class="tiny muted">共 ' + words.length + " 個單字" + (words.length >= MAX_WORDS ? "（一集最多 " + MAX_WORDS + " 個）" : "") + "</div></div>" +
+    '<div class="field"><div class="row between"><label for="pod-mins">長度</label><b id="pod-mins-v">' + plan.mins + ' 分鐘</b></div>' +
+    '<input type="range" id="pod-mins" min="5" max="30" step="1" value="' + plan.mins + '" aria-label="一集的長度（分鐘）">' +
+    '<div class="tiny muted" id="pod-plan">' + planText(plan, words.length) + "</div></div>" +
+    '<div class="field"><label>語言規則</label><div class="seg" role="group">' + Object.keys(POD_ZH).map(k => '<button data-act="pod-opt" data-k="zh" data-v="' + k + '" aria-pressed="' + (o.zh === k) + '">' + POD_ZH[k] + "</button>").join("") + "</div>" +
+    '<div class="tiny muted" style="margin-top:6px">' + POD_ZH_HINT[o.zh] + "</div></div>" +
+    '<div class="field"><div class="row between"><label for="pod-speed">英文語速</label><b id="pod-speed-v">' + speedLabel(o.speed) + "</b></div>" +
+    '<input type="range" id="pod-speed" min="0.7" max="1.3" step="0.05" value="' + (Number(o.speed) || 1) + '" aria-label="英文語速">' +
+    '<div class="tiny muted">唸的時候就用這個速度（中文不變）。聽的時候還可以在播放器再調快慢。</div></div>' +
+    '<div class="pod-chks col">' + chk("pod-flag", o.follow, "例句後停 2 秒，讓我跟著說", ' data-k="follow"') +
+    chk("pod-flag", o.spell, "拼出單字（例：make → M, A, K, E → make）", ' data-k="spell"') + "</div>" +
     (S.err.pod ? '<div class="err">' + esc(S.err.pod) + "</div>" : "") +
     '<button class="btn block" data-act="pod-make"' + (S.busy.pod ? " disabled" : "") + ">" + (S.busy.pod ? '<span class="spinner"></span>寫稿中…' : "生成") + "</button>" +
-    '<div class="tiny muted">AI 寫好稿子後，電腦會用 GPT-SoVITS 唸成一整集（幾分鐘），做好就能聽。音檔存在電腦，播放時才載入。</div>';
+    '<div class="tiny muted">AI 寫好稿子後，電腦會用 GPT-SoVITS 唸成一整集，做好就能聽。音檔存在電腦，播放時才載入。實際長度會跟設定差一點。</div>';
+  return html;
+}
+function planText(plan, n){
+  if (!n) return "先勾選單字，才能估算。";
+  return "約 " + plan.parts + " 段，每段英文約 " + plan.enWords + " 字；單字回顧約 " + plan.reviewMin + " 分鐘" +
+    (plan.short ? "。<b>時間有點短</b>：故事會很短，可以拉長時間或少選幾個單字。" : "。");
+}
+function saveListen(o){ set().listen = o; saveProfile(); }
+
+/* 重畫面板但保留捲動位置和正在打的字 */
+function podRedraw(){
+  const card = $("#sheet-card"), top = card ? card.scrollTop : 0;
+  const en = $("#pod-cw-en"), zh = $("#pod-cw-zh"), keep = en ? [en.value, zh ? zh.value : ""] : null;
+  drawSheet();
+  if (card) card.scrollTop = top;
+  if (keep && document.activeElement !== en){ const a = $("#pod-cw-en"), b = $("#pod-cw-zh"); if (a) a.value = keep[0]; if (b) b.value = keep[1]; }
 }
 
 /* ---------- 按鈕 ---------- */
@@ -468,7 +553,23 @@ Object.assign(ACT, {
   "listen-open": () => { S.podOpen = null; go("listen"); pollPods(); },
   "pod-filter": el => { S.podFilter = el.dataset.f; render(); },
   "pod-new": () => { S.err.pod = ""; openSheet({kind:"podnew"}); },
-  "pod-opt": el => { const o = listenOpts(); o[el.dataset.k] = el.dataset.v; set().listen = o; saveProfile(); S.err.pod = ""; drawSheet(); },
+  "pod-opt": el => { const o = listenOpts(); o[el.dataset.k] = el.dataset.v; saveListen(o); S.err.pod = ""; podRedraw(); },
+  "pod-type": el => { const o = listenOpts(), v = el.dataset.v, set2 = new Set(o.types); set2.has(v) ? set2.delete(v) : set2.add(v); o.types = ["story", "dialog"].filter(t => set2.has(t)); saveListen(o); S.err.pod = ""; podRedraw(); },
+  "pod-src": el => { const o = listenOpts(), v = el.dataset.v, set2 = new Set(o.srcs); set2.has(v) ? set2.delete(v) : set2.add(v); o.srcs = ["week", "star", "custom"].filter(t => set2.has(t)); saveListen(o); S.err.pod = ""; podRedraw(); },
+  "pod-word": el => { const o = listenOpts(), k = el.dataset.key, c = podCandidates(o).find(x => x.key === k); if (!c) return; o.sel[k] = !c.on; if (!c.on && !o.srcs.includes(c.from)) o.srcs.push(c.from); saveListen(o); podRedraw(); },
+  "pod-flag": el => { const o = listenOpts(); o[el.dataset.k] = !o[el.dataset.k]; saveListen(o); podRedraw(); },
+  "pod-detail": () => { S.podDetail = !S.podDetail; podRedraw(); },
+  "pod-cw-add": () => {
+    const en = String(($("#pod-cw-en") || {}).value || "").replace(/\s+/g, " ").trim(), zh = String(($("#pod-cw-zh") || {}).value || "").trim();
+    if (!/[a-z]/i.test(en)){ toast("請輸入英文單字或片語"); return; }
+    const o = listenOpts(), k = en.toLowerCase();
+    if (podCandidates(o).some(x => x.key === k)){ o.sel[k] = true; toast("「" + en + "」已經在清單裡，幫你勾起來了"); }
+    else { o.custom = (o.custom || []).concat([{en, zh}]); o.sel[k] = true; }
+    if (!o.srcs.includes("custom")) o.srcs.push("custom");
+    $("#pod-cw-en").value = ""; if ($("#pod-cw-zh")) $("#pod-cw-zh").value = "";
+    saveListen(o); podRedraw(); setTimeout(() => { const i = $("#pod-cw-en"); if (i) i.focus(); }, 30);
+  },
+  "pod-cw-del": el => { const o = listenOpts(), k = el.dataset.key; o.custom = (o.custom || []).filter(x => x.en.toLowerCase() !== k); delete o.sel[k]; saveListen(o); podRedraw(); },
   "pod-make": () => makePod(),
   "pod-open": el => {
     const p = podOf(el.dataset.id); if (!p || !p.lines) return;
@@ -482,8 +583,8 @@ Object.assign(ACT, {
   "pod-skip": el => LP.skip(Number(el.dataset.d)),
   "pod-part": el => LP.part(Number(el.dataset.d)),
   "pod-rate": () => {
-    const o = listenOpts(), list = [0.85, 1, 1.15], i = list.indexOf(o.rate || 1);
-    o.rate = list[(i + 1) % list.length]; set().listen = o; saveProfile();
+    const o = listenOpts(), list = [0.75, 0.85, 1, 1.15, 1.25, 1.5], i = list.indexOf(o.rate || 1);
+    o.rate = list[(i + 1) % list.length]; saveListen(o);
     if (LP.au) LP.au.playbackRate = o.rate;
     const b = document.querySelector('[data-act="pod-rate"]'); if (b) b.textContent = o.rate + "×";
   },
@@ -505,10 +606,17 @@ Object.assign(ACT, {
   }
 });
 document.addEventListener("change", e => {
-  if (e.target.matches && e.target.matches('[data-act="pod-follow"]')){ const o = listenOpts(); o.follow = e.target.checked; set().listen = o; saveProfile(); }
+  if (e.target.id === "pod-mins" || e.target.id === "pod-speed"){ const o = listenOpts(); o[e.target.id === "pod-mins" ? "mins" : "speed"] = Number(e.target.value); saveListen(o); }
   if (e.target.id === "lp-seek"){ LP.drag = false; LP.seekTo(Number(e.target.value)); }
 });
 document.addEventListener("input", e => {
+  /* 拉長度、語速時只更新數字和估算，不重畫整個面板（不然拖不動） */
+  if (e.target.id === "pod-mins" || e.target.id === "pod-speed"){
+    const o = clone(listenOpts()); o[e.target.id === "pod-mins" ? "mins" : "speed"] = Number(e.target.value);
+    const n = podWords(o).length, plan = podPlan(o, n);
+    const mv = $("#pod-mins-v"), sv = $("#pod-speed-v"), pl = $("#pod-plan");
+    if (mv) mv.textContent = plan.mins + " 分鐘"; if (sv) sv.textContent = speedLabel(o.speed); if (pl) pl.innerHTML = planText(plan, n);
+  }
   if (e.target.id === "lp-seek"){ LP.drag = true; const tm = $("#lp-tm"), p = podOf(LP.id || S.podOpen); if (tm) tm.textContent = fmtT(e.target.value) + " / " + fmtT(p ? p.dur : 0); }
 });
 /* 自己往上捲逐字稿時，先不要自動捲回目前那一行；10 秒後恢復 */
@@ -516,3 +624,6 @@ document.addEventListener("touchmove", () => { if (S.view === "listen" && S.podO
 document.addEventListener("wheel", () => { if (S.view === "listen" && S.podOpen){ LP.userScroll = true; clearTimeout(LP.us); LP.us = setTimeout(() => { LP.userScroll = false; }, 10000); } }, {passive:true});
 window.addEventListener("pagehide", () => LP.savePos());
 document.addEventListener("visibilitychange", () => { if (document.hidden) LP.savePos(); else if (podList().some(p => p.state === "make")) pollPods(); });
+document.addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.isComposing && (e.target.id === "pod-cw-en" || e.target.id === "pod-cw-zh")){ e.preventDefault(); ACT["pod-cw-add"](); }
+});
