@@ -847,3 +847,6 @@ mark.lp-w{background:color-mix(in srgb,var(--yellow) 45%,transparent);color:inhe
 .lp-spell{font-family:var(--font-en);font-weight:700;letter-spacing:.08em}
 .pod-wrow .pod-chk > span:last-child{display:flex;flex-wrap:wrap;column-gap:8px;row-gap:2px;align-items:baseline;min-width:0}
 .pod-add .input{background:var(--surface)}
+.trash-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
+.trash-row:last-child{border-bottom:0}
+.trash-row .btn{flex:none}

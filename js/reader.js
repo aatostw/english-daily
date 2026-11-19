@@ -367,6 +367,7 @@ function drawSheet(){
   $("#sheet-card").setAttribute("aria-label", o.kind === "theme" ? "選主題" : "單字解釋");
   if (o.kind === "theme"){ $("#sheet-card").innerHTML = themeSheetHTML(); return; }
   if (o.kind === "shadow"){ $("#sheet-card").setAttribute("aria-label", "跟讀評分"); $("#sheet-card").innerHTML = shadowHTML(o); return; }
+  if (o.kind === "podtrash"){ $("#sheet-card").setAttribute("aria-label", "垃圾桶"); $("#sheet-card").innerHTML = podTrashHTML(); return; }
   if (o.kind === "podnew"){ $("#sheet-card").setAttribute("aria-label", "新的一集"); $("#sheet-card").innerHTML = podNewHTML(); return; }
   if (o.kind === "genpick"){ $("#sheet-card").setAttribute("aria-label", "再讀一篇"); $("#sheet-card").innerHTML = genPickHTML(o); return; }
   if (o.kind === "quiz"){ $("#sheet-card").setAttribute("aria-label", "月考"); $("#sheet-card").innerHTML = '<div class="sh-head"><div class="sh-word phrase" style="flex:1;min-width:0">月考</div>' + (S.quiz && S.quiz.done ? "" : '<button class="icon-btn" data-act="quiz-close" aria-label="離開">×</button>') + "</div>" + quizSheetHTML(); return; }

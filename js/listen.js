@@ -418,7 +418,8 @@ function renderListen(){
   const today = (S.log && S.log.days && S.log.days[todayStr()] || {}).listen || 0;
   let html = '<section class="card"><div class="row between"><div class="row" style="gap:6px"><button class="icon-btn" data-act="tab" data-v="words" aria-label="回收藏">' + ICON.back + '</button><div><div class="label">聽學</div><b>' +
     (w ? "第 " + w.n + " 週 · " + esc(w.theme_zh) : "用單字做成的 Podcast") + "</b></div></div>" +
-    '<button class="btn sm" data-act="pod-new">' + ICON.plus.replace("<svg", '<svg width="18" height="18"') + "新的一集</button></div>" +
+    '<div class="row" style="gap:6px"><button class="icon-btn" data-act="pod-trash" aria-label="垃圾桶">' + ICON.trash + "</button>" +
+    '<button class="btn sm" data-act="pod-new">' + ICON.plus.replace("<svg", '<svg width="18" height="18"') + "新的一集</button></div></div>" +
     '<div class="seg" role="group" aria-label="篩選"><button data-act="pod-filter" data-f="todo" aria-pressed="' + (f === "todo") + '">待聽</button><button data-act="pod-filter" data-f="done" aria-pressed="' + (f === "done") + '">已聽完</button></div>' +
     (today >= 60 ? '<div class="small muted">今天聽了 ' + Math.round(today / 60) + " 分鐘</div>" : "") + "</section>";
   if (!Cloud.voiceOk()) html += '<div class="note warn">聽學要用電腦語音（GPT-SoVITS）唸稿和存音檔。請先到「設定 → 帳號」登入，並請管理員開通電腦語音。</div>';
@@ -545,6 +546,27 @@ function podNewHTML(){
     '<button class="btn block" data-act="pod-make"' + (S.busy.pod ? " disabled" : "") + ">" + (S.busy.pod ? '<span class="spinner"></span>寫稿中…' : "生成") + "</button>";
   return html;
 }
+/* 垃圾桶：電腦上 listen\_removed 裡的集數，可以徹底刪除 */
+function fmtMB(b){ return (b / 1048576 >= 10 ? Math.round(b / 1048576) : (b / 1048576).toFixed(1)) + " MB"; }
+function podTrashHTML(){
+  const t = S.podTrash || {};
+  let html = '<div class="grab" aria-hidden="true"></div><div class="sh-head"><div class="sh-word phrase" style="flex:1;min-width:0">垃圾桶</div><button class="icon-btn" data-act="close-sheet" aria-label="關閉">×</button></div>';
+  if (t.state === "loading") return html + '<div class="row small muted"><span class="spinner"></span>讀取電腦上的垃圾桶…</div>';
+  if (t.err) return html + '<div class="err">' + esc(t.err) + '</div><button class="btn soft sm" data-act="pod-trash">再試一次</button>';
+  const items = t.items || [];
+  if (!items.length) return html + '<p class="muted" style="margin:0">垃圾桶是空的。</p>';
+  html += '<button class="btn danger block" data-act="pod-purge" data-id="all"' + (t.busy ? " disabled" : "") + ">" + (t.busy === "all" ? '<span class="spinner"></span>刪除中…' : "全部徹底刪除（" + items.length + " 集・" + fmtMB(t.bytes || 0) + "）") + "</button>";
+  html += '<div class="stack">' + items.map(x => '<div class="trash-row"><div class="pod-t"><b class="en">' + esc(x.title) + '</b><span class="small muted">' +
+    (x.dur ? fmtT(x.dur) + "・" : "") + fmtMB(x.bytes) + "・" + new Date(x.at * 1000).toLocaleDateString("zh-TW", {month:"numeric", day:"numeric"}) + " 刪除</span></div>" +
+    '<button class="btn soft sm" data-act="pod-purge" data-id="' + esc(x.id) + '"' + (t.busy ? " disabled" : "") + ">" + (t.busy === x.id ? '<span class="spinner"></span>' : "徹底刪除") + "</button></div>").join("") + "</div>";
+  return html;
+}
+async function loadTrash(){
+  S.podTrash = {state:"loading"}; drawSheet();
+  try { const j = await listenApi("/listen/trash", ""); S.podTrash = {items:j.items || [], bytes:j.bytes || 0}; }
+  catch (e) { S.podTrash = {err:/只開放/.test(e.message) || /還是舊版/.test(e.message) ? "電腦上的語音伺服器還是舊版。請關掉語音伺服器視窗，再雙擊「start-voice-server.bat」。" : e.message}; }
+  if (S.sheet && S.sheet.kind === "podtrash") drawSheet();
+}
 function planText(plan, n){
   if (!n) return "先勾選單字，才能估算。";
   return "約 " + plan.parts + " 段，每段英文約 " + plan.enWords + " 字；單字回顧約 " + plan.reviewMin + " 分鐘" +
@@ -584,6 +606,16 @@ Object.assign(ACT, {
   },
   "pod-cw-del": el => { const o = listenOpts(), k = el.dataset.key; o.custom = (o.custom || []).filter(x => x.en.toLowerCase() !== k); delete o.sel[k]; saveListen(o); podRedraw(); },
   "pod-make": () => makePod(),
+  "pod-trash": () => { openSheet({kind:"podtrash"}); loadTrash(); },
+  "pod-purge": async el => {
+    const t = S.podTrash || {}, id = el.dataset.id, all = id === "all";
+    const it = (t.items || []).find(x => x.id === id);
+    if (!(await confirmBox(all ? "清空垃圾桶？" : "徹底刪除這一集？", (all ? "垃圾桶裡的 " + (t.items || []).length + " 集" : "「" + (it ? it.title : id) + "」") + "會從電腦上永久刪除，沒辦法復原。", "徹底刪除", true))) return;
+    t.busy = id; drawSheet();
+    try { const j = await listenApi("/listen/purge", id, {}); toast("已徹底刪除，空出 " + fmtMB(j.freed || 0)); }
+    catch (e) { toast(e.message); }
+    loadTrash();
+  },
   "pod-rewrite": el => { const p = podOf(el.dataset.id); if (!p) return; S.podMenu = null; S.podOpen = null; S.podFilter = "todo"; render(); makePod(p); },
   "pod-open": el => {
     const p = podOf(el.dataset.id); if (!p || !p.lines) return;
@@ -613,7 +645,7 @@ Object.assign(ACT, {
   },
   "pod-del": async el => {
     const p = podOf(el.dataset.id); if (!p) return;
-    if (!(await confirmBox("刪除這一集？", "手機上的稿子會刪掉；電腦上的音檔會搬到 listen\\_removed 資料夾，要清空間時再自己刪。", "刪除", true))) return;
+    if (!(await confirmBox("刪除這一集？", "音檔會先放進垃圾桶（聽學頁右上的垃圾桶圖示），在那裡可以徹底刪除。", "刪除", true))) return;
     if (LP.id === p.id && LP.au){ LP.want = false; LP.au.pause(); LP.au.removeAttribute("src"); LP.id = ""; }
     if (Cloud.voiceOk() && p.state !== "write") listenApi("/listen/remove", p.id, {}).catch(() => {});
     delete S.pods[p.id]; Store.del(p.id); S.podOpen = null; S.podMenu = null; render();

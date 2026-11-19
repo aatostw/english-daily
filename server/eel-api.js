@@ -179,8 +179,9 @@ async function voice(req, env, path){
   const inUrl = new URL(req.url), q = new URLSearchParams(inUrl.search);
   q.set("k", key);
   const sub = path.slice("/voice".length) || "/ping";
-  /* 聽學 (podcast episodes): /listen/new and /listen/remove (POST), /listen/status, /listen/audio (streamed, seekable) */
-  if (!["/ping", "/tts", "/asr", "/listen/new", "/listen/status", "/listen/audio", "/listen/remove"].includes(sub)) return json(req, 404, {ok:false, error:"沒有這個功能"});
+  /* 聽學 (podcast episodes): every /listen/... path goes to the computer, which decides what it serves
+     (new, status, audio — streamed and seekable —, remove, trash, purge), so new ones need no change here */
+  if (!["/ping", "/tts", "/asr"].includes(sub) && !/^\/listen\/[a-z]{2,20}$/.test(sub)) return json(req, 404, {ok:false, error:"沒有這個功能"});
   const post = req.method === "POST", fwd = {};
   if (post) fwd["Content-Type"] = req.headers.get("Content-Type") || "application/octet-stream";
   const range = req.headers.get("Range"); if (range) fwd.Range = range;
