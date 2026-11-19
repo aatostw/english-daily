@@ -89,15 +89,22 @@ function podPrompt(o, groups, prev, plan){
     aboutPrompt(),
     P ? "Week theme: " + w.theme_en + " (" + w.theme_zh + ")" : "Theme: everyday life in Taiwan; pick one concrete situation that fits the words.",
     types.includes("story") ? "Story parts: told by ONE narrator, warm and concrete, with a small turn in every part. Characters may speak inside the narration with quotation marks. Every line has who \"N\"." : "",
-    anyDialog ? "Dialogue parts: a natural everyday conversation between two people, A and B, in a real-life situation (work, shopping, friends, family, travel). They take turns; each line is what one person says. Every line has who \"A\" or \"B\"." : "",
+    anyDialog ? ["Dialogue parts: a REAL conversation between two people, A and B, in one concrete everyday scene (work, shopping, friends, family, travel) with a small goal or problem to sort out (plan something, ask for help, fix a mistake, decide, disagree a little).",
+      "It must sound like two people actually talking, not two people taking turns reading sentences:",
+      "- Every line answers or reacts to the line before it. Use questions and answers, follow-up questions, surprise, jokes, agreeing and disagreeing.",
+      "- Mix very short replies (\"Really?\", \"No way.\", \"Sure, why not?\", \"Hmm, maybe.\") with longer lines. Use contractions (I'm, don't, that's) and natural openers (Oh, Well, Wait, So, Hey).",
+      "- People do not describe their own actions like a narrator (NOT \"I am going to sit down by the window.\" or \"I arrive a bit early.\"). They talk to each other about something.",
+      "- The scene moves forward: something is asked, found out, decided or changed by the end of the part.",
+      "- Example of the feel (do not copy): A: Hey, you're here already? / B: Yeah, the bus was faster than I thought. / A: Lucky you. Mine was packed. / B: Oh no. Did you get a seat? / A: Nope. Stood the whole way.",
+      "- Never stuff target words into lines just to use them; a dialogue that sounds forced is wrong even if every word is used."].join("\n") : "",
     mixed ? "Story parts and dialogue parts belong to ONE continuous plot with the same characters (A and B are characters of the story)." : "",
     prev ? "This continues earlier episodes. Keep the same characters and continue the story from here: " + prev : "",
     P ? "Sentence patterns of the week; use each one naturally a few times: A: " + P.A.en + " (" + P.A.zh + "); B: " + P.B.en + " (" + P.B.zh + ")" : "",
     "",
     "The episode has " + groups.length + " parts and must last about " + plan.mins + " minutes when read aloud, so the LENGTH of each part matters: write the full number of English words given for each part (count them). If a part feels finished too early, add more scenes, details and events; never pad with repeated sentences.",
-    "Split the English into lines of one or two sentences (about 9 words per line).",
-    "Target words for each part (use every word of a part at least twice inside that part, inflected forms are fine; they may appear again later):",
-    groups.map((g, i) => "Part " + (i + 1) + " (" + (typeOf(i) === "story" ? "story" : "dialogue") + ", about " + plan.enWords + " English words = about " + Math.max(4, Math.round(plan.enWords / 9)) + " lines): " + g.map(x => x.en + (x.zh ? " (" + x.zh + ")" : "")).join("; ")).join("\n"),
+    "Split the English into lines of one or two sentences; in dialogue parts each line is one turn of speaking.",
+    "Target words for each part (use every word of a part inside that part, once or twice, only where it sounds natural; inflected forms are fine; they may appear again later):",
+    groups.map((g, i) => "Part " + (i + 1) + " (" + (typeOf(i) === "story" ? "story" : "dialogue") + ", about " + plan.enWords + " English words = about " + Math.max(4, Math.round(plan.enWords / (typeOf(i) === "story" ? 12 : 7))) + " lines): " + g.map(x => x.en + (x.zh ? " (" + x.zh + ")" : "")).join("; ")).join("\n"),
     "",
     "Spoken English only: it will be read aloud by a voice engine. No markup, no emoji, no lists, no stage directions, no parentheses. Write numbers as words.",
     "",
@@ -179,14 +186,17 @@ async function listenApi(path, id, body){
 function podAudioUrl(p){ return voiceBase() + "/listen/audio?" + new URLSearchParams({k:Cloud.cfg.token, id:p.id, v:String(p.ver || 1)}).toString(); }
 
 /* ---------- 做一集 ---------- */
-async function makePod(){
+/* base：用某一集的單字和設定重寫一集（不給就用面板上的設定） */
+async function makePod(base){
   if (S.busy.pod) return;
-  const o = clone(listenOpts());
-  if (!Cloud.voiceOk()){ S.err.pod = "聽學要用電腦語音（GPT-SoVITS）。請先到「設定 → 帳號」登入，並請管理員開通電腦語音。"; drawSheet(); return; }
-  if (!o.types.length){ S.err.pod = "至少勾一種類型。"; drawSheet(); return; }
-  if (!o.srcs.length){ S.err.pod = "至少勾一個單字來源。"; drawSheet(); return; }
-  const words = podWords(o);
-  if (words.length < 2){ S.err.pod = "勾選的單字太少了，至少要 2 個。按「詳情」可以挑單字，也可以自己新增。"; drawSheet(); return; }
+  const o = base ? Object.assign(clone(listenOpts()), clone(base.opts || {})) : clone(listenOpts());
+  if (base){ o.types = podTypes(base).slice(); o.srcs = podSrcs(base).slice(); }
+  const fail = m => { S.err.pod = m; if (base) toast(m); else drawSheet(); };
+  if (!Cloud.voiceOk()){ fail("聽學要用電腦語音（GPT-SoVITS）。請先到「設定 → 帳號」登入，並請管理員開通電腦語音。"); return; }
+  if (!o.types.length){ fail("至少勾一種類型。"); return; }
+  if (!o.srcs.length){ fail("至少勾一個單字來源。"); return; }
+  const words = base ? clone(base.words || []) : podWords(o);
+  if (words.length < 2){ fail("勾選的單字太少了，至少要 2 個。按「詳情」可以挑單字，也可以自己新增。"); return; }
   const plan = podPlan(o, words.length);
   const groups = splitWords(words, plan.parts);
   const w = curWeek(), src = o.srcs.includes("week") ? "week" : "star";
@@ -444,6 +454,7 @@ function renderPod(p){
     '<div><b class="en" style="font-size:20px">' + esc(p.title) + "</b>" + (p.title_zh ? '<div class="muted">' + esc(p.title_zh) + "</div>" : "") + "</div>" +
     '<div class="row wrap" style="gap:6px">' + podMeta(p) + "</div>" + podStateHTML(p) +
     (S.podMenu === p.id ? '<div class="stack pod-menu"><button class="btn soft sm" data-act="pod-resend" data-id="' + p.id + '">重新做音檔（稿子不變）</button>' +
+      '<button class="btn soft sm" data-act="pod-rewrite" data-id="' + p.id + '">用同樣的單字和設定重寫一集</button>' +
       '<button class="btn soft sm" data-act="pod-unheard" data-id="' + p.id + '">' + (p.heard ? "標成還沒聽完" : "標成聽完了") + "</button>" +
       '<button class="btn ghost sm" data-act="pod-del" data-id="' + p.id + '" style="color:var(--danger)">刪除這一集</button></div>' : "") + "</section>";
   const parts = {};
@@ -573,6 +584,7 @@ Object.assign(ACT, {
   },
   "pod-cw-del": el => { const o = listenOpts(), k = el.dataset.key; o.custom = (o.custom || []).filter(x => x.en.toLowerCase() !== k); delete o.sel[k]; saveListen(o); podRedraw(); },
   "pod-make": () => makePod(),
+  "pod-rewrite": el => { const p = podOf(el.dataset.id); if (!p) return; S.podMenu = null; S.podOpen = null; S.podFilter = "todo"; render(); makePod(p); },
   "pod-open": el => {
     const p = podOf(el.dataset.id); if (!p || !p.lines) return;
     S.podOpen = p.id; S.podMenu = null; LP.cur = -1; render(); $("#main").scrollTop = 0;
