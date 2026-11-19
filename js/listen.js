@@ -10,7 +10,7 @@ const POD_ZH_HINT = {more:"每段先用中文說大意，單字用中文解釋�
 const NUM_ZH = ["一", "二", "三", "四", "五", "六", "七", "八"];
 const NUM_EN = ["one", "two", "three", "four", "five", "six", "seven", "eight"];
 const LETTER = {a:"ay", b:"bee", c:"see", d:"dee", e:"ee", f:"f", g:"gee", h:"h", i:"eye", j:"jay", k:"kay", l:"el", m:"em", n:"en", o:"oh", p:"pee", q:"cue", r:"ar", s:"ess", t:"tee", u:"you", v:"vee", w:"double you", x:"ex", y:"why", z:"zee"};
-const MAX_WORDS = 24;
+const MAX_WORDS = 80;
 ICON.headphones = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="4.5" height="7" rx="1.8"/><rect x="16.5" y="14" width="4.5" height="7" rx="1.8"/></svg>';
 ICON.pause = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6.5" y="5" width="4" height="14" rx="1.2"/><rect x="13.5" y="5" width="4" height="14" rx="1.2"/></svg>';
 ICON.back10 = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1"/><path d="M3 4v4.5h4.5"/><text x="12" y="15.6" text-anchor="middle" font-size="7.5" font-weight="700" fill="currentColor" stroke="none" font-family="Lexend,sans-serif">10</text></svg>';
@@ -37,7 +37,7 @@ function podSrcs(p){ return p.srcs || [p.src || "week"]; }
 
 /* ---------- 挑單字 ---------- */
 /* 三個來源的所有單字，每個都標好有沒有勾選。
-   沒動過的預設：本週單字和自己新增的全勾；收藏只勾聽得最少的 6 個。 */
+   沒動過的預設全部勾選（勾「我的收藏」就是所有收藏單字）。 */
 function podCandidates(o){
   const norm = (x, from) => ({en:String(x.en).trim(), pos:x.pos || "", ipa:x.ipa || "", zh:x.zh || "", note_zh:x.note_zh || "", example_en:x.example_en || "", from});
   const out = [], seen = new Set();
@@ -46,7 +46,7 @@ function podCandidates(o){
   if (w) w.words.forEach(x => push(norm(x, "week"), true));
   Object.values(S.bank).filter(x => x && x.en)
     .sort((a, b) => (heardCount(a.en) - heardCount(b.en)) || ({new:0, mid:1, ok:2}[mastery("w", a.en)] - {new:0, mid:1, ok:2}[mastery("w", b.en)]) || ((b.addedAt || 0) - (a.addedAt || 0)))
-    .forEach((x, i) => push(norm(x, "star"), i < 6));
+    .forEach(x => push(norm(x, "star"), true));
   (o.custom || []).forEach(x => push(norm(x, "custom"), true));
   return out;
 }
@@ -400,18 +400,21 @@ function podStateHTML(p){
 function renderListen(){
   if (S.podOpen && podOf(S.podOpen) && podOf(S.podOpen).lines) return renderPod(podOf(S.podOpen));
   S.podOpen = null;
-  const f = S.podFilter || "week", w = curWeek(), all = podList();
-  const list = all.filter(p => f === "done" ? p.heard : !p.heard && (f === "week" ? p.src === "week" : p.src === "star"));
+  const f = S.podFilter === "done" ? "done" : "todo", w = curWeek(), all = podList();
+  /* 待聽：做音檔中的最上面，再來是聽到一半的，然後還沒聽過的（舊的在前，跟自動接下一集的順序一樣）。已聽完：最近聽完的在前 */
+  const rank = p => p.state !== "ready" ? 0 : p.pos ? 1 : 2;
+  const list = f === "done" ? all.filter(p => p.heard).sort((a, b) => (b.heardAt || 0) - (a.heardAt || 0))
+    : all.filter(p => !p.heard).sort((a, b) => (rank(a) - rank(b)) || (a.createdAt - b.createdAt));
   const today = (S.log && S.log.days && S.log.days[todayStr()] || {}).listen || 0;
   let html = '<section class="card"><div class="row between"><div class="row" style="gap:6px"><button class="icon-btn" data-act="tab" data-v="words" aria-label="回收藏">' + ICON.back + '</button><div><div class="label">聽學</div><b>' +
     (w ? "第 " + w.n + " 週 · " + esc(w.theme_zh) : "用單字做成的 Podcast") + "</b></div></div>" +
     '<button class="btn sm" data-act="pod-new">' + ICON.plus.replace("<svg", '<svg width="18" height="18"') + "新的一集</button></div>" +
-    '<div class="seg" role="group" aria-label="篩選"><button data-act="pod-filter" data-f="week" aria-pressed="' + (f === "week") + '">本週</button><button data-act="pod-filter" data-f="star" aria-pressed="' + (f === "star") + '">收藏・自訂</button><button data-act="pod-filter" data-f="done" aria-pressed="' + (f === "done") + '">已聽完</button></div>' +
+    '<div class="seg" role="group" aria-label="篩選"><button data-act="pod-filter" data-f="todo" aria-pressed="' + (f === "todo") + '">待聽</button><button data-act="pod-filter" data-f="done" aria-pressed="' + (f === "done") + '">已聽完</button></div>' +
     (today >= 60 ? '<div class="small muted">今天聽了 ' + Math.round(today / 60) + " 分鐘</div>" : "") + "</section>";
   if (!Cloud.voiceOk()) html += '<div class="note warn">聽學要用電腦語音（GPT-SoVITS）唸稿和存音檔。請先到「設定 → 帳號」登入，並請管理員開通電腦語音。</div>';
   if (!list.length){
     html += '<section class="card flat"><p class="muted" style="margin:0">' + (f === "done" ? "還沒有聽完的集數。" :
-      "還沒有集數。按右上「新的一集」，用" + (f === "week" ? "本週單字" : "收藏的單字") + "做一集故事或對話，搬貨、通勤時都能聽。") + "</p></section>";
+      "還沒有要聽的集數。按右上「新的一集」做一集。") + "</p></section>";
     return html;
   }
   list.forEach(p => {
@@ -470,7 +473,6 @@ function renderPod(p){
     });
     html += "</section>";
   });
-  html += '<div class="tiny muted" style="text-align:center;padding:4px 0 8px">點任何一句，就從那裡開始播</div>';
   return html;
 }
 function podDockHTML(){
@@ -490,14 +492,14 @@ function podDockHTML(){
     '<button class="lp-rate ghost" data-act="pod-part" data-d="1" aria-label="下一段">下一段</button></div>' +
     '<div class="tiny muted" id="lp-state" style="text-align:center"></div></div>';
 }
-function speedLabel(v){ v = Number(v) || 1; return v.toFixed(2).replace(/0$/, "") + "×" + (v < 0.95 ? "（慢一點）" : v > 1.05 ? "（快一點）" : "（正常）"); }
+function speedLabel(v){ v = Number(v) || 1; return v.toFixed(2).replace(/0$/, "") + "×"; }
 function podNewHTML(){
   const o = listenOpts(), w = curWeek(), cands = podCandidates(o), words = podWords(o), plan = podPlan(o, words.length);
   const chk = (act, on, label, extra) => '<button class="pod-chk" role="checkbox" aria-checked="' + !!on + '" data-act="' + act + '"' + (extra || "") + '><span class="box" aria-hidden="true">' + (on ? ICON.check : "") + "</span><span>" + label + "</span></button>";
   const count = from => { const c = cands.filter(x => x.from === from); return c.length ? "（" + c.filter(x => x.on).length + "/" + c.length + "）" : "（0）"; };
   let html = '<div class="grab" aria-hidden="true"></div><div class="sh-head"><div class="sh-word phrase" style="flex:1;min-width:0">新的一集</div><button class="icon-btn" data-act="close-sheet" aria-label="關閉">×</button></div>' +
     '<div class="field"><label>類型（可複選）</label><div class="pod-chks">' + Object.keys(POD_TYPE).map(k => chk("pod-type", o.types.includes(k), POD_TYPE[k], ' data-v="' + k + '"')).join("") + "</div>" +
-    (o.types.length > 1 ? '<div class="tiny muted">兩種都勾：故事和對話一段一段輪流，同一個劇情、同一組角色。</div>' : "") + "</div>" +
+    "</div>" +
     '<div class="field"><div class="row between"><label>用哪些單字（可複選）</label><button class="btn ghost sm" data-act="pod-detail">' + (S.podDetail ? "收起" : "詳情") + "</button></div>" +
     '<div class="pod-chks col">' + chk("pod-src", o.srcs.includes("week"), (w ? "第 " + w.n + " 週單字" : "本週單字") + '<span class="muted small">' + count("week") + "</span>", ' data-v="week"') +
     chk("pod-src", o.srcs.includes("star"), "我的收藏" + '<span class="muted small">' + count("star") + "</span>", ' data-v="star"') +
@@ -506,32 +508,30 @@ function podNewHTML(){
     html += '<div class="pod-detail">';
     ["week", "star", "custom"].forEach(from => {
       const list = cands.filter(x => x.from === from), off = !o.srcs.includes(from);
-      html += '<div class="label" style="margin-top:6px">' + (from === "week" && w ? "第 " + w.n + " 週單字" : POD_SRC[from]) + (off ? "（沒勾這個來源，不會用到）" : "") + "</div>";
+      html += '<div class="label" style="margin-top:6px">' + (from === "week" && w ? "第 " + w.n + " 週單字" : POD_SRC[from]) + "</div>";
       if (from === "custom"){
         html += '<div class="row pod-add"><input class="input" id="pod-cw-en" placeholder="英文單字或片語" maxlength="40" autocapitalize="off" spellcheck="false"><input class="input" id="pod-cw-zh" placeholder="中文（可不填）" maxlength="20"><button class="btn sm" data-act="pod-cw-add">新增</button></div>';
       }
-      if (!list.length){ html += '<div class="small muted">' + (from === "star" ? "還沒有收藏的單字。讀文章時點單字、按星號就會收進來。" : from === "week" ? "還沒有本週單字。" : "在上面輸入單字，按「新增」。") + "</div>"; return; }
+      if (!list.length){ if (from !== "custom") html += '<div class="small muted">' + (from === "star" ? "還沒有收藏的單字" : "還沒有本週單字") + "</div>"; return; }
       html += '<div class="' + (off ? "pod-off" : "") + '">' + list.map(x => '<div class="pod-wrow">' + chk("pod-word", x.on, '<span class="w-en">' + esc(x.en) + '</span><span class="w-ipa">' + esc(x.ipa || "") + '</span><span class="w-zh">' + esc(x.zh || (from === "custom" ? "（AI 會補上中文）" : "")) + "</span>" +
-        (from === "star" ? '<span class="tiny muted">聽過 ' + heardCount(x.en) + " 次</span>" : ""), ' data-key="' + esc(x.key) + '"') +
+        "", ' data-key="' + esc(x.key) + '"') +
         (from === "custom" ? '<button class="icon-btn" data-act="pod-cw-del" data-key="' + esc(x.key) + '" aria-label="移除">×</button>' : "") + "</div>").join("") + "</div>";
     });
     html += "</div>";
   }
-  html += '<div class="row wrap" style="gap:6px">' + (words.length ? words.map(x => '<span class="chip word">' + esc(x.en) + "</span>").join("") : '<span class="small muted">還沒有勾選任何單字</span>') + "</div>" +
-    '<div class="tiny muted">共 ' + words.length + " 個單字" + (words.length >= MAX_WORDS ? "（一集最多 " + MAX_WORDS + " 個）" : "") + "</div></div>" +
+  html += "</div>" +
     '<div class="field"><div class="row between"><label for="pod-mins">長度</label><b id="pod-mins-v">' + plan.mins + ' 分鐘</b></div>' +
     '<input type="range" id="pod-mins" min="5" max="30" step="1" value="' + plan.mins + '" aria-label="一集的長度（分鐘）">' +
-    '<div class="tiny muted" id="pod-plan">' + planText(plan, words.length) + "</div></div>" +
+    "</div>" +
     '<div class="field"><label>語言規則</label><div class="seg" role="group">' + Object.keys(POD_ZH).map(k => '<button data-act="pod-opt" data-k="zh" data-v="' + k + '" aria-pressed="' + (o.zh === k) + '">' + POD_ZH[k] + "</button>").join("") + "</div>" +
-    '<div class="tiny muted" style="margin-top:6px">' + POD_ZH_HINT[o.zh] + "</div></div>" +
+    "</div>" +
     '<div class="field"><div class="row between"><label for="pod-speed">英文語速</label><b id="pod-speed-v">' + speedLabel(o.speed) + "</b></div>" +
     '<input type="range" id="pod-speed" min="0.7" max="1.3" step="0.05" value="' + (Number(o.speed) || 1) + '" aria-label="英文語速">' +
-    '<div class="tiny muted">唸的時候就用這個速度（中文不變）。聽的時候還可以在播放器再調快慢。</div></div>' +
+    "</div>" +
     '<div class="pod-chks col">' + chk("pod-flag", o.follow, "例句後停 2 秒，讓我跟著說", ' data-k="follow"') +
-    chk("pod-flag", o.spell, "拼出單字（例：make → M, A, K, E → make）", ' data-k="spell"') + "</div>" +
+    chk("pod-flag", o.spell, "拼出單字", ' data-k="spell"') + "</div>" +
     (S.err.pod ? '<div class="err">' + esc(S.err.pod) + "</div>" : "") +
-    '<button class="btn block" data-act="pod-make"' + (S.busy.pod ? " disabled" : "") + ">" + (S.busy.pod ? '<span class="spinner"></span>寫稿中…' : "生成") + "</button>" +
-    '<div class="tiny muted">AI 寫好稿子後，電腦會用 GPT-SoVITS 唸成一整集，做好就能聽。音檔存在電腦，播放時才載入。實際長度會跟設定差一點。</div>';
+    '<button class="btn block" data-act="pod-make"' + (S.busy.pod ? " disabled" : "") + ">" + (S.busy.pod ? '<span class="spinner"></span>寫稿中…' : "生成") + "</button>";
   return html;
 }
 function planText(plan, n){
