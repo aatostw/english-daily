@@ -70,10 +70,11 @@ function podPlan(o, n){
   const mins = Math.max(3, Math.min(30, Number(o.mins) || 12)), sp = Number(o.speed) || 1;
   let parts = Math.max(1, Math.min(8, Math.round(mins / 4)));
   if (n) parts = Math.min(parts, n);
-  const perWord = (5 + (o.spell ? 6 : 0) + 4.5 + (o.zh === "more" ? 8 : o.zh === "less" ? 3.5 : 6) + 3) / sp + 3.1 + (o.follow ? 2.6 : 0.9);
-  const perPart = (o.zh !== "none" ? 9 : 0) + 6;
-  const review = n * perWord, story = mins * 60 - review - parts * perPart - 6;
-  const enWords = Math.round(Math.max(60, Math.min(500, story / parts * 2.4 * sp)) / 10) * 10;
+  /* 秒數是用電腦實際唸出來的一集量的（英文每秒約 3.2 個字，加上每句之間的停頓） */
+  const perWord = (1.6 + (o.spell ? 4.3 : 0) + 2.2 + 2.1) / sp + (o.zh === "more" ? 5 : o.zh === "less" ? 2.3 : 3 / sp) + 2 + (o.spell ? 1.2 : 0) + (o.follow ? 2.6 : 0.9);
+  const perPart = o.zh !== "none" ? 9.5 : 5;
+  const review = n * perWord, story = mins * 60 - review - parts * perPart - 4;
+  const enWords = Math.round(Math.max(40, Math.min(700, story / parts * 2.6 * sp)) / 10) * 10;
   return {mins, parts, enWords, reviewMin:Math.round(review / 60 * 10) / 10, short:story / parts < 30};
 }
 
@@ -93,9 +94,10 @@ function podPrompt(o, groups, prev, plan){
     prev ? "This continues earlier episodes. Keep the same characters and continue the story from here: " + prev : "",
     P ? "Sentence patterns of the week; use each one naturally a few times: A: " + P.A.en + " (" + P.A.zh + "); B: " + P.B.en + " (" + P.B.zh + ")" : "",
     "",
-    "The episode has " + groups.length + " parts. Split the English into lines of one or two sentences.",
+    "The episode has " + groups.length + " parts and must last about " + plan.mins + " minutes when read aloud, so the LENGTH of each part matters: write the full number of English words given for each part (count them). If a part feels finished too early, add more scenes, details and events; never pad with repeated sentences.",
+    "Split the English into lines of one or two sentences (about 9 words per line).",
     "Target words for each part (use every word of a part at least twice inside that part, inflected forms are fine; they may appear again later):",
-    groups.map((g, i) => "Part " + (i + 1) + " (" + (typeOf(i) === "story" ? "story" : "dialogue") + ", about " + plan.enWords + " English words): " + g.map(x => x.en + (x.zh ? " (" + x.zh + ")" : "")).join("; ")).join("\n"),
+    groups.map((g, i) => "Part " + (i + 1) + " (" + (typeOf(i) === "story" ? "story" : "dialogue") + ", about " + plan.enWords + " English words = about " + Math.max(4, Math.round(plan.enWords / 9)) + " lines): " + g.map(x => x.en + (x.zh ? " (" + x.zh + ")" : "")).join("; ")).join("\n"),
     "",
     "Spoken English only: it will be read aloud by a voice engine. No markup, no emoji, no lists, no stage directions, no parentheses. Write numbers as words.",
     "",
