@@ -14,6 +14,9 @@ async function loadAll(){
   S.arts = {}; arts.forEach(a => { delete a._id; S.arts[artId(a)] = a; });
   S.convs = {}; convs.forEach(c => { delete c._id; S.convs[c.week] = c; });
   S.bank = {}; words.forEach(x => { const id = x._id.replace(/^word-/, ""); delete x._id; S.bank[id] = x; });
+  S.pods = {}; (await Store.list("pod")).forEach(x => { const id = x._id; delete x._id; S.pods[id] = x; });
+  /* 寫稿寫到一半就關掉 App 的集數：稿子沒存到，標成失敗 */
+  Object.values(S.pods).forEach(x => { if (x.state === "write"){ x.state = "error"; x.err = "上次寫稿時 App 被關掉了，請刪掉再做一集。"; } });
   S.log = (await Store.get("log")) || {kind:"log", days:{}};
   S.city = Object.assign(newCity(), (await Store.get("city")) || {});
   if (S.city.knowledge == null){
@@ -40,7 +43,7 @@ async function boot(){
     const sp = document.querySelector(".top .spacer"); if (sp) sp.before(t);
   }
   const v = location.hash.slice(1);
-  if (["learn","home","city","talk","words","prefs"].includes(v)) S.view = v;
+  if (["learn","home","city","talk","words","listen","prefs"].includes(v)) S.view = v;
   S.canStore = lsOk();
   /* logged in: get what other devices saved before showing anything (gives up after 4 seconds) */
   if (Cloud.on()){
@@ -50,6 +53,7 @@ async function boot(){
   try { await loadAll(); } catch (e) {}
   render();
   Cloud.refreshMe();
+  pollPods();   /* 聽學：電腦還在做的集數 */
 }
 boot();
 setTimeout(() => { TTS.warmSeq = TTS.seq; TTS.pocketWarm(); }, 800);

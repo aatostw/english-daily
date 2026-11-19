@@ -22,9 +22,9 @@ function render(){
   }
   dock.className = "dock";
   tabs.hidden = false;
-  const tabView = S.view === "talk" ? (S.talkFrom || "home") : S.view;
+  const tabView = S.view === "talk" ? (S.talkFrom || "home") : S.view === "listen" ? "words" : S.view;
   tabs.querySelectorAll(".tab").forEach(t => t.setAttribute("aria-current", t.dataset.v === tabView ? "page" : "false"));
-  const fn = {learn:renderLearn, home:renderHome, city:renderCity, talk:renderTalk, words:renderWords, prefs:renderPrefs}[S.view] || renderHome;
+  const fn = {learn:renderLearn, home:renderHome, city:renderCity, talk:renderTalk, words:renderWords, listen:renderListen, prefs:renderPrefs}[S.view] || renderHome;
   const keepScroll = render.lastView === S.view ? main.scrollTop : 0;
   const cc = $("#cc-body"), ccKeep = cc ? cc.scrollTop : 0;
   main.classList.toggle("flush", S.view === "city");
@@ -39,6 +39,7 @@ function render(){
   render.lastView = S.view;
   const dh = dockHTML(); dock.innerHTML = dh; dock.hidden = !dh;
   wheelInit();
+  if (S.view === "listen") LP.tick();
   if (S.view === "city") City3D.mount();
   if (S.view === "talk" && S.talk.scrollDown){ S.talk.scrollDown = false; main.scrollTop = main.scrollHeight; }
 }

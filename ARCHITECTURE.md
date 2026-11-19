@@ -20,6 +20,8 @@
 | `reference-voice.wav` | 朗讀用的參考音檔（3～10 秒） |
 | `access-key.txt` | 語音伺服器密碼（= Cloudflare 的 `VOICE_KEY`） |
 | `logs\` | `gpt-sovits-api.log`、`tunnel.log`、`self-test.wav` |
+| `listen\` | 聽學的每一集（`<id>\episode.m4a`、`times.json` 每行的時間、`script.json`）；App 刪掉的會搬到 `listen\_removed\` |
+| `voice-b.wav` | 聽學對話第二個角色的參考音檔（預設：LJSpeech，公共領域） |
 | `english-daily\` | 這個 repo 的備份（網站實際用的是 GitHub 上的版本） |
 | `archive\` | 舊版檔案 |
 
@@ -51,6 +53,7 @@
 | `js/rewards.js` | 學習紀錄、金幣、知識、學習歷程的資料（`logResult`、`logScore`） |
 | `js/progress.js` | 學習歷程（時間軸、趨勢、掌握度、預估）和月考 |
 | `js/actions.js` | `ACT`：所有 `data-act` 按鈕的動作，和事件監聽 |
+| `js/listen.js` | 聽學（收藏頁右上「聽學」）：用本週單字／收藏單字請 AI 寫一集故事或對話（`podPrompt`）→ 編成一行一行的稿子（`compilePod`）→ 送到電腦 `/voice/listen/new` 唸成一整集 → 播放時從電腦串流（`LP` 播放器、逐字稿亮行、鎖定畫面控制）。集數存成 `pod-…`（`kind:"pod"`），聽過的單字記在 `S.log.m.h` |
 | `js/boot.js` | 啟動：同步 → 載入資料 → 畫面 |
 | `css/app.css` | 全部樣式 |
 | `sw.js` | 離線快取、跨來源隔離標頭（Pocket TTS 需要） |
@@ -78,4 +81,6 @@
 排程：每天 22:00 UTC（台灣 06:00）產生當天新聞。
 
 主要路徑：`/login` `/me` `/password` `/forgot` `/sync` `/news` `/ai/models/...` `/voice/...` `/admin/...`。
+
+`/voice/...` 轉接到電腦：`/ping` `/tts` `/asr`，和聽學的 `/listen/new`（POST 稿子）`/listen/status` `/listen/audio`（轉送 Range，可以拖進度條）`/listen/remove`。
 資料表會在第一次呼叫時自動建立。

@@ -174,7 +174,7 @@ async function reloadFromStore(){
   KEYS = (() => { try { return JSON.parse(localStorage.getItem(KEYS_ID) || "{}") || {}; } catch (e) { return {}; } })();
   let p = null; try { p = await Store.get("profile"); } catch (e) {}
   if (!p){
-    S.profile = null; S.weeks = {}; S.arts = {}; S.news = {}; S.convs = {}; S.chats = {}; S.bank = {}; S.city = null; S.log = {kind:"log", days:{}}; S.wallet = newWallet(); S.onb = {step:0, stage:0}; S.pick = null;
+    S.profile = null; S.weeks = {}; S.arts = {}; S.news = {}; S.convs = {}; S.chats = {}; S.bank = {}; S.pods = {}; S.city = null; S.log = {kind:"log", days:{}}; S.wallet = newWallet(); S.onb = {step:0, stage:0}; S.pick = null;
   } else {
     try { await loadAll(); } catch (e) {}
   }

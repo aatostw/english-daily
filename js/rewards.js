@@ -106,7 +106,7 @@ function logScore(field, value){
 }
 function streakDays(){
   const days = (S.log && S.log.days) || {};
-  const active = d => { const x = days[d]; return !!x && (x.read || x.practice || x.talk); };
+  const active = d => { const x = days[d]; return !!x && (x.read || x.practice || x.talk || (x.listen || 0) >= 120); };
   let d = todayStr();
   if (!active(d)) d = addDays(d, -1);
   let n = 0;

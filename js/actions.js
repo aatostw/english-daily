@@ -410,5 +410,5 @@ document.addEventListener("keydown", e => {
 });
 window.addEventListener("hashchange", () => {
   const v = location.hash.slice(1);
-  if (S.profile && ["learn","home","city","talk","words","prefs"].includes(v) && v !== S.view){ if (S.reader) closeReader(); S.view = v; render(); }
+  if (S.profile && ["learn","home","city","talk","words","listen","prefs"].includes(v) && v !== S.view){ if (S.reader) closeReader(); S.view = v; render(); }
 });

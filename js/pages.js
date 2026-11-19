@@ -321,6 +321,7 @@ function talkBodyInner(){
 }
 
 function dockHTML(){
+  if (S.profile && S.view === "listen") return podDockHTML();
   if (!S.profile || !(S.view === "talk" || (S.view === "city" && S.cityChat))) return "";
   const conv = curChat().conv;
   if (!conv || conv.done) return "";
@@ -338,7 +339,8 @@ function renderWords(){
   const starred = Object.values(S.bank).sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
   const weeks = Object.values(S.weeks).sort((a, b) => b.n - a.n);
   const total = weeks.reduce((s, w) => s + w.words.length, 0);
-  let html = '<section class="card"><div class="row between"><div><div class="label">單字庫</div><b>' + total + " 個本週單字 · " + starred.length + ' 個收藏</b></div></div>' +
+  let html = '<section class="card"><div class="row between"><div><div class="label">單字庫</div><b>' + total + " 個本週單字 · " + starred.length + ' 個收藏</b></div>' +
+    '<button class="btn soft sm listen-btn" data-act="listen-open" aria-label="聽學：用單字做成的 Podcast">' + ICON.headphones.replace("<svg", '<svg width="18" height="18"') + "聽學</button></div>" +
     '<div class="seg" role="group" aria-label="篩選"><button data-act="word-filter" data-f="all" aria-pressed="' + (f === "all") + '">每週單字</button><button data-act="word-filter" data-f="star" aria-pressed="' + (f === "star") + '">我的收藏</button></div></section>';
   const row = (x, data) => '<button class="word-row" ' + data + '><span class="w-main"><span class="w-en">' + (data.includes("week-word") ? '<i class="m-dot ' + mastery("w", x.en) + '" title="' + MASTERY[mastery("w", x.en)] + '"></i>' : "") + esc(x.en || x.lemma || x.word) + '</span><span class="w-ipa">' + esc(x.ipa || "") + '</span><div class="w-zh">' + esc(x.zh || "") + "</div></span>" + (S.bank[slug(x.en || x.lemma || x.word)] ? '<span class="star" aria-label="已收藏">' + ICON.starOn.replace("<svg", '<svg width="18" height="18"') + "</span>" : "") + '<span class="icon-btn" data-act="say" data-text="' + esc(x.en || x.lemma || x.word) + '" role="button" aria-label="朗讀">' + ICON.speaker + "</span></button>";
   if (f === "star"){

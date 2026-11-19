@@ -179,18 +179,21 @@ async function voice(req, env, path){
   const inUrl = new URL(req.url), q = new URLSearchParams(inUrl.search);
   q.set("k", key);
   const sub = path.slice("/voice".length) || "/ping";
-  if (!["/ping", "/tts", "/asr"].includes(sub)) return json(req, 404, {ok:false, error:"沒有這個功能"});
+  /* 聽學 (podcast episodes): /listen/new and /listen/remove (POST), /listen/status, /listen/audio (streamed, seekable) */
+  if (!["/ping", "/tts", "/asr", "/listen/new", "/listen/status", "/listen/audio", "/listen/remove"].includes(sub)) return json(req, 404, {ok:false, error:"沒有這個功能"});
+  const post = req.method === "POST", fwd = {};
+  if (post) fwd["Content-Type"] = req.headers.get("Content-Type") || "application/octet-stream";
+  const range = req.headers.get("Range"); if (range) fwd.Range = range;
   let r;
   try {
-    r = await fetch(base + sub + "?" + q.toString(), {method:req.method === "POST" ? "POST" : "GET",
-      headers:req.method === "POST" ? {"Content-Type":req.headers.get("Content-Type") || "application/octet-stream"} : {},
-      body:req.method === "POST" ? await req.arrayBuffer() : undefined});
+    r = await fetch(base + sub + "?" + q.toString(), {method:post ? "POST" : "GET", headers:fwd,
+      body:post ? await req.arrayBuffer() : undefined});
   } catch (e) { return json(req, 502, {ok:false, error:"連不到電腦", offline:true}); }
   if (r.status >= 520) return json(req, 502, {ok:false, error:"連不到電腦", offline:true});
   const h = new Headers(cors(req));
-  ["Content-Type", "Content-Length"].forEach(n => { const v = r.headers.get(n); if (v) h.set(n, v); });
+  ["Content-Type", "Content-Length", "Content-Range", "Accept-Ranges"].forEach(n => { const v = r.headers.get(n); if (v) h.set(n, v); });
   h.set("Cross-Origin-Resource-Policy", "cross-origin");
-  h.set("Cache-Control", sub === "/tts" ? "private, max-age=86400" : "no-store");
+  h.set("Cache-Control", sub === "/tts" ? "private, max-age=86400" : sub === "/listen/audio" ? "private, max-age=604800" : "no-store");
   return new Response(r.body, {status:r.status, headers:h});
 }
 

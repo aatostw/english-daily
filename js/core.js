@@ -3,7 +3,7 @@
    ========================================================= */
 const S = {
   canStore:false, sample:null,
-  profile:null, weeks:{}, arts:{}, convs:{}, bank:{}, news:{},
+  profile:null, weeks:{}, arts:{}, convs:{}, bank:{}, news:{}, pods:{},
   ctx:{}, view:"home", onb:{step:0, stage:0}, pick:null, chats:{}, chatDay:null, prefPage:null,
   busy:{}, err:{}, reader:null, sheet:null, talk:{}, wordFilter:"all", test:{}, provTest:{}, provEdit:"gemini", customTask:{}
 };
